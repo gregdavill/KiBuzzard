@@ -1,0 +1,1 @@
+from .KiBuzzard import plugin
