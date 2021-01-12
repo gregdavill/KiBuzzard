@@ -1,0 +1,4 @@
+[submodule "deps/buzzard"]
+	path = deps/buzzard
+	url = https://github.com/gregdavill/Buzzard.git
+	branch = kicad

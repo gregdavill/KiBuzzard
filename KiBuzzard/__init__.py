@@ -48,6 +48,7 @@ def check_for_bom_button():
 
 class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     config_file = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
+    buzzard_path = os.path.join(os.path.dirname(__file__), '..', 'deps', 'buzzard')
 
     def __init__(self):
         super(KiBuzzardPlugin, self).__init__()
@@ -85,6 +86,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     def Run(self):
         board = pcbnew.GetBoard()
         pcb_file_name = board.GetFileName()
+
+        buzzard_script = os.path.join(self.buzzard_path, 'buzzard.py')
+        buzzard_output = os.path.join(self.buzzard_path, 'output.scr')
+
         
         _pcbnew_frame = [x for x in wx.GetTopLevelWindows() if 'pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()][0]
         dlg = Dialog(_pcbnew_frame, self.last_str)
@@ -92,9 +97,9 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             if dlg.ShowModal() == wx.ID_OK:
                 import re
                 args = [a.strip('"') for a in re.findall('".+?"|\S+', dlg.GetValue())]
-                subprocess.run(['python', '/home/greg/Projects/sparkfunx/Buzzard/buzzard.py', *args])
+                subprocess.run(['python', buzzard_script, *args])
 
-                txt = open('/home/greg/Projects/sparkfunx/Buzzard/output.scr').read()
+                txt = open(buzzard_output).read()
 
                 pcb_io = pcbnew.PCB_IO()
                 footprint = pcbnew.Cast_to_FOOTPRINT(pcb_io.Parse(txt))
