@@ -7,8 +7,10 @@ import wx
 from . import dialog_base
 
 class Dialog(dialog_base.KiBuzzardDialog):
-    def __init__(self):
-        dialog_base.KiBuzzardDialog.__init__(self, None)
+    def __init__(self, parent, last_str):
+        dialog_base.KiBuzzardDialog.__init__(self, parent)
+        self.SetSize( 320,95 )
+        self.m_textCtrl4.SetValue(last_str)
 
     def OnTextEnter(self, event):
         self.EndModal(wx.ID_OK)

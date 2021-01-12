@@ -6,11 +6,10 @@ import time
 
 import wx
 import wx.aui
+from wx import FileConfig
 
 import pcbnew
 from .dialog.dialog import Dialog
-
-import pyperclip
 
 def check_for_bom_button():
     # From Miles McCoo's blog
@@ -48,53 +47,68 @@ def check_for_bom_button():
             top_tb.Realize()
 
 class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
+    config_file = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
 
     def __init__(self):
         super(KiBuzzardPlugin, self).__init__()
         self.name = "Create Labels"
-        self.category = "Read PCB"
+        self.category = "Modify PCB"
         self.pcbnew_icon_support = hasattr(self, "show_toolbar_button")
         self.show_toolbar_button = True
         icon_dir = os.path.dirname(os.path.dirname(__file__))
         self.icon_file_name = os.path.join(icon_dir, 'icon.png')
         self.description = "Create Labels"
 
+        self.last_str = ""
+        self.load_from_ini()
+
+
     def defaults(self):
         pass
+
+    def load_from_ini(self):
+        """Init from config file if it exists."""
+        if not os.path.isfile(self.config_file):
+            return
+        f = FileConfig(localFilename=self.config_file)
+        f.SetPath('/general')
+        self.output_dest_dir = f.Read('last_str', self.last_str)
+
+
+    def save(self):
+        f = FileConfig(localFilename=self.config_file)
+        f.SetPath('/general')
+        f.Write('last_str', self.last_str)
+        f.Flush()
+
 
     def Run(self):
         board = pcbnew.GetBoard()
         pcb_file_name = board.GetFileName()
         
-        dlg = Dialog()
+        _pcbnew_frame = [x for x in wx.GetTopLevelWindows() if 'pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()][0]
+        dlg = Dialog(_pcbnew_frame, self.last_str)
         try:
             if dlg.ShowModal() == wx.ID_OK:
-                #print(dlg.GetValue())
-                arg = dlg.GetValue()
-
-                subprocess.run(['python', '/home/greg/Projects/sparkfunx/Buzzard/buzzard.py', arg])
+                import re
+                args = [a.strip('"') for a in re.findall('".+?"|\S+', dlg.GetValue())]
+                subprocess.run(['python', '/home/greg/Projects/sparkfunx/Buzzard/buzzard.py', *args])
 
                 txt = open('/home/greg/Projects/sparkfunx/Buzzard/output.scr').read()
 
                 pcb_io = pcbnew.PCB_IO()
                 footprint = pcbnew.Cast_to_FOOTPRINT(pcb_io.Parse(txt))
 
-
-                footprint.SetParent(board)
+                footprint.SetPosition(pcbnew.wxPoint(pcbnew.FromMM(170),pcbnew.FromMM(115)))
                 board.Add(footprint)
-                footprint.SetPosition(pcbnew.wxPoint(0,0))
-                #footprint.SetNeedsPlaced(True)
-                #pcbnew.Refresh()
-                wx.CallAfter(pcbnew.Refresh)
-                #pyperclip.copy_gtk(txt)
-
-                #subprocess.run(['xclip', '-sel', 'clip', '/home/greg/Projects/sparkfunx/Buzzard/output.scr'])
+                pcbnew.Refresh()
                 
 
-
-                ...
+                self.last_str = dlg.GetValue()
+                self.save()
         finally:
             dlg.Destroy()
+            
             
 
 plugin = KiBuzzardPlugin()
