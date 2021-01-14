@@ -8,6 +8,8 @@ import wx
 import wx.aui
 from wx import FileConfig
 
+import pyperclip
+
 import pcbnew
 from .dialog.dialog import Dialog
 
@@ -84,35 +86,40 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
 
     def Run(self):
-        board = pcbnew.GetBoard()
-        pcb_file_name = board.GetFileName()
-
         buzzard_script = os.path.join(self.buzzard_path, 'buzzard.py')
         buzzard_output = os.path.join(self.buzzard_path, 'output.scr')
 
         
+        def run_buzzard(str):
+            import re
+
+            self.last_str = str
+
+            str = str + ' -o ki -stdout'
+            args = [a.strip('"') for a in re.findall('".+?"|\S+', str)]
+
+            # Execute Buzzard
+            process = subprocess.Popen(['python', buzzard_script, *args], stdout=subprocess.PIPE)
+            stdout = process.communicate()[0]
+            
+            # Copy footprint into clipboard
+            process = subprocess.Popen(['xclip', '-sel', 'clip', '-noutf8'], stdin=subprocess.PIPE)
+            process.communicate(stdout)
+
+            #pcbnew.Paste()                
+
+#            self.last_str = dlg.GetValue()
+            self.save()
+
         _pcbnew_frame = [x for x in wx.GetTopLevelWindows() if 'pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()][0]
-        dlg = Dialog(_pcbnew_frame, self.last_str)
-        try:
-            if dlg.ShowModal() == wx.ID_OK:
-                import re
-                args = [a.strip('"') for a in re.findall('".+?"|\S+', dlg.GetValue())]
-                subprocess.run(['python', buzzard_script, *args])
-
-                txt = open(buzzard_output).read()
-
-                pcb_io = pcbnew.PCB_IO()
-                footprint = pcbnew.Cast_to_FOOTPRINT(pcb_io.Parse(txt))
-
-                footprint.SetPosition(pcbnew.wxPoint(pcbnew.FromMM(170),pcbnew.FromMM(115)))
-                board.Add(footprint)
-                pcbnew.Refresh()
-                
-
-                self.last_str = dlg.GetValue()
-                self.save()
-        finally:
-            dlg.Destroy()
+        dlg = Dialog(_pcbnew_frame, self.last_str, run_buzzard)
+        dlg.Show()
+        #
+       # try:
+       #     if dlg.Show() == wx.ID_OK:
+       #        
+       # finally:
+       #     dlg.Destroy()
             
             
 

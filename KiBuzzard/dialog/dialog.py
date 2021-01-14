@@ -7,13 +7,16 @@ import wx
 from . import dialog_base
 
 class Dialog(dialog_base.KiBuzzardDialog):
-    def __init__(self, parent, last_str):
+    def __init__(self, parent, last_str, func):
         dialog_base.KiBuzzardDialog.__init__(self, parent)
-        self.SetSize( 320,95 )
+        self.SetSize( 320,135 )
         self.m_textCtrl4.SetValue(last_str)
+        self.func = func
 
     def OnTextEnter(self, event):
-        self.EndModal(wx.ID_OK)
+        self.func(self.m_textCtrl4.GetValue())
+        #self.EndModal(wx.ID_OK)
 
     def GetValue(self):
         return self.m_textCtrl4.GetValue()
+        
