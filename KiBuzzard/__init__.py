@@ -61,9 +61,9 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         icon_dir = os.path.dirname(os.path.dirname(__file__))
         self.icon_file_name = os.path.join(icon_dir, 'icon.png')
         self.description = "Create Labels"
-
         self.last_str = ""
         self.load_from_ini()
+        self._pcbnew_frame = None
 
 
     def defaults(self):
@@ -75,7 +75,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             return
         f = FileConfig(localFilename=self.config_file)
         f.SetPath('/general')
-        self.output_dest_dir = f.Read('last_str', self.last_str)
+        self.last_str = f.Read('last_str', self.last_str)
 
 
     def save(self):
@@ -87,7 +87,9 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
     def Run(self):
         buzzard_script = os.path.join(self.buzzard_path, 'buzzard.py')
-        buzzard_output = os.path.join(self.buzzard_path, 'output.scr')
+
+        if self._pcbnew_frame is None:
+            self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if 'pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()][0]
 
         
         def run_buzzard(str):
@@ -99,32 +101,43 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             args = [a.strip('"') for a in re.findall('".+?"|\S+', str)]
 
             # Execute Buzzard
-            process = subprocess.Popen(['python', buzzard_script, *args], stdout=subprocess.PIPE)
-            stdout = process.communicate()[0]
-            
-            # Copy footprint into clipboard
-            process = subprocess.Popen(['xclip', '-sel', 'clip', '-noutf8'], stdin=subprocess.PIPE)
-            process.communicate(stdout)
+            process = subprocess.Popen(['python', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
 
-            #pcbnew.Paste()                
+            # check for errors
+            error_line = [s for s in stderr.decode('utf8').split('\n') if 'error' in s]
+            if len(error_line) > 0:
+                wx.MessageBox(error_line[0], 'Error', wx.OK | wx.ICON_ERROR)
 
-#            self.last_str = dlg.GetValue()
-            self.save()
+            else:        
+                # Copy footprint into clipboard
+                process = subprocess.Popen(['xclip', '-sel', 'clip', '-noutf8'], stdin=subprocess.PIPE)
+                process.communicate(stdout)
 
-        _pcbnew_frame = [x for x in wx.GetTopLevelWindows() if 'pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()][0]
-        dlg = Dialog(_pcbnew_frame, self.last_str, run_buzzard)
-        dlg.Show()
-        #
-       # try:
-       #     if dlg.Show() == wx.ID_OK:
-       #        
-       # finally:
-       #     dlg.Destroy()
-            
-            
+                # Save copy of string
+                self.save()
+
+                dlg.EndModal(wx.ID_OK)
+
+                 
+
+        
+        dlg = Dialog(self._pcbnew_frame, self.last_str, run_buzzard)
+        try:
+            if dlg.ShowModal() == wx.ID_OK:
+                # Set focus to main window and execute a Paste operation
+                self._pcbnew_frame.Raise()
+                wx.Yield()
+                keyinput = wx.UIActionSimulator()
+                keyinput.Char(ord("V"), wx.MOD_CONTROL)    
+        finally:
+            dlg.Destroy()
+
+
 
 plugin = KiBuzzardPlugin()
 plugin.register()
+
 
 # Add a button the hacky way if plugin button is not supported
 # in pcbnew, unless this is linux.

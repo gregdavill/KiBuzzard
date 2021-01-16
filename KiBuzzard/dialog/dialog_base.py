@@ -17,7 +17,7 @@ import wx.xrc
 class KiBuzzardDialog ( wx.Dialog ):
 
     def __init__( self, parent ):
-        wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"KiBuzzard", pos = wx.DefaultPosition, size = wx.Size( 309,115 ), style = wx.DEFAULT_DIALOG_STYLE )
+        wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"KiBuzzard", pos = wx.DefaultPosition, size = wx.Size( 309,98 ), style = wx.DEFAULT_DIALOG_STYLE )
 
         self.SetSizeHints( wx.DefaultSize, wx.DefaultSize )
 
@@ -38,7 +38,7 @@ class KiBuzzardDialog ( wx.Dialog ):
 
         bSizer3 = wx.BoxSizer( wx.VERTICAL )
 
-        self.m_staticText2 = wx.StaticText( self, wx.ID_ANY, u"Press Enter to Create Label\nPlace on board with Ctrl + V", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText2 = wx.StaticText( self, wx.ID_ANY, u"Press Enter to Create Label", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText2.Wrap( -1 )
 
         bSizer3.Add( self.m_staticText2, 1, wx.ALIGN_CENTER|wx.ALL, 5 )

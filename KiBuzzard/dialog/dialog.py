@@ -9,7 +9,11 @@ from . import dialog_base
 class Dialog(dialog_base.KiBuzzardDialog):
     def __init__(self, parent, last_str, func):
         dialog_base.KiBuzzardDialog.__init__(self, parent)
-        self.SetSize( 320,135 )
+
+        best_size = self.BestSize
+        # hack for some gtk themes that incorrectly calculate best size
+        best_size.IncBy(dx=0, dy=30)
+        self.SetClientSize(best_size)
         self.m_textCtrl4.SetValue(last_str)
         self.func = func
 
