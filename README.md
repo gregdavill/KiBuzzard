@@ -7,7 +7,7 @@ This plugin lets you easily create nice "Inverted" block text boxes.
 Ensure you pull down the submodule with KiBuzzard
 ```console
 $ git clone https://github.com/gregdavill/KiBuzzard --recursive
-$ pip3 install -r deps/buzzard/requirements.txt --user
+$ pip3 install -r requirements.txt --user
 ```
 Install in your KiCad scripting directory
 
