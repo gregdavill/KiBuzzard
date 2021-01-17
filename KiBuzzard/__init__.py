@@ -11,7 +11,7 @@ from wx import FileConfig
 #import pyperclip
 
 import pcbnew
-from .dialog.dialog import Dialog
+from dialog import Dialog
 
 def check_for_bom_button():
     # From Miles McCoo's blog
@@ -101,8 +101,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             args = [a.strip('"') for a in re.findall('".+?"|\S+', str)]
 
             # Execute Buzzard
-            process = subprocess.Popen(['python', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            process = subprocess.Popen(['C:\\Python38\\python.exe', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = process.communicate()
+            if stderr:
+                wx.MessageBox(stderr, 'Error', wx.OK | wx.ICON_ERROR)
 
             # check for errors
             error_line = [s for s in stderr.decode('utf8').split('\n') if 'error' in s]
@@ -111,7 +113,12 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
             else:        
                 # Copy footprint into clipboard
-                process = subprocess.Popen(['xclip', '-sel', 'clip', '-noutf8'], stdin=subprocess.PIPE)
+                if sys.platform.startswith('linux'):
+                    clip_args = ['xclip', '-sel', 'clip', '-noutf8']
+                else:
+                    clip_args = ['clip.exe']
+
+                process = subprocess.Popen(clip_args, stdin=subprocess.PIPE)
                 process.communicate(stdout)
 
                 # Save copy of string

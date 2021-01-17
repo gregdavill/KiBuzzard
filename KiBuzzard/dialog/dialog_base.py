@@ -19,7 +19,7 @@ class KiBuzzardDialog ( wx.Dialog ):
     def __init__( self, parent ):
         wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"KiBuzzard", pos = wx.DefaultPosition, size = wx.Size( 309,98 ), style = wx.DEFAULT_DIALOG_STYLE )
 
-        self.SetSizeHints( wx.DefaultSize, wx.DefaultSize )
+        self.SetSizeHints( wx.DefaultSize[0], wx.DefaultSize[1] )
 
         bSizer28 = wx.BoxSizer( wx.VERTICAL )
 
