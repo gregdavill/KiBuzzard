@@ -8,12 +8,18 @@ This plugin lets you easily create nice "Inverted" block text boxes.
 ![screenshot](doc/KiBuzzard_screenshot.png)
 
 ## Installation
+Install the script in your KiCad scripting directory
 Ensure you also get the submodules with KiBuzzard
 ```console
 $ git clone https://github.com/gregdavill/KiBuzzard --recursive
 $ pip3 install -r requirements.txt --user
 ```
-Install in your KiCad scripting directory
+
+You may also need to install xclip, to handle clipboard operations. 
+On Ubuntu:
+```console
+$ sudo apt install xclip
+```
 
 ## Licence and credits
 
