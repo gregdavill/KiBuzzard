@@ -8,7 +8,7 @@ import wx
 import wx.aui
 from wx import FileConfig
 
-import pyperclip
+#import pyperclip
 
 import pcbnew
 from .dialog.dialog import Dialog
