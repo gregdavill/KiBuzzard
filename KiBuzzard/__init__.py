@@ -8,8 +8,6 @@ import wx
 import wx.aui
 from wx import FileConfig
 
-#import pyperclip
-
 import pcbnew
 from dialog import Dialog
 
@@ -61,29 +59,12 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         icon_dir = os.path.dirname(os.path.dirname(__file__))
         self.icon_file_name = os.path.join(icon_dir, 'icon.png')
         self.description = "Create Labels"
-        self.last_str = ""
-        self.load_from_ini()
+        self.config = FileConfig(localFilename=self.config_file)
         self._pcbnew_frame = None
 
 
     def defaults(self):
         pass
-
-    def load_from_ini(self):
-        """Init from config file if it exists."""
-        if not os.path.isfile(self.config_file):
-            return
-        f = FileConfig(localFilename=self.config_file)
-        f.SetPath('/general')
-        self.last_str = f.Read('last_str', self.last_str)
-
-
-    def save(self):
-        f = FileConfig(localFilename=self.config_file)
-        f.SetPath('/general')
-        f.Write('last_str', self.last_str)
-        f.Flush()
-
 
     def Run(self):
         buzzard_script = os.path.join(self.buzzard_path, 'buzzard.py')
@@ -91,17 +72,18 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         if self._pcbnew_frame is None:
             self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if 'pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()][0]
 
-        
         def run_buzzard(str):
             import re
-
-            self.last_str = str
 
             str = str + ' -o ki -stdout'
             args = [a.strip('"') for a in re.findall('".+?"|\S+', str)]
 
             # Execute Buzzard
-            process = subprocess.Popen(['C:\\Python38\\python.exe', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            process = None
+            if sys.platform.startswith('linux'):
+                process = subprocess.Popen(['python', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            else:
+                process = subprocess.Popen(['C:\\Python38\\python.exe', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             stdout, stderr = process.communicate()
             if stderr:
                 wx.MessageBox(stderr, 'Error', wx.OK | wx.ICON_ERROR)
@@ -121,15 +103,9 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 process = subprocess.Popen(clip_args, stdin=subprocess.PIPE)
                 process.communicate(stdout)
 
-                # Save copy of string
-                self.save()
-
                 dlg.EndModal(wx.ID_OK)
 
-                 
-
-        
-        dlg = Dialog(self._pcbnew_frame, self.last_str, run_buzzard)
+        dlg = Dialog(self._pcbnew_frame, self.config, self.buzzard_path, run_buzzard)
         try:
             if dlg.ShowModal() == wx.ID_OK:
                 # Set focus to main window and execute a Paste operation
@@ -138,8 +114,8 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 keyinput = wx.UIActionSimulator()
                 keyinput.Char(ord("V"), wx.MOD_CONTROL)    
         finally:
+            self.config.Flush()
             dlg.Destroy()
-
 
 
 plugin = KiBuzzardPlugin()
