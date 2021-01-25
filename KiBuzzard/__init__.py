@@ -9,7 +9,7 @@ import wx.aui
 from wx import FileConfig
 
 import pcbnew
-from dialog import Dialog
+from .dialog import Dialog
 
 def check_for_bom_button():
     # From Miles McCoo's blog
