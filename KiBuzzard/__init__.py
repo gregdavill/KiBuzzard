@@ -83,7 +83,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             if sys.platform.startswith('linux'):
                 process = subprocess.Popen(['python', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             else:
-                process = subprocess.Popen(['C:\\Python38\\python.exe', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                process = subprocess.Popen(['python3.exe', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             stdout, stderr = process.communicate()
             if stderr:
                 wx.MessageBox(stderr, 'Error', wx.OK | wx.ICON_ERROR)
