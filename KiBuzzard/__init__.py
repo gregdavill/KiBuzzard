@@ -80,8 +80,8 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
             # Execute Buzzard
             process = None
-            if sys.platform.startswith('linux'):
-                process = subprocess.Popen(['python', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if sys.platform.startswith('linux') or sys.platform == 'darwin':
+                process = subprocess.Popen(['python3', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             else:
                 process = subprocess.Popen(['C:\\Python38\\python.exe', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             stdout, stderr = process.communicate()
@@ -93,10 +93,12 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             if len(error_line) > 0:
                 wx.MessageBox(error_line[0], 'Error', wx.OK | wx.ICON_ERROR)
 
-            else:        
+            else:
                 # Copy footprint into clipboard
                 if sys.platform.startswith('linux'):
                     clip_args = ['xclip', '-sel', 'clip', '-noutf8']
+                elif sys.platform == 'darwin':
+                    clip_args = ['pbcopy']
                 else:
                     clip_args = ['clip.exe']
 
@@ -112,7 +114,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 self._pcbnew_frame.Raise()
                 wx.Yield()
                 keyinput = wx.UIActionSimulator()
-                keyinput.Char(ord("V"), wx.MOD_CONTROL)    
+                keyinput.Char(ord("V"), wx.MOD_CONTROL)
         finally:
             self.config.Flush()
             dlg.Destroy()
