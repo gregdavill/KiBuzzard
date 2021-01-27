@@ -78,7 +78,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             str = str + ' -o ki -stdout'
             args = [a.strip('"') for a in re.findall('".+?"|\S+', str)]
             if sys.platform.startswith('win'):
-                args = [re.sub('([<>])', r'^\1', a), for a in args] # escape '<' or '>' with a caret, '^<'
+                args = [re.sub('([<>])', r'^\1', a) for a in args] # escape '<' or '>' with a caret, '^<'
 
             # Execute Buzzard
             process = None
