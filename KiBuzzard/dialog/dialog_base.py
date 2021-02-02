@@ -70,8 +70,8 @@ class KiBuzzardDialog ( wx.Dialog ):
 
         guiFlexSizer.Add( self.scaleText, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
-        self.scaleSpinCtrl = wx.SpinCtrlDouble( self.guiPanel, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 1, 0.04, 0.01 )
-        self.scaleSpinCtrl.SetDigits( 0 )
+        self.scaleSpinCtrl = wx.SpinCtrlDouble( self.guiPanel, wx.ID_ANY, u"0.04", wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 1, 0.04, 0.01 )
+        self.scaleSpinCtrl.SetDigits( 3 )
         guiFlexSizer.Add( self.scaleSpinCtrl, 0, wx.ALL, 5 )
 
         self.verticalAlignText = wx.StaticText( self.guiPanel, wx.ID_ANY, u"Vertical Align:", wx.DefaultPosition, wx.DefaultSize, 0 )
