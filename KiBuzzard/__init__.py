@@ -85,12 +85,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             if sys.platform.startswith('linux') or sys.platform == 'darwin':
                 process = subprocess.Popen(['python3', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             else:
-                env_without_kicad = os.environ.copy()
-                path_without_kicad = env_without_kicad["PATH"].split(';')
-                path_without_kicad = [x for x in path_without_kicad if 'KiCad' not in x]
-                path_without_kicad = ';'.join(path_without_kicad)
-                env_without_kicad["PATH"] = path_without_kicad
-                process = subprocess.Popen(['python', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, env=env_without_kicad) # Use PATH instead of C:\\Python38\\python.exe
+                process = subprocess.Popen(['C:\\Python38\\python.exe', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             stdout, stderr = process.communicate()
             if stderr:
                 wx.MessageBox(stderr, 'Error', wx.OK | wx.ICON_ERROR)
