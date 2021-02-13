@@ -27,7 +27,6 @@ class Dialog(dialog_base.KiBuzzardDialog):
         
     def loadConfig(self):
         self.config.SetPath('/')
-        ...
         
     def saveConfig(self):
         self.config.SetPath('/')
@@ -37,7 +36,6 @@ class Dialog(dialog_base.KiBuzzardDialog):
         self.createButtonOnButtonClick(event)
         
     def labelEditOnText( self, event ):
-        ...
         self.polys = []
         
         try:

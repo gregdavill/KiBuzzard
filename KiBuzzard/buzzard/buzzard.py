@@ -1,19 +1,18 @@
 # Original code from: https://github.com/sparkfunX/Buzzard
-
-from svgpathtools import Line, QuadraticBezier, CubicBezier, Path, Arc, svg2paths2
-from svgelements import Path as elPath, Matrix
+import sys
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.join(dir_path, '..', 'deps'))
+from svgpathtools import Line, QuadraticBezier, Path, Arc
 from freetype import Face #pip install freetype-py
-import numpy as np
-import argparse
+from svgelements import Path as elPath, Matrix
 import svgwrite
-import bezier #pip install bezier
 import math
 import subprocess
-import os
-import sys
 import re
 import xml.etree.ElementTree as XMLET
 import shlex
+
 
 svgstring2path = __import__('KiBuzzard.KiBuzzard.buzzard.modules.svgstring2path', globals(), locals(), ['string2paths'])
 string2paths = svgstring2path.string2paths
@@ -26,11 +25,11 @@ def tuple_to_imag(t):
 # bounding box size of a glyph, so instead we figure
 # it out and store it here
 class boundingBox:
-  def __init__(self, xMax, yMax, xMin, yMin):
-    self.xMax = xMax
-    self.yMax = yMax
-    self.xMin = xMin
-    self.yMin = yMin
+    def __init__(self, xMax, yMax, xMin, yMin):
+        self.xMax = xMax
+        self.yMax = yMax
+        self.xMin = xMin
+        self.yMin = yMin
 
 # Global variables (most of these are rewritten by CLI self later)
 SCALE = 1 / 90
@@ -94,7 +93,6 @@ class Buzzard():
             glyphPos = 0
             spaceDistance = 60
             print("WARN: No Position Table found for this typeface. Composition will be haphazard at best.")
-            pass
 
         # If there's lineover text, drop the text down to make room for the line
         dropBaseline = False
@@ -223,9 +221,9 @@ class Buzzard():
                             segments[-1].append(newPoint) # toss this new point onto the segment
                             segments.append([newPoint, points[j], ]) # and start a new segment with the new point and this one
                     elif tags[j]: # if this point is on-path
-                            segments[-1].append(points[j]) # toss this point onto the segment
-                            if  j < (len(points) - 1):
-                                segments.append([points[j], ]) # and start a new segment with this point if we're not at the end    
+                        segments[-1].append(points[j]) # toss this point onto the segment
+                        if  j < (len(points) - 1):
+                            segments.append([points[j], ]) # and start a new segment with this point if we're not at the end    
 
                 for segment in segments:
                     if len(segment) == 2:
@@ -372,6 +370,8 @@ class Buzzard():
         dwg['height'] = 250
 
         #dwg.saveas('out.svg')
+
+        print('create svg')
 
         return dwg
     #
@@ -552,8 +552,8 @@ def styleParse(attr):
     out = dict()
     i = 0
     for tag in attr.split(';'):
-            out[tag.split(':')[0]] = tag.split(':')[1]
-            i += 1
+        out[tag.split(':')[0]] = tag.split(':')[1]
+        i += 1
     return out
 
 # ray-casting algorithm based on

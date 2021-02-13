@@ -2,7 +2,12 @@
 
 #from buzzard import string2paths, renderLabel, drawSVG
 
-from buzzard.buzzard import Buzzard
+import sys
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.join(dir_path, '..', '..'))
+
+from KiBuzzard.buzzard import Buzzard
 from dialog.dialog_base import KiBuzzardDialog
 import argparse
 
@@ -32,7 +37,6 @@ class Example(KiBuzzardDialog):
         self.Bind(wx.EVT_PAINT, self.OnPaint)
 
     def labelEditOnText( self, event ):
-        ...
         self.polys = []
         
         try:
@@ -57,7 +61,7 @@ class Example(KiBuzzardDialog):
 
         dc.SetDeviceOrigin(int(position_x + size_x/2), int((position_y + size_y)/2))
 
-        dc.SetBrush(wx.Brush('#000000'))
+        dc.SetBrush(wx.Brush('#000020'))
 
 
         if len(self.polys):
@@ -83,9 +87,9 @@ class Example(KiBuzzardDialog):
             scale = min(60.0, scale)
 
 
-            #print(min_x, max_x)
-            #print(max_x - min_x)
-            #print('scale:', scale)
+            print(min_x, max_x)
+            print(max_x - min_x)
+            print('scale:', scale)
             
             
             for i in range(len(polys)):
@@ -99,9 +103,17 @@ class Example(KiBuzzardDialog):
 
 
 def main():
+    
+    import time
+
+
     app = wx.App()
-    ex = Example(None)
-    ex.ShowModal()
+#    time.sleep(2.4)
+
+
+    ex = Example(False)
+    ex.Show()
+    
     app.MainLoop()
 
 
