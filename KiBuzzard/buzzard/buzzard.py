@@ -15,7 +15,7 @@ import re
 import xml.etree.ElementTree as XMLET
 import shlex
 
-svgstring2path = __import__('buzzard.modules.svgstring2path', globals(), locals(), ['string2paths'])
+svgstring2path = __import__('KiBuzzard.KiBuzzard.buzzard.modules.svgstring2path', globals(), locals(), ['string2paths'])
 string2paths = svgstring2path.string2paths
 
 # Takes an x/y tuple and returns a complex number
@@ -87,7 +87,7 @@ class Buzzard():
 
         # If the typeface that the user requested exists, but there's no position table for it, we'll continue with a warning
         try: 
-            table = __import__('buzzard.typeface.' + self.fontName, globals(), locals(), ['glyphPos'])
+            table = __import__('KiBuzzard.KiBuzzard.buzzard.typeface.' + self.fontName, globals(), locals(), ['glyphPos'])
             glyphPos = table.glyphPos
             spaceDistance = table.spaceDistance
         except:
