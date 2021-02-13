@@ -99,7 +99,6 @@ class Buzzard():
         # If there's lineover text, drop the text down to make room for the line
         dropBaseline = False
         a = False
-        b = False
         x = 0
         while x < len(inString):
             if x > 0 and inString[x] == '\\':
@@ -427,7 +426,6 @@ class Buzzard():
 
         if len(paths) == 0:
             print("No paths found. Did you use 'Object to path' in Inkscape?")
-        anyVisiblePaths = False
 
         i = 0
         out = []
@@ -491,7 +489,6 @@ class Buzzard():
 
             SUBSAMPLING = self.subSampling
             TRACEWIDTH = str(self.traceWidth)
-            anyVisiblePaths = True
             l = path.length()
             divs = round(l * SUBSAMPLING)
             if divs < 3:
