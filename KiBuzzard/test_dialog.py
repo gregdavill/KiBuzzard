@@ -4,6 +4,9 @@ from buzzard.buzzard import Buzzard
 
 from wx import FileConfig
 
+import sys
+import subprocess
+
 class MyApp(wx.App):
     def OnInit(self):
 
@@ -16,8 +19,18 @@ class MyApp(wx.App):
         frame.Destroy()
         return True
 
-    def run(self, str):
-        print(str)
+    def run(self, footprint_string):
+        # Copy footprint into clipboard
+        if sys.platform.startswith('linux'):
+            clip_args = ['xclip', '-sel', 'clip', '-noutf8']
+        elif sys.platform == 'darwin':
+            clip_args = ['pbcopy']
+        else:
+            clip_args = ['clip.exe']
+
+        process = subprocess.Popen(clip_args, stdin=subprocess.PIPE)
+        process.communicate(footprint_string.encode('ascii'))
+        
         self.frame.EndModal(wx.ID_OK)
 
 

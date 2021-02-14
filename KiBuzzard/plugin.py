@@ -9,6 +9,9 @@ from .dialog import Dialog
 
 from .buzzard.buzzard import Buzzard
 
+import sys
+import subprocess
+
 class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     config_file = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
 
@@ -32,9 +35,19 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         if self._pcbnew_frame is None:
             self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if 'pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()][0]
 
-        def run_buzzard(str):
-                
-                dlg.EndModal(wx.ID_OK)
+        def run_buzzard(footprint_string):    
+            # Copy footprint into clipboard
+            if sys.platform.startswith('linux'):
+                clip_args = ['xclip', '-sel', 'clip', '-noutf8']
+            elif sys.platform == 'darwin':
+                clip_args = ['pbcopy']
+            else:
+                clip_args = ['clip.exe']
+
+            process = subprocess.Popen(clip_args, stdin=subprocess.PIPE)
+            process.communicate(footprint_string.encode('ascii'))
+
+            dlg.EndModal(wx.ID_OK)
 
         dlg = Dialog(self._pcbnew_frame, self.config, Buzzard(), run_buzzard)
         try:
