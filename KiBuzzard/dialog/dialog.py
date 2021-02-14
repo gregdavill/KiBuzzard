@@ -99,4 +99,4 @@ class Dialog(dialog_base.KiBuzzardDialog):
             dc.DrawPolygonList(polys)
         
     def createButtonOnButtonClick(self, event):
-        self.func(self.buzzard.create_footprint())
+        self.func(self.buzzard)

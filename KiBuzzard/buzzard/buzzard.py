@@ -544,7 +544,7 @@ class Buzzard():
         return out
 
 
-    def create_footprint(self):
+    def create_v6_footprint(self):
         
         out = "(footprint \"buzzardLabel\"\n" + \
             " (layer \"F.Cu\")\n" + \
@@ -554,16 +554,36 @@ class Buzzard():
 
             if len(poly) < 2:
                 return
-                
+
             scriptLine = " (fp_poly (pts"
             for points in poly:
                 scriptLine += " (xy {0:.4f} {1:.4f})".format(points[0],points[1])
-            scriptLine += ") (layer \"F.SilkS\") (width 0.01) (fill solid))\n"
+            scriptLine += ") (layer \"F.SilkS\") (width 0.05) (fill solid))\n"
         
             out += scriptLine + '\n'
     
         out += ')\n'
         return out
+
+    def create_v5_footprint(self):
+        
+        out = "(module Symbol:buzzardLabel (layer F.Cu) (tedit 0)\n" + \
+              " (attr virtual)\n"
+
+        for poly in self.polys:
+
+            if len(poly) < 2:
+                return
+
+            scriptLine = " (fp_poly (pts"
+            for points in poly:
+                scriptLine += " (xy {0:.4f} {1:.4f})".format(points[0],points[1])
+            out += scriptLine + ") (layer F.SilkS) (width 0.05))\n"
+        
+            
+        out += ')\n'
+        return out
+
 
 # Use Pythagoras to find the distance between two points
 def dist(a, b):
