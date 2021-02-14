@@ -31,7 +31,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         if '5.1' in self.kicad_build_version or '5.0' in self.kicad_build_version:
             # Library location for KiCad 5.1
             self.filepath = os.path.join(tempfile.mkdtemp(), 'buzzard_labels.pretty', 'label.kicad_mod') 
-            os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
+            try: # Use try/except here because python 2.7 doesn't support exist_ok
+                os.makedirs(os.path.dirname(self.filepath))
+            except:
+                pass
 
     def defaults(self):
         pass

@@ -63,6 +63,8 @@ class Dialog(dialog_base.KiBuzzardDialog):
 
 
         if len(self.polys):
+            # Create copy of poly list for scaling preview
+            polys = copy.deepcopy(self.polys)
 
             min_x = 0
             max_x = 0
@@ -74,22 +76,10 @@ class Dialog(dialog_base.KiBuzzardDialog):
 
 
             size_x, _ = self.m_panel3.GetSize()
-
             scale = (size_x * 0.95) / (max_x - min_x)
-            
 
-            # Create copy of poly list for scaling preview
-            polys = copy.deepcopy(self.polys)
 
-            # Scale
             scale = min(50.0, scale)
-
-
-            #print(min_x, max_x)
-            #print(max_x - min_x)
-            #print('scale:', scale)
-            
-            
             for i in range(len(polys)):
                 for j in range(len(polys[i])):
                     polys[i][j] = (scale*polys[i][j][0],scale*polys[i][j][1])

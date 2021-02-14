@@ -19,7 +19,8 @@ class KiBuzzardDialog ( wx.Dialog ):
     def __init__( self, parent ):
         wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"KiBuzzard", pos = wx.DefaultPosition, size = wx.Size( 420,352 ), style = wx.CLOSE_BOX|wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER )
 
-        self.SetSizeHints( wx.Size( 420,280 ), wx.DefaultSize )
+        # For some reason SetSizeHints is different on Windows?
+        self.SetSizeHintsSz( wx.Size( 420,280 ), wx.DefaultSize )
 
         dialogSizer = wx.BoxSizer( wx.VERTICAL )
 
