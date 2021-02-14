@@ -33,6 +33,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if 'pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()][0]
 
         def run_buzzard(str):
+                
                 dlg.EndModal(wx.ID_OK)
 
         dlg = Dialog(self._pcbnew_frame, self.config, Buzzard(), run_buzzard)

@@ -10,11 +10,15 @@ class MyApp(wx.App):
         config_file = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
         config = FileConfig(localFilename=config_file)
 
-        frame = Dialog(None, config, Buzzard(), lambda: None)
+        self.frame = frame = Dialog(None, config, Buzzard(), self.run)
         if frame.ShowModal() == wx.ID_OK:
-            print("Should generate bom")
+            print("Graceful Exit")
         frame.Destroy()
         return True
+
+    def run(self, str):
+        print(str)
+        self.frame.EndModal(wx.ID_OK)
 
 
 app = MyApp()

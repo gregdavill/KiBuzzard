@@ -45,6 +45,7 @@ class Buzzard():
         self.originPos = 'cc'
         self.subSampling = 0.1
         self.traceWidth = 0.1
+        self.exportHeight = 0
 
     
     def generate(self, inString):
@@ -421,7 +422,7 @@ class Buzzard():
             if self.verbose:
                 print("SVG width not found, guessing based on scale factor")
 
-        exportHeight = float(svgHeight) * SCALE
+        self.exportHeight = float(svgHeight) * SCALE
 
         if len(paths) == 0:
             print("No paths found. Did you use 'Object to path' in Inkscape?")
@@ -531,13 +532,37 @@ class Buzzard():
 
                 for p in points:
                     precisionX = round(p.real, 8)
-                    precisionY = round(p.imag - exportHeight, 8)
+                    precisionY = round(p.imag - self.exportHeight, 8)
                     _points += [(precisionX, precisionY)]
 
                 out += [_points]
             
             i += 1
 
+        self.polys = out
+
+        return out
+
+
+    def create_footprint(self):
+        
+        out = "(footprint \"buzzardLabel\"\n" + \
+            " (layer \"F.Cu\")\n" + \
+            " (attr board_only exclude_from_pos_files exclude_from_bom)\n"
+
+        for poly in self.polys:
+
+            if len(poly) < 2:
+                return
+                
+            scriptLine = " (fp_poly (pts"
+            for points in poly:
+                scriptLine += " (xy {0:.4f} {1:.4f})".format(points[0],points[1])
+            scriptLine += ") (layer \"F.SilkS\") (width 0.01) (fill solid))\n"
+        
+            out += scriptLine + '\n'
+    
+        out += ')\n'
         return out
 
 # Use Pythagoras to find the distance between two points
