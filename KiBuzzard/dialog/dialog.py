@@ -5,11 +5,10 @@ import copy
 
 import wx
 
-from ..buzzard.buzzard import Buzzard
 from . import dialog_base
 
 class Dialog(dialog_base.KiBuzzardDialog):
-    def __init__(self, parent, config, func):
+    def __init__(self, parent, config, buzzard, func):
         dialog_base.KiBuzzardDialog.__init__(self, parent)
         
         best_size = self.BestSize
@@ -21,7 +20,7 @@ class Dialog(dialog_base.KiBuzzardDialog):
         
         self.loadConfig()
 
-        self.buzzard = Buzzard()
+        self.buzzard = buzzard
         self.polys = []
         self.Bind(wx.EVT_PAINT, self.OnPaint)
         
@@ -52,10 +51,10 @@ class Dialog(dialog_base.KiBuzzardDialog):
     def OnPaint(self, e):
 
         dc = wx.PaintDC(self)
-        dc.SetPen(wx.Pen('#000000', width=2))
+        dc.SetPen(wx.Pen('#000000', width=1))
 
-        size_x, size_y = self.m_panel3.DoGetSize()
-        position_x, position_y = self.m_panel3.DoGetPosition()
+        size_x, size_y = self.m_panel3.GetSize()
+        position_x, position_y = self.m_panel3.GetPosition()
 
 
         dc.SetDeviceOrigin(int(position_x + size_x/2), int((position_y + size_y)/2))
@@ -74,7 +73,7 @@ class Dialog(dialog_base.KiBuzzardDialog):
                     max_x = max(self.polys[i][j][0], max_x)
 
 
-            size_x, _ = self.m_panel3.DoGetSize()
+            size_x, _ = self.m_panel3.GetSize()
 
             scale = (size_x * 0.95) / (max_x - min_x)
             
@@ -83,7 +82,7 @@ class Dialog(dialog_base.KiBuzzardDialog):
             polys = copy.deepcopy(self.polys)
 
             # Scale
-            scale = min(60.0, scale)
+            scale = min(50.0, scale)
 
 
             #print(min_x, max_x)

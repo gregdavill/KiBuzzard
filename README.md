@@ -1,5 +1,5 @@
 # Buzzard plugin for KiCad
-    Note this plugin currently only works on KiCad 5.99
+    Note this plugin is currently a work in progress
 
 Basic plugin wrapper for [Buzzard](https://github.com/sparkfunX/Buzzard). 
 
@@ -14,16 +14,17 @@ Ensure you also get the submodules with KiBuzzard
 $ git clone https://github.com/gregdavill/KiBuzzard
 ```
 
-You may also need to install xclip, to handle clipboard operations. 
+You may also need to install freetype libraries and xclip, to handle clipboard operations. 
 On Ubuntu:
 ```console
 $ sudo apt install xclip
+$ pip install freetype-py
 ```
 
 On Windows:
 You may require the FreeType DLLs
 Download FreeType dlls: https://github.com/ubawurinna/freetype-windows-binaries/releases/latest
-Copy x64/freetype.dll into C:/Program Files/KiCad/5.99/bin
+Copy win64/freetype.dll into C:/Program Files/KiCad/5.99/bin
 
 ## Licence and credits
 

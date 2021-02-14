@@ -1,10 +1,8 @@
 # Original code from: https://github.com/sparkfunX/Buzzard
 import sys
 import os
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.insert(0, os.path.join(dir_path, '..', 'deps'))
 from svgpathtools import Line, QuadraticBezier, Path, Arc
-from freetype import Face #pip install freetype-py
+from freetype import Face
 from svgelements import Path as elPath, Matrix
 import svgwrite
 import math
@@ -13,9 +11,7 @@ import re
 import xml.etree.ElementTree as XMLET
 import shlex
 
-
-svgstring2path = __import__('KiBuzzard.KiBuzzard.buzzard.modules.svgstring2path', globals(), locals(), ['string2paths'])
-string2paths = svgstring2path.string2paths
+from .modules.svgstring2path import string2paths
 
 # Takes an x/y tuple and returns a complex number
 def tuple_to_imag(t):
@@ -41,7 +37,9 @@ TRACEWIDTH = '0.1'
 
 class Buzzard():
     def __init__(self):
-        self.fontName = 'FredokaOne'
+        #self.fontName = 'mplus-1mn-medium'
+        #self.fontName = 'UbuntuMono-B'
+        self.fontName = 'mplus-1c-light'
         self.verbose = True
         self.scaleFactor = 0.04
         self.originPos = 'cc'
@@ -80,7 +78,8 @@ class Buzzard():
         try:
             face = Face(os.path.dirname(os.path.abspath(__file__)) + '/typeface/' + self.fontName + '.ttf')
             face.set_char_size(charSizeX,charSizeY,200,200)
-        except:
+        except Exception as e:
+            print(e)
             print("WARN: No Typeface found with the name " + self.fontName + ".ttf")
             sys.exit(0)  # quit Python
 
