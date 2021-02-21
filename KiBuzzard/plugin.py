@@ -41,7 +41,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
     def Run(self):
         if self._pcbnew_frame is None:
-            self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if 'pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()][0]
+            try:
+                self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if ('pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()) or ('pcb editor' in x.GetTitle().lower())][0]
+            except:
+                pass
 
         def run_buzzard(p_buzzard): 
 
@@ -86,11 +89,12 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             if dlg.ShowModal() == wx.ID_OK:
                 
                 if '5.99' in self.kicad_build_version:
-                    # Set focus to main window and attempt to execute a Paste operation
-                    self._pcbnew_frame.Raise()
-                    wx.Yield()
-                    keyinput = wx.UIActionSimulator()
-                    keyinput.Char(ord("V"), wx.MOD_CONTROL)    
+                    if self._pcbnew_frame is not None:
+                        # Set focus to main window and attempt to execute a Paste operation
+                        self._pcbnew_frame.Raise()
+                        wx.Yield()
+                        keyinput = wx.UIActionSimulator()
+                        keyinput.Char(ord("V"), wx.MOD_CONTROL)    
         except Exception as e:
             print(e)
         
