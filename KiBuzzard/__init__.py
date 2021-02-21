@@ -70,7 +70,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         buzzard_script = os.path.join(self.buzzard_path, 'buzzard.py')
 
         if self._pcbnew_frame is None:
-            self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if 'pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()][0]
+            try:
+                self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if ('pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()) or ('pcb editor' in x.GetTitle().lower())][0]
+            except:
+                pass
 
         def run_buzzard(str):
             import re
