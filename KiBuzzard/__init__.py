@@ -116,10 +116,11 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         try:
             if dlg.ShowModal() == wx.ID_OK:
                 # Set focus to main window and execute a Paste operation
-                self._pcbnew_frame.Raise()
-                wx.Yield()
-                keyinput = wx.UIActionSimulator()
-                keyinput.Char(ord("V"), wx.MOD_CONTROL)
+                if self._pcbnew_frame is not None:
+                    self._pcbnew_frame.Raise()
+                    wx.Yield()
+                    keyinput = wx.UIActionSimulator()
+                    keyinput.Char(ord("V"), wx.MOD_CONTROL)
         finally:
             self.config.Flush()
             dlg.Destroy()
