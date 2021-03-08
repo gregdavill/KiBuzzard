@@ -66,8 +66,60 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     def defaults(self):
         pass
 
+    def find_python3(self):
+
+        # try to see if python3 is already in PATH
+        try:
+            process = subprocess.Popen('python3')
+            return 'python3'
+        except:
+            pass
+
+        # official python installer doesn't add python3 by default to PATH
+        # also even if added to PATH python3 on windows is actually called python
+        # however it will install py launcher https://docs.python.org/3.8/using/windows.html?#launcher
+        # use that to get python3 executable on windows
+        try:
+            process = subprocess.Popen(['py', '-3', '-c', 'import sys; print(sys.executable)'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            python3_path, _ = process.communicate()
+            return python3_path.decode().strip()
+
+        except:
+            pass
+
+        return ''
+
     def Run(self):
         buzzard_script = os.path.join(self.buzzard_path, 'buzzard.py')
+
+        # check for python3
+        # try getting it from config
+        python3_path = self.config.Read('/python3/path', defaultVal='')
+
+        # if no defined, try to search for it
+        if not python3_path:
+            python3_path = self.find_python3()
+
+            # we found a path, lets save it!
+            if python3_path:
+                wx.MessageBox('python3 path set to `%s`\nIf this is not the correct python3, please update the path in config.ini' % python3_path, 'python3', wx.OK | wx.ICON_INFORMATION)
+                self.config.Write('/python3/path', python3_path)
+                self.config.Flush()
+
+        # if python3 is not found let the user know!
+        if not python3_path:
+            wx.MessageBox(
+                'Buzzard needs python3 to run.\n'
+                + 'Please make sure python3 is installed on your machine!\n'
+                + 'If python3 is installed on the machine please update the python3 path in config.ini.\n'
+                + 'Eg:\n'
+                + '[python3]\n'
+                + 'path=\\path\\to\\python3\n'
+                + '*On Windows machines slashes (\\) need to be escaped (\\\\).',
+                'Can\'t find python3',
+                wx.OK | wx.ICON_ERROR,
+            )
+            return
 
         if self._pcbnew_frame is None:
             try:
@@ -85,10 +137,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
             # Execute Buzzard
             process = None
-            if sys.platform.startswith('linux') or sys.platform == 'darwin':
-                process = subprocess.Popen(['python3', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            else:
-                process = subprocess.Popen(['C:\\Python38\\python.exe', buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            process = subprocess.Popen([python3_path, buzzard_script] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = process.communicate()
             if stderr:
                 wx.MessageBox(stderr, 'Error', wx.OK | wx.ICON_ERROR)
