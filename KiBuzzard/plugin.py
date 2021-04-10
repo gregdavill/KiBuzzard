@@ -46,7 +46,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             except:
                 pass
 
-        def run_buzzard(p_buzzard): 
+        def run_buzzard(dlg, p_buzzard): 
 
             if '5.1' in self.kicad_build_version or '5.0' in self.kicad_build_version:
                 # Handle KiCad 5.1
@@ -71,17 +71,11 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             elif '5.99' in self.kicad_build_version or '6.0' in self.kicad_build_version:
                 footprint_string = p_buzzard.create_v6_footprint()
 
-                # Copy footprint into clipboard
-                if sys.platform.startswith('linux'):
-                    clip_args = ['xclip', '-sel', 'clip', '-noutf8']
-                elif sys.platform == 'darwin':
-                    clip_args = ['pbcopy']
-                else:
-                    clip_args = ['clip.exe']
 
-                process = subprocess.Popen(clip_args, stdin=subprocess.PIPE)
-                process.communicate(footprint_string.encode('ascii'))
-
+                if wx.TheClipboard.Open():
+                    wx.TheClipboard.SetData(wx.TextDataObject(footprint_string))
+                    wx.TheClipboard.Close()
+                    
             dlg.EndModal(wx.ID_OK)
 
         dlg = Dialog(None, self.config, Buzzard(), run_buzzard)

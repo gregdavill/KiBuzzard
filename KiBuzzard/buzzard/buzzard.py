@@ -37,16 +37,16 @@ TRACEWIDTH = '0.1'
 
 class Buzzard():
     def __init__(self):
-        #self.fontName = 'mplus-1mn-medium'
-        #self.fontName = 'UbuntuMono-B'
-        self.fontName = 'mplus-1c-light'
+        self.fontName = 'FredokaOne'
         self.verbose = True
         self.scaleFactor = 0.04
         self.originPos = 'cc'
         self.subSampling = 0.1
         self.traceWidth = 0.1
         self.exportHeight = 0
-
+        self.leftCap = ''                # Used to store cap shape for left side of tag
+        self.rightCap = ''               # Used to store cap shape for right side of tag
+        
     
     def generate(self, inString):
         paths, attributes, svg_attributes = string2paths(self.renderLabel(inString).tostring())
@@ -66,9 +66,6 @@ class Buzzard():
         charSizeX = 8               # Character size constant 
         charSizeY = 8               # Character size constant 
         baseline = 170              # Y value of text baseline
-        leftCap = ''                # Used to store cap shape for left side of tag
-        rightCap = ''               # Used to store cap shape for right side of tag
-        removeTag = False           # Track whether characters need to be removed from string ends
         glyphBounds = []            # List of boundingBox objects to track rendered character size
         finalSegments = []          # List of output paths 
         escaped = False             # Track whether the current character was preceded by a '\'
@@ -109,53 +106,6 @@ class Buzzard():
             x += 1
         if dropBaseline:
             baseline = 190
-
-        # Detect and Remove tag style indicators
-        if inString[0] == '(':
-            leftCap = 'round'
-            removeTag = True
-        elif inString[0] == '[':
-            leftCap = 'square'
-            removeTag = True
-        elif inString[0] == '<':
-            leftCap = 'pointer'
-            removeTag = True
-        elif inString[0] == '>':
-            leftCap = 'flagtail'
-            removeTag = True
-        elif inString[0] == '/':
-            leftCap = 'fslash'
-            removeTag = True
-        elif inString[0] == '\\':
-            leftCap = 'bslash'
-            removeTag = True
-
-        if removeTag:
-            inString = inString[1:]
-
-        removeTag = False
-
-        if inString[-1] == ')':
-            rightCap = 'round'
-            removeTag = True
-        elif inString[-1] == ']':
-            rightCap = 'square'
-            removeTag = True
-        elif inString[-1] == '>':
-            rightCap = 'pointer'
-            removeTag = True
-        elif inString[-1] == '<':
-            rightCap = 'flagtail'
-            removeTag = True
-        elif inString[-1] == '/':
-            rightCap = 'fslash'
-            removeTag = True
-        elif inString[-1] == '\\':
-            rightCap = 'bslash'
-            removeTag = True    
-
-        if removeTag:
-            inString = inString[:len(inString)-1]
 
         # Draw and compose the glyph portion of the tag 
         for charIdx in range(len(inString)):
@@ -288,7 +238,7 @@ class Buzzard():
             xOffset += (glyphBounds[charIdx].xMax - glyphBounds[charIdx].xMin)
             strIdx += 1
 
-        if leftCap == '' and rightCap == '':
+        if self.leftCap == '' and self.rightCap == '':
             for i in range(len(finalSegments)):
                 svgObj = dwg.add(dwg.path(finalSegments[i].d()))
                 svgObj['fill'] = "#000000"
@@ -296,67 +246,67 @@ class Buzzard():
             #draw the outline of the label as a filled shape and 
             #subtract each latter from it
             tagPaths = []
-            if rightCap == 'round':
+            if self.rightCap == 'round':
                 tagPaths.append(Line(start=complex(100,0), end=complex(xOffset,0)))
                 tagPaths.append(Arc(start=complex(xOffset,0), radius=complex(100,100), rotation=180, large_arc=1, sweep=1, end=complex(xOffset,200)))
-            elif rightCap == 'square':
+            elif self.rightCap == 'square':
                 tagPaths.append(Line(start=complex(100,0), end=complex(xOffset,0)))
                 tagPaths.append(Line(start=complex(xOffset,0), end=complex(xOffset+50,0)))
                 tagPaths.append(Line(start=complex(xOffset+50,0), end=complex(xOffset+50,200)))
                 tagPaths.append(Line(start=complex(xOffset+50,200), end=complex(xOffset,200)))        
-            elif rightCap == 'pointer':
+            elif self.rightCap == 'pointer':
                 tagPaths.append(Line(start=complex(100,0), end=complex(xOffset,0)))
                 tagPaths.append(Line(start=complex(xOffset,0), end=complex(xOffset+50,0)))
                 tagPaths.append(Line(start=complex(xOffset+50,0), end=complex(xOffset+100,100)))
                 tagPaths.append(Line(start=complex(xOffset+100,100), end=complex(xOffset+50,200)))
                 tagPaths.append(Line(start=complex(xOffset+50,200), end=complex(xOffset,200)))
-            elif rightCap == 'flagtail':
+            elif self.rightCap == 'flagtail':
                 tagPaths.append(Line(start=complex(100,0), end=complex(xOffset,0)))
                 tagPaths.append(Line(start=complex(xOffset,0), end=complex(xOffset+100,0)))
                 tagPaths.append(Line(start=complex(xOffset+100,0), end=complex(xOffset+50,100)))
                 tagPaths.append(Line(start=complex(xOffset+50,100), end=complex(xOffset+100,200)))        
                 tagPaths.append(Line(start=complex(xOffset+100,200), end=complex(xOffset,200))) 
-            elif rightCap == 'fslash':
+            elif self.rightCap == 'fslash':
                 tagPaths.append(Line(start=complex(100,0), end=complex(xOffset,0)))
                 tagPaths.append(Line(start=complex(xOffset,0), end=complex(xOffset+50,0)))        
                 tagPaths.append(Line(start=complex(xOffset+50,0), end=complex(xOffset,200))) 
-            elif rightCap == 'bslash':
+            elif self.rightCap == 'bslash':
                 tagPaths.append(Line(start=complex(100,0), end=complex(xOffset,0)))
                 tagPaths.append(Line(start=complex(xOffset,0), end=complex(xOffset+50,200)))        
                 tagPaths.append(Line(start=complex(xOffset+50,200), end=complex(xOffset,200))) 
-            elif rightCap == '' and leftCap != '':
+            elif self.rightCap == '' and self.leftCap != '':
                 tagPaths.append(Line(start=complex(100,0), end=complex(xOffset,0)))
                 tagPaths.append(Line(start=complex(xOffset,0), end=complex(xOffset,200)))
 
-            if leftCap == 'round':
+            if self.leftCap == 'round':
                 tagPaths.append(Line(start=complex(xOffset,200), end=complex(100,200)))
                 tagPaths.append(Arc(start=complex(100,200), radius=complex(100,100), rotation=180, large_arc=0, sweep=1, end=complex(100,0)))
-            elif leftCap == 'square':
+            elif self.leftCap == 'square':
                 tagPaths.append(Line(start=complex(xOffset,200), end=complex(100,200)))
                 tagPaths.append(Line(start=complex(100,200), end=complex(50,200)))
                 tagPaths.append(Line(start=complex(50,200), end=complex(50,0)))
                 tagPaths.append(Line(start=complex(50,0), end=complex(100,0)))     
-            elif leftCap == 'pointer':
+            elif self.leftCap == 'pointer':
                 tagPaths.append(Line(start=complex(xOffset,200), end=complex(100,200)))
                 tagPaths.append(Line(start=complex(100,200), end=complex(50,200)))
                 tagPaths.append(Line(start=complex(50,200), end=complex(0,100)))
                 tagPaths.append(Line(start=complex(0,100), end=complex(50,0)))
                 tagPaths.append(Line(start=complex(50,0), end=complex(100,0)))
-            elif leftCap == 'flagtail':
+            elif self.leftCap == 'flagtail':
                 tagPaths.append(Line(start=complex(xOffset,200), end=complex(100,200)))
                 tagPaths.append(Line(start=complex(100,200), end=complex(0,200)))
                 tagPaths.append(Line(start=complex(0,200), end=complex(50,100)))
                 tagPaths.append(Line(start=complex(50,100), end=complex(0,0)))
                 tagPaths.append(Line(start=complex(0,0), end=complex(100,0)))
-            elif leftCap == 'fslash':
+            elif self.leftCap == 'fslash':
                 tagPaths.append(Line(start=complex(xOffset,200), end=complex(100,200)))
                 tagPaths.append(Line(start=complex(100,200), end=complex(50,200)))
                 tagPaths.append(Line(start=complex(50,200), end=complex(100,0)))
-            elif leftCap == 'bslash':
+            elif self.leftCap == 'bslash':
                 tagPaths.append(Line(start=complex(xOffset,200), end=complex(100,200)))
                 tagPaths.append(Line(start=complex(100,200), end=complex(50,0)))
                 tagPaths.append(Line(start=complex(50,0), end=complex(100,0)))
-            elif leftCap == '' and rightCap != '':
+            elif self.leftCap == '' and self.rightCap != '':
                 tagPaths.append(Line(start=complex(xOffset,200), end=complex(100,200)))
                 tagPaths.append(Line(start=complex(100,200), end=complex(100,0)))
 

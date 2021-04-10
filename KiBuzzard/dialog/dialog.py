@@ -5,12 +5,27 @@ import copy
 
 import wx
 
-from . import dialog_base
+from . import dialog_text_base
 
-class Dialog(dialog_base.KiBuzzardDialog):
+class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
     def __init__(self, parent, config, buzzard, func):
-        dialog_base.KiBuzzardDialog.__init__(self, parent)
+        dialog_text_base.DIALOG_TEXT_BASE.__init__(self, parent)
         
+        typeface_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'buzzard', 'typeface')
+        for entry in os.listdir(typeface_path):
+            entry_path = os.path.join(typeface_path, entry)
+            
+            if not entry_path.endswith('.ttf'):
+                continue
+            
+            self.m_FontComboBox.Append(os.path.splitext(entry)[0])
+        
+        self.m_FontComboBox.SetSelection(0)
+
+
+        self.m_SizeYUnits.SetLabel("mm")
+        self.m_ThicknessUnits.SetLabel("mm")
+
         best_size = self.BestSize
         # hack for some gtk themes that incorrectly calculate best size
         best_size.IncBy(dx=0, dy=30)
@@ -20,47 +35,96 @@ class Dialog(dialog_base.KiBuzzardDialog):
         
         self.loadConfig()
 
+
         self.buzzard = buzzard
+        self.sourceText = ""
         self.polys = []
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
         
+        self.Bind(wx.EVT_PAINT, self.OnPaint)
+
+        self.Bind(wx.EVT_TIMER, self.labelEditOnText)
+        self.m_sdbSizerCancel.Bind(wx.EVT_BUTTON, self.Cancel)
+
+        self.timer = wx.Timer(self, 0)
+        self.timer.StartOnce(milliseconds=250)
+
+    def Cancel(self, e):
+        self.timer.Stop()
+        e.Skip()
+
+
     def loadConfig(self):
         self.config.SetPath('/')
+        self.m_FontComboBox.SetStringSelection(self.config.Read('font', 'FredokaOne'))
+        self.m_SizeYCtrl.SetValue(str(self.config.ReadFloat('scale', 1.0)))
         
     def saveConfig(self):
         self.config.SetPath('/')
+        self.config.Write('font', self.m_FontComboBox.GetStringSelection())
+        self.config.WriteFloat('scale', float(self.scaleSpinCtrl.GetValue()))
+        
+    def CurrentSettings(self):
+        return str(self.m_MultiLineText.GetValue()) + str(self.m_SizeYCtrl.GetValue()) + str(self.m_FontComboBox.GetStringSelection()) + \
+            self.m_JustifyChoice1.GetStringSelection() + self.m_JustifyChoice.GetStringSelection()
+
+    def labelEditOnText( self, event ):
+
+        while self.sourceText != self.CurrentSettings():
+            self.sourceText = self.CurrentSettings()
+            self.ReGeneratePreview()
+
+        self.timer.StartOnce(milliseconds=250)
+        event.Skip()
+
+    def ReGenerateFlag(self, e):
+        self.sourceText = ""
+
+    def ReGeneratePreview(self, e=None):
+        self.polys = []
+        self.buzzard.fontName = self.m_FontComboBox.GetStringSelection()
+
+        # Validate scale factor
+        scale = 0.04
+        if self.m_SizeYCtrl.GetValue() != "":
+            try:
+                scale = float(self.m_SizeYCtrl.GetValue()) * 0.04
+            except ValueError:
+                print("Scale not valid")
+        self.buzzard.scaleFactor = scale
         
 
-    def labelEditOnTextEnter( self, event ):
-        self.createButtonOnButtonClick(event)
-        
-    def labelEditOnText( self, event ):
-        self.polys = []
-        
+        styles = {'':'', '(':'round', '[':'square', '<':'pointer', '/':'fslash', '\\':'bslash', '>':'flagtail'}
+        self.buzzard.leftCap = styles[self.m_JustifyChoice1.GetStringSelection()]
+
+        styles = {'':'', ')':'round', ']':'square', '>':'pointer', '/':'fslash', '\\':'bslash', '<':'flagtail'}
+        self.buzzard.rightCap = styles[self.m_JustifyChoice.GetStringSelection()]
+
+
         try:
-            self.polys = self.buzzard.generate(self.labelEdit.GetValue())
+            self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
 
         except Exception as e:
             print(e)
             # Todo display error messages
 
+        self.RePaint()
+
+    def RePaint(self, e=None):
         self.Layout()
         self.Refresh()
         self.Update()
+
 
     def OnPaint(self, e):
 
         dc = wx.PaintDC(self)
         dc.SetPen(wx.Pen('#000000', width=1))
 
-        size_x, size_y = self.m_panel3.GetSize()
-        position_x, position_y = self.m_panel3.GetPosition()
+        size_x, size_y = self.m_PreviewPanel.GetSize()
+        position_x, position_y = self.m_PreviewPanel.GetPosition()
 
-
-        dc.SetDeviceOrigin(int(position_x + size_x/2), int((position_y + size_y)/2))
-
+        dc.SetDeviceOrigin(int(position_x + size_x/2), int((position_y + size_y/2)))
         dc.SetBrush(wx.Brush('#000000'))
-
 
         if len(self.polys):
             # Create copy of poly list for scaling preview
@@ -74,10 +138,7 @@ class Dialog(dialog_base.KiBuzzardDialog):
                     min_x = min(self.polys[i][j][0], min_x)
                     max_x = max(self.polys[i][j][0], max_x)
 
-
-            size_x, _ = self.m_panel3.GetSize()
             scale = (size_x * 0.95) / (max_x - min_x)
-
 
             scale = min(50.0, scale)
             for i in range(len(polys)):
@@ -88,5 +149,7 @@ class Dialog(dialog_base.KiBuzzardDialog):
 
             dc.DrawPolygonList(polys)
         
-    def createButtonOnButtonClick(self, event):
-        self.func(self.buzzard)
+    def OnOkClick(self, event):
+        self.timer.Stop()
+
+        self.func(self, self.buzzard)
