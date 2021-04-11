@@ -104,9 +104,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
             self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
         except Exception as e:
-            wx.LogError(str(e))
-            #print(e)
-            # Todo display error messages
+            import traceback
+            wx.LogError(traceback.format_exc())
 
         self.RePaint()
 
