@@ -23,7 +23,7 @@ class DIALOG_TEXT_BASE ( wx.Dialog ):
     def __init__( self, parent ):
         wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = _(u"KiBuzzard Text Properties"), pos = wx.DefaultPosition, size = wx.Size( -1,-1 ), style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.SYSTEM_MENU )
 
-        self.SetSizeHints( wx.Size( -1,-1 ), wx.DefaultSize )
+        self.SetSizeHintsSz( wx.Size( -1,-1 ), wx.DefaultSize )
 
         bMainSizer = wx.BoxSizer( wx.VERTICAL )
 
