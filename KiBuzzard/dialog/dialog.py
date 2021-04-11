@@ -46,7 +46,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.m_sdbSizerCancel.Bind(wx.EVT_BUTTON, self.Cancel)
 
         self.timer = wx.Timer(self, 0)
-        self.timer.StartOnce(milliseconds=250)
+        self.timer.Start(milliseconds=250, oneShot=True)
 
     def Cancel(self, e):
         self.timer.Stop()
@@ -73,7 +73,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.sourceText = self.CurrentSettings()
             self.ReGeneratePreview()
 
-        self.timer.StartOnce(milliseconds=250)
+        self.timer.Start(milliseconds=250, oneShot=True)
         event.Skip()
 
     def ReGenerateFlag(self, e):
