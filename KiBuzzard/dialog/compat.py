@@ -7,12 +7,12 @@ class DialogShim(wx.Dialog):
             wx.StockGDI._initStockObjects()
         except:
             pass
-        
+
         wx.Dialog.__init__(self, parent, **kwargs)
 
     def SetSizeHints(self, a, b, c=None):
         if c is not None:
-            super().SetSizeHints(a,b,c)
+            super(wx.Dialog, self).SetSizeHints(a,b,c)
         else:
-            super().SetSizeHintsSz( a,b)
+            super(wx.Dialog, self).SetSizeHintsSz( a,b)
         
