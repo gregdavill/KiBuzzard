@@ -114,8 +114,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_SizeYLabel = wx.StaticText( self, wx.ID_ANY, _(u"Height:"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_SizeYLabel.Wrap( -1 )
 
-        self.m_SizeYLabel.SetToolTip( _(u"Text height") )
-
         fgSizerSetup.Add( self.m_SizeYLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
 
         self.m_SizeYCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
@@ -139,8 +137,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         self.m_ThicknessLabel = wx.StaticText( self, wx.ID_ANY, _(u"Thickness:"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_ThicknessLabel.Wrap( -1 )
-
-        self.m_ThicknessLabel.SetToolTip( _(u"Text thickness") )
 
         fgSizerSetup.Add( self.m_ThicknessLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
 
