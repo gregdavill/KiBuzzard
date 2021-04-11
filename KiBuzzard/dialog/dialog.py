@@ -4,6 +4,7 @@ import re
 import copy
 
 import wx
+import json
 
 from . import dialog_text_base
 
@@ -49,11 +50,15 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         self.error = None
         
+        self.label_params = {}
+        self.updateFootprint = None
+
+
         self.loadConfig()
 
 
         self.buzzard = buzzard
-        self.sourceText = ""
+
         self.polys = []
         
         self.m_PreviewPanel.Bind(wx.EVT_PAINT, self.OnPaint)
@@ -72,87 +77,94 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
 
     def loadConfig(self):
-
+        # check if we have a footprint we can load value from first
         try:
-            self.config.SetPath('/')
-            self.m_FontComboBox.SetStringSelection(self.config.Read('font', 'UbuntuMono-B'))
-            self.m_MultiLineText.SetValue(self.config.Read('text', ''))
-            self.m_HeightCtrl.SetValue(str(self.config.ReadFloat('scale', 1.0)))
-            self.m_CapLeftChoice.SetStringSelection(self.config.Read('l-cap', ''))
-            self.m_CapRightChoice.SetStringSelection(self.config.Read('r-cap', ''))
-            self.m_AlignmentChoice.SetStringSelection(self.config.Read('align', ''))
-            self.m_WidthCtrl.SetValue(self.config.Read('width', ''))
-            self.m_PaddingTopCtrl.SetValue(self.config.Read('pad-top', ''))
-            self.m_PaddingLeftCtrl.SetValue(self.config.Read('pad-left', ''))
-            self.m_PaddingRightCtrl.SetValue(self.config.Read('pad-right', ''))
-            self.m_PaddingBottomCtrl.SetValue(self.config.Read('pad-bot', ''))
-            
+            import pcbnew
+            b = pcbnew.GetBoard()
+            selected_footprints = [f for f in b.Footprints() if f.IsSelected()]
+            if len(selected_footprints) == 1:
+                f = selected_footprints[0]
+                if 'kibuzzard' in f.GetReference():
+                    param_str = f.GetKeywords()
+                    if param_str.startswith("kb_params="):
+                        json_str = param_str[10:].replace("'", '"')
+                        print(json_str)
+                        params = json.loads(json_str)
+
+                        print("found params: ", end='')
+                        print(params)
+
+                        self.LoadSettings(params)
+                        
+                        self.updateFootprint = f
+
+                        return
+                
         except:
             import traceback
-            print(traceback.format_exc())
+            wx.LogError(traceback.format_exc())
         
     def saveConfig(self):
-        try:
-            self.config.SetPath('/')
-            self.config.Write('font', self.m_FontComboBox.GetStringSelection())
-            self.config.Write('text', self.m_MultiLineText.GetValue())
-            self.config.WriteFloat('scale', float(self.m_HeightCtrl.GetValue()))
-            self.config.Write('l-cap', self.m_CapLeftChoice.GetStringSelection())
-            self.config.Write('r-cap', self.m_CapRightChoice.GetStringSelection())
-            self.config.Write('align', self.m_AlignmentChoice.GetStringSelection())
-            self.config.Write('width', self.m_WidthCtrl.GetValue())
-            self.config.Write('pad-top', self.m_PaddingTopCtrl.GetValue())
-            self.config.Write('pad-left', self.m_PaddingLeftCtrl.GetValue())
-            self.config.Write('pad-right', self.m_PaddingRightCtrl.GetValue())
-            self.config.Write('pad-bot', self.m_PaddingBottomCtrl.GetValue())
-
-            self.config.Flush()
-        except:
-            import traceback
-            print(traceback.format_exc())
+        pass
             
+    def LoadSettings(self, params):
+        for key,value in params.items():
+            try:
+                obj = getattr(self, "m_{}".format(key))
+                if hasattr(obj, "SetValue"):
+                    obj.SetValue(value)
+                elif hasattr(obj, "SetStringSelection"):
+                    obj.SetStringSelection(value)
+                else:
+                    raise Exception("Invalid item")  
+            except Exception as e:
+                print(e)
+        return params
 
     def CurrentSettings(self):
         values = [
-            self.m_MultiLineText,
-            self.m_HeightCtrl,
-            self.m_FontComboBox,
-            self.m_CapLeftChoice,
-            self.m_CapRightChoice,
-            self.m_PaddingTopCtrl,
-            self.m_PaddingLeftCtrl,
-            self.m_PaddingRightCtrl,
-            self.m_PaddingBottomCtrl,
-            self.m_WidthCtrl,
-            self.m_AlignmentChoice,
+            'MultiLineText',
+            'HeightCtrl',
+            'FontComboBox',
+            'CapLeftChoice',
+            'CapRightChoice',
+            'PaddingTopCtrl',
+            'PaddingLeftCtrl',
+            'PaddingRightCtrl',
+            'PaddingBottomCtrl',
+            'WidthCtrl',
+            'AlignmentChoice',
         ]
-        StrValue = "".encode('utf-8')
+        params = {}
 
         for item in values:
-            if hasattr(item, "GetValue"):
-                StrValue += item.GetValue().encode('utf-8')
-            elif hasattr(item, "GetStringSelection"):
-                StrValue += item.GetStringSelection().encode('utf-8')
+            obj = getattr(self, "m_{}".format(item))
+            if hasattr(obj, "GetValue"):
+                params.update({item: obj.GetValue()})
+            elif hasattr(obj, "GetStringSelection"):
+                params.update({item: obj.GetStringSelection()})
             else:
                 raise Exception("Invalid item")    
-        return StrValue
+        return params
 
 
     def labelEditOnText( self, event ):
-        while self.sourceText != self.CurrentSettings():
-            self.sourceText = self.CurrentSettings()
+        # print(self.label_params)
+        # print(self.CurrentSettings())
+        while self.label_params != self.CurrentSettings():
+            self.label_params.update(self.CurrentSettings())
             self.ReGeneratePreview()
 
         self.timer.Start(milliseconds=250, oneShot=True)
         event.Skip()
 
     def ReGenerateFlag(self, e):
-        self.sourceText = ""
+        self.label_params = {}
 
     def ReGeneratePreview(self, e=None):
         
         self.polys = []
-        self.buzzard.fontName = self.m_FontComboBox.GetStringSelection()
+        self.buzzard.fontName = self.m_FontComboBox.GetValue()
 
         # Validate scale factor
         scale = ParseFloat(self.m_HeightCtrl.GetValue(), 1.0)
@@ -191,7 +203,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         
         try:
             self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
-        except Exception as e:
+        except:
             import traceback
             traceback.print_exc()
 
@@ -257,6 +269,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
     def OnOkClick(self, event):
         self.timer.Stop()
-
+        json_str = json.dumps(self.label_params, sort_keys=True, ensure_ascii=False)
+        
         self.saveConfig()
+        
         self.func(self, self.buzzard)
