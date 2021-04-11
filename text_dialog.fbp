@@ -189,7 +189,7 @@
                                 <property name="tab_indents">0</property>
                                 <property name="tab_width">4</property>
                                 <property name="toolbar_pane">0</property>
-                                <property name="tooltip">Enter the text placed on selected layer.</property>
+                                <property name="tooltip"></property>
                                 <property name="use_tabs">1</property>
                                 <property name="view_eol">0</property>
                                 <property name="view_whitespace">0</property>

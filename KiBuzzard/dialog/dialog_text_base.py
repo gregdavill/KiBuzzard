@@ -65,8 +65,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_MultiLineText.MarkerDefine( wx.stc.STC_MARKNUM_FOLDERTAIL, wx.stc.STC_MARK_EMPTY )
         self.m_MultiLineText.SetSelBackground( True, wx.SystemSettings.GetColour(wx.SYS_COLOUR_HIGHLIGHT ) )
         self.m_MultiLineText.SetSelForeground( True, wx.SystemSettings.GetColour(wx.SYS_COLOUR_HIGHLIGHTTEXT ) )
-        self.m_MultiLineText.SetToolTip( _(u"Enter the text placed on selected layer.") )
-
         m_MultiLineSizer.Add( self.m_MultiLineText, 1, wx.EXPAND|wx.BOTTOM|wx.RIGHT|wx.LEFT, 5 )
 
 
