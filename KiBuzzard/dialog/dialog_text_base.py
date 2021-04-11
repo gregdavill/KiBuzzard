@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 3.9.0 Jan 11 2021)
+## Python code generated with wxFormBuilder (version 3.9.0 Apr 11 2021)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
 ###########################################################################
 
+from .compat import DialogShim
 import wx
 import wx.xrc
 import wx.stc
@@ -18,12 +19,12 @@ _ = gettext.gettext
 ## Class DIALOG_TEXT_BASE
 ###########################################################################
 
-class DIALOG_TEXT_BASE ( wx.Dialog ):
+class DIALOG_TEXT_BASE ( DialogShim ):
 
     def __init__( self, parent ):
-        wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = _(u"KiBuzzard Text Properties"), pos = wx.DefaultPosition, size = wx.Size( -1,-1 ), style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.SYSTEM_MENU )
+        DialogShim.__init__ ( self, parent, id = wx.ID_ANY, title = _(u"KiBuzzard Text Properties"), pos = wx.DefaultPosition, size = wx.Size( -1,-1 ), style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.SYSTEM_MENU )
 
-        self.SetSizeHintsSz( wx.Size( -1,-1 ), wx.DefaultSize )
+        self.SetSizeHints( wx.Size( -1,-1 ), wx.DefaultSize )
 
         bMainSizer = wx.BoxSizer( wx.VERTICAL )
 
