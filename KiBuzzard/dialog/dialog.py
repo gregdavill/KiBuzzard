@@ -100,8 +100,14 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.buzzard.rightCap = styles[self.m_JustifyChoice.GetStringSelection()]
 
 
-        self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
-        
+        try:
+
+            self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
+        except Exception as e:
+            wx.LogError(str(e))
+            #print(e)
+            # Todo display error messages
+
         self.RePaint()
 
     def RePaint(self, e=None):
