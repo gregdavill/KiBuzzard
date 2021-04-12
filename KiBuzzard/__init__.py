@@ -43,9 +43,16 @@ def check_for_bom_button():
             top_tb.Bind(wx.EVT_TOOL, callback, id=button_wx_item_id)
             top_tb.Realize()
 
-from .plugin import KiBuzzardPlugin
-plugin = KiBuzzardPlugin()
-plugin.register()
+try:
+    from .plugin import KiBuzzardPlugin
+    plugin = KiBuzzardPlugin()
+    plugin.register()
+except Exception as e:
+    import os
+    plugin_dir = os.path.dirname(os.path.realpath(__file__))
+    log_file = os.path.join(plugin_dir, 'error.log')
+    with open(log_file, 'w') as f:
+        f.write(repr(e))
 
 # Add a button the hacky way if plugin button is not supported
 # in pcbnew, unless this is linux.
