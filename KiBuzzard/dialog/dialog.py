@@ -50,19 +50,36 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
     def Cancel(self, e):
         self.timer.Stop()
+
+        self.saveConfig()
         e.Skip()
 
 
     def loadConfig(self):
-        self.config.SetPath('/')
-        self.m_FontComboBox.SetStringSelection(self.config.Read('font', 'FredokaOne'))
-        self.m_SizeYCtrl.SetValue(str(self.config.ReadFloat('scale', 1.0)))
+        try:
+            self.config.SetPath('/')
+            self.m_FontComboBox.SetStringSelection(self.config.Read('font', 'FredokaOne'))
+            self.m_MultiLineText.SetValue(self.config.Read('text', ''))
+            self.m_SizeYCtrl.SetValue(str(self.config.ReadFloat('scale', 1.0)))
+            self.m_JustifyChoice1.SetStringSelection(self.config.Read('l-cap', ''))
+            self.m_JustifyChoice.SetStringSelection(self.config.Read('r-cap', ''))
+        except:
+            import traceback
+            wx.LogError(traceback.format_exc())
         
     def saveConfig(self):
-        self.config.SetPath('/')
-        self.config.Write('font', self.m_FontComboBox.GetStringSelection())
-        self.config.WriteFloat('scale', float(self.scaleSpinCtrl.GetValue()))
-        
+        try:
+            self.config.SetPath('/')
+            self.config.Write('font', self.m_FontComboBox.GetStringSelection())
+            self.config.Write('text', self.m_MultiLineText.GetValue())
+            self.config.WriteFloat('scale', float(self.m_SizeYCtrl.GetValue()))
+            self.config.Write('l-cap', self.m_JustifyChoice1.GetStringSelection())
+            self.config.Write('r-cap', self.m_JustifyChoice.GetStringSelection())
+        except:
+            import traceback
+            wx.LogError(traceback.format_exc())
+            
+
     def CurrentSettings(self):
         return str(self.m_MultiLineText.GetValue()) + str(self.m_SizeYCtrl.GetValue()) + str(self.m_FontComboBox.GetStringSelection()) + \
             self.m_JustifyChoice1.GetStringSelection() + self.m_JustifyChoice.GetStringSelection()
@@ -152,4 +169,5 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
     def OnOkClick(self, event):
         self.timer.Stop()
 
+        self.saveConfig()
         self.func(self, self.buzzard)
