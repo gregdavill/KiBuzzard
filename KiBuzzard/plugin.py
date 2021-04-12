@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import tempfile
+import logging
 import wx
 import wx.aui
 from wx import FileConfig
@@ -17,6 +18,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
     def __init__(self):
         super(KiBuzzardPlugin, self).__init__()
+
+        self.InitLogger()
+        self.logger = logging.getLogger(__name__)
+
         self.name = "Create Labels"
         self.category = "Modify PCB"
         self.pcbnew_icon_support = hasattr(self, "show_toolbar_button")
@@ -99,3 +104,43 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         finally:
             self.config.Flush()
             dlg.Destroy()
+
+    def InitLogger(self):
+        # Remove all handlers associated with the root logger object.
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+
+        log_file = os.path.join(os.path.dirname(__file__), '..', 'kibuzzard.log')
+
+        # set up logger
+        logging.basicConfig(level=logging.DEBUG,
+                            filename=log_file,
+                            filemode='w',
+                            format='%(asctime)s %(name)s %(lineno)d:%(message)s',
+                            datefmt='%m-%d %H:%M:%S')
+
+        stdout_logger = logging.getLogger('STDOUT')
+        sl_out = StreamToLogger(stdout_logger, logging.INFO)
+        sys.stdout = sl_out
+
+        stderr_logger = logging.getLogger('STDERR')
+        sl_err = StreamToLogger(stderr_logger, logging.ERROR)
+        sys.stderr = sl_err
+
+
+class StreamToLogger(object):
+    """
+    Fake file-like stream object that redirects writes to a logger instance.
+    """
+    def __init__(self, logger, log_level=logging.INFO):
+        self.logger = logger
+        self.log_level = log_level
+        self.linebuf = ''
+
+    def write(self, buf):
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.log_level, line.rstrip())
+
+    def flush(self, *args, **kwargs):
+        """No-op for wrapper"""
+        pass

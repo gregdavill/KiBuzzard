@@ -1,4 +1,5 @@
 __pycache__/
 *.pyc
-
 config.ini
+kibuzzard.log
+error.log
