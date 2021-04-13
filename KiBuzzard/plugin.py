@@ -92,16 +92,14 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             dlg.EndModal(wx.ID_OK)
 
         dlg = Dialog(self._pcbnew_frame, self.config, Buzzard(), run_buzzard)
-        try:
-            if dlg.ShowModal() == wx.ID_OK:
-                
-                if '5.99' in self.kicad_build_version:
-                    if self._pcbnew_frame is not None:
-                        # Set focus to main window and attempt to execute a Paste operation
-                        self._pcbnew_frame.Raise()
-                        wx.Yield()
-                        keyinput = wx.UIActionSimulator()
-                        keyinput.Char(ord("V"), wx.MOD_CONTROL)    
+        if dlg.ShowModal() == wx.ID_OK:
+            if '5.99' in self.kicad_build_version:
+                if self._pcbnew_frame is not None:
+                    # Set focus to main window and attempt to execute a Paste operation
+                    self._pcbnew_frame.Raise()
+                    wx.Yield()
+                    keyinput = wx.UIActionSimulator()
+                    keyinput.Char(ord("V"), wx.MOD_CONTROL)    
 
     def InitLogger(self):
         # Remove all handlers associated with the root logger object.
