@@ -57,6 +57,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
         def run_buzzard(dlg, p_buzzard): 
 
+            if len(dlg.polys) == 0:
+                dlg.EndModal(wx.ID_CANCEL)
+                return
+
             if '5.1' in self.kicad_build_version or '5.0' in self.kicad_build_version:
                 # Handle KiCad 5.1
                 filepath = self.filepath
@@ -98,12 +102,6 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         wx.Yield()
                         keyinput = wx.UIActionSimulator()
                         keyinput.Char(ord("V"), wx.MOD_CONTROL)    
-        except Exception as e:
-            print(e)
-        
-        finally:
-            self.config.Flush()
-            dlg.Destroy()
 
     def InitLogger(self):
         # Remove all handlers associated with the root logger object.
