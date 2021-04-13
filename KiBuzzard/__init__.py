@@ -21,10 +21,9 @@ def check_for_bom_button():
     def callback(_):
         plugin.Run()
 
-    path = os.path.dirname(__file__)
     while not wx.GetApp():
         time.sleep(1)
-    bm = wx.Bitmap(path + '/icon.png', wx.BITMAP_TYPE_PNG)
+    bm = wx.Bitmap(os.path.join(os.path.dirname(__file__),'icon.png'), wx.BITMAP_TYPE_PNG)
     button_wx_item_id = 0
 
     from pcbnew import ID_H_TOOLBAR
