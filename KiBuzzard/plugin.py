@@ -30,6 +30,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         self.icon_file_name = os.path.join(icon_dir, 'icon.png')
         self.description = "Create Labels"
         self.config = FileConfig(localFilename=self.config_file)
+        
         self._pcbnew_frame = None
 
         self.kicad_build_version = pcbnew.GetBuildVersion()
@@ -40,9 +41,6 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 os.makedirs(os.path.dirname(self.filepath))
             except:
                 pass
-
-    def defaults(self):
-        pass
 
     def Run(self):
         if self._pcbnew_frame is None:

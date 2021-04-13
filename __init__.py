@@ -1,1 +1,1 @@
-from . import KiBuzzard
+from .KiBuzzard import plugin
