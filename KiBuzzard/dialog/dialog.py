@@ -85,7 +85,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.m_JustifyChoice1.GetStringSelection() + self.m_JustifyChoice.GetStringSelection()
 
     def labelEditOnText( self, event ):
-
         while self.sourceText != self.CurrentSettings():
             self.sourceText = self.CurrentSettings()
             self.ReGeneratePreview()
@@ -97,6 +96,11 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.sourceText = ""
 
     def ReGeneratePreview(self, e=None):
+        if len(self.m_MultiLineText.GetValue()) == 0:
+            return
+        if len(self.m_MultiLineText.GetValue()) > 64:
+            wx.LogError("Text length too long")
+        
         self.polys = []
         self.buzzard.fontName = self.m_FontComboBox.GetStringSelection()
 
@@ -108,7 +112,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             except ValueError:
                 print("Scale not valid")
         self.buzzard.scaleFactor = scale
-        
 
         styles = {'':'', '(':'round', '[':'square', '<':'pointer', '/':'fslash', '\\':'bslash', '>':'flagtail'}
         self.buzzard.leftCap = styles[self.m_JustifyChoice1.GetStringSelection()]
@@ -116,9 +119,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         styles = {'':'', ')':'round', ']':'square', '>':'pointer', '/':'fslash', '\\':'bslash', '<':'flagtail'}
         self.buzzard.rightCap = styles[self.m_JustifyChoice.GetStringSelection()]
 
-
         try:
-
             self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
         except Exception as e:
             import traceback
