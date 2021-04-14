@@ -40,7 +40,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.sourceText = ""
         self.polys = []
         
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
+        self.m_PreviewPanel.Bind(wx.EVT_PAINT, self.OnPaint)
 
         self.Bind(wx.EVT_TIMER, self.labelEditOnText)
         self.m_sdbSizerCancel.Bind(wx.EVT_BUTTON, self.Cancel)
@@ -133,14 +133,11 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
 
     def OnPaint(self, e):
-
-        dc = wx.PaintDC(self)
+        dc = wx.PaintDC(self.m_PreviewPanel)
         dc.SetPen(wx.Pen('#000000', width=1))
 
         size_x, size_y = self.m_PreviewPanel.GetSize()
-        position_x, position_y = self.m_PreviewPanel.GetPosition()
-
-        dc.SetDeviceOrigin(int(position_x + size_x/2), int((position_y + size_y/2)))
+        dc.SetDeviceOrigin(int(size_x/2), int(size_y/2))
         dc.SetBrush(wx.Brush('#000000'))
 
         if len(self.polys):
@@ -162,10 +159,9 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                 for j in range(len(polys[i])):
                     polys[i][j] = (scale*polys[i][j][0],scale*polys[i][j][1])
 
-
-
             dc.DrawPolygonList(polys)
-        
+
+
     def OnOkClick(self, event):
         self.timer.Stop()
 
