@@ -100,6 +100,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             return
         if len(self.m_MultiLineText.GetValue()) > 64:
             wx.LogError("Text length too long")
+            return
         
         self.polys = []
         self.buzzard.fontName = self.m_FontComboBox.GetStringSelection()
