@@ -34,6 +34,9 @@ SIMPLIFY = 0.1 * SCALE
 SIMPLIFYHQ = False
 TRACEWIDTH = '0.1'
 
+from fontTools.ttLib import ttFont
+from fontTools.pens.recordingPen import RecordingPen
+from fontTools.pens.basePen import decomposeQuadraticSegment
 
 class Buzzard():
     def __init__(self):
@@ -51,6 +54,8 @@ class Buzzard():
     def generate(self, inString):
         paths, attributes, svg_attributes = string2paths(self.renderLabel(inString).tostring())
         return self.drawSVG(svg_attributes, attributes, paths)
+
+
 
 
     # ******************************************************************************
@@ -73,74 +78,69 @@ class Buzzard():
         lineoverList = []
 
         # If we can't find the typeface that the user requested, we have to quit
+        fontFileName = os.path.dirname(os.path.abspath(__file__)) + '/typeface/' + self.fontName + '.ttf'
         try:
-            face = Face(os.path.dirname(os.path.abspath(__file__)) + '/typeface/' + self.fontName + '.ttf')
+            face = Face(fontFileName)
             face.set_char_size(charSizeX,charSizeY,200,200)
         except Exception as e:
             print(e)
             print("WARN: No Typeface found with the name " + self.fontName + ".ttf")
             sys.exit(0)  # quit Python
 
-        # If the typeface that the user requested exists, but there's no position table for it, we'll continue with a warning
-        try: 
-            table = __import__('KiBuzzard.KiBuzzard.buzzard.typeface.' + self.fontName, globals(), locals(), ['glyphPos'])
-            glyphPos = table.glyphPos
-            spaceDistance = table.spaceDistance
-        except:
-            glyphPos = 0
-            spaceDistance = 60
-            print("WARN: No Position Table found for this typeface. Composition will be haphazard at best.")
+        ttf = ttFont.TTFont(fontFileName)
+        offset_y = ttf["head"].unitsPerEm
 
-        # If there's lineover text, drop the text down to make room for the line
-        dropBaseline = False
-        a = False
-        x = 0
-        while x < len(inString):
-            if x > 0 and inString[x] == '\\':
-                a = True
-                if x != len(inString)-1:
-                    x += 1
-            if inString[x] == '!' and not a:
-                dropBaseline = True
-            a = False
-            x += 1
-        if dropBaseline:
-            baseline = 190
+        print(ttf, offset_y)
+
+
+        self.paths = []
+        prev_origin = Point()
+        offset = Point(prev_origin.x, prev_origin.y)
+
+        path = []
 
         # Draw and compose the glyph portion of the tag 
         for charIdx in range(len(inString)):
-            # Check whether this character is a space
-            if inString[charIdx] == ' ':
-                glyphBounds.append(boundingBox(0,0,0,0)) 
-                xOffset += spaceDistance
+            
+            char = inString[charIdx]
+
+            pathbuf = ""
+            pen = RecordingPen()
+            try: glf = ttf.getGlyphSet()[ttf.getBestCmap()[ord(char)]]
+            except KeyError:
+                logging.warning(f"Unsuported character in <text> element \"{char}\"")
+                #txt = txt.replace(char, "")
                 continue
-            # Check whether this character is a backslash that isn't escaped 
-            # and isn't the first character (denoting a backslash-shaped tag)
-            if inString[charIdx] == '\\' and charIdx > 0 and not escaped:
-                glyphBounds.append(boundingBox(0,0,0,0))
-                escaped = True
-                continue
-            # If this is a non-escaped '!' mark the beginning of lineover
-            if inString[charIdx] == '!' and not escaped:
-                glyphBounds.append(boundingBox(0,0,0,0))
-                lineover = True
-                # If we've hit the end of the string but not the end of the lineover
-                # go ahead and finish it out
-                if charIdx == len(inString)-1 and len(lineoverList) > 0:
-                    linePaths = []
-                    linePaths.append(Line(start=complex(lineoverList[0], 10), end=complex(xOffset,10)))
-                    linePaths.append(Line(start=complex(xOffset,10), end=complex(xOffset,30)))
-                    linePaths.append(Line(start=complex(xOffset,30), end=complex(lineoverList[0], 30)))
-                    linePaths.append(Line(start=complex(lineoverList[0], 30), end=complex(lineoverList[0], 10)))
-                    linepath = Path(*linePaths)
-                    linepath = elPath(linepath.d())
-                    finalSegments.append(linepath)
-                    lineover = False
-                    lineoverList.clear()
-                continue
-            # All special cases end in 'continue' so if we've gotten here we can clear our flags      
-            if escaped:
-                escaped = False
+
+            glf.draw(pen)
+            for command in pen.value:
+                pts = list(command[1])
+                for ptInd in range(len(pts)):
+                    pts[ptInd] = (pts[ptInd][0], offset.y - pts[ptInd][1])
+                if command[0] == "moveTo" or command[0] == "lineTo":
+                    pathbuf += command[0][0].upper() + f" {pts[0][0]},{pts[0][1]} "
+                elif command[0] == "qCurveTo":
+                    pts = decomposeQuadraticSegment(command[1])
+                    for pt in pts:
+                        pathbuf += "Q {},{} {},{} ".format(
+                            pt[0][0], offset.y - pt[0][1],
+                            pt[1][0], offset.y - pt[1][1]
+                        )
+                elif command[0] == "closePath":
+                    pathbuf += "Z"
+
+            path.append(Path())
+            path[-1].parse(pathbuf)
+            # Apply the scaling then the translation
+            translate = Matrix([1,0,0,1,offset.x,-size+attrib.origin.y]) * Matrix([scale,0,0,scale,0,0])
+            # This queues the translations until .transform() is called
+            path[-1].matrix =  translate * path[-1].matrix
+            #path[-1].get_transformations({"transform":"translate({},{}) scale({})".format(
+            #    offset.x, -size+attrib.origin.y, scale)})
+            offset.x += (scale*glf.width)
+            
+            
+
 
             face.load_char(inString[charIdx])   # Load character curves from font
             outline = face.glyph.outline        # Save character curves to var
