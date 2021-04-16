@@ -29,6 +29,8 @@ class Buzzard():
         self.leftCap = ''                # Used to store cap shape for left side of tag
         self.rightCap = ''               # Used to store cap shape for right side of tag-
 
+        self.svgText = None
+
 #        svg.Text.load_system_fonts()
         fnt_lib = svg.Text._system_fonts
         if fnt_lib is None:
@@ -47,10 +49,10 @@ class Buzzard():
         print(fnt_lib)
         
     def generate(self, inString):
-        t = self.renderLabel(inString)
+        self.svgText = self.renderLabel(inString)
         
         mod = Svg2Points(precision=1.0)
-        mod.add_svg_element(t)
+        mod.add_svg_element(self.svgText)
         mod.write()
 
         return mod.polys
@@ -64,12 +66,8 @@ class Buzzard():
     #
     #
     def renderLabel(self, inString):
-        
-
-        # mod is the kicad footprint writer class
         # t is an svg Text element
         t = svg.Text()
-        
         
         #t.set_font(font="DejaVu Sans", italic=False, bold=True)
         t.set_font(self.fontName)
@@ -96,51 +94,16 @@ class Buzzard():
         p.parse(pstr)
         t.paths.append([p])
 
-
-        # Print kicad footprint text created by running mod.write()
-        #print(mod.raw_file_data)
-
         return t
 
     def create_v6_footprint(self):
-        
-        out = "(footprint \"buzzardLabel\"\n" + \
-            " (layer \"F.Cu\")\n" + \
-            " (attr board_only exclude_from_pos_files exclude_from_bom)\n"
-
-        for poly in self.polys:
-
-            if len(poly) < 2:
-                return
-
-            scriptLine = " (fp_poly (pts"
-            for points in poly:
-                scriptLine += " (xy {0:.4f} {1:.4f})".format(points[0],points[1])
-            scriptLine += ") (layer \"F.SilkS\") (width 0.05) (fill solid))\n"
-        
-            out += scriptLine + '\n'
-    
-        out += ')\n'
-        return out
+        mod = svg2mod.Svg2ModExportPretty(precision=1.0)
+        mod.add_svg_element(self.svgText)
+        mod.write()
+        return mod.raw_file_data
 
     def create_v5_footprint(self):
-        
-        out = "(module Symbol:buzzardLabel (layer F.Cu) (tedit 0)\n" + \
-              " (attr virtual)\n"
-
-        for poly in self.polys:
-
-            if len(poly) < 2:
-                return
-
-            scriptLine = " (fp_poly (pts"
-            for points in poly:
-                scriptLine += " (xy {0:.4f} {1:.4f})".format(points[0],points[1])
-            out += scriptLine + ") (layer F.SilkS) (width 0.05))\n"
-        
-            
-        out += ')\n'
-        return out
+        return ""
 
 class Svg2Points( svg2mod.Svg2ModExport ):
     ''' A child of Svg2ModExport that implements
