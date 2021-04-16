@@ -73,7 +73,8 @@ class Buzzard():
         t.set_font(self.fontName)
         # Add multiline text
         
-        t.add_text(inString)
+        for i,s in enumerate(inString.split('\n')):
+            t.add_text(s, origin=svg.Point(0, 15*i))
         #t.add_text("Hello,")
         #t.add_text("World", origin=svg.Point(0,15))
         
