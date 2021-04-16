@@ -32,6 +32,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.SetClientSize(best_size)
         self.config = config
         self.func = func
+
+        self.error = None
         
         self.loadConfig()
 
@@ -121,12 +123,15 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         styles = {'':'', ')':'round', ']':'square', '>':'pointer', '/':'fslash', '\\':'bslash', '<':'flagtail'}
         self.buzzard.rightCap = styles[self.m_JustifyChoice.GetStringSelection()]
+        self.error = None
 
         try:
             self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
         except Exception as e:
             import traceback
-            wx.LogError(traceback.format_exc())
+            #wx.LogError(traceback.format_exc())
+            self.error = traceback.format_exc()
+            
 
         self.RePaint()
 
@@ -138,32 +143,41 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
     def OnPaint(self, e):
         dc = wx.PaintDC(self.m_PreviewPanel)
-        dc.SetPen(wx.Pen('#000000', width=1))
 
-        size_x, size_y = self.m_PreviewPanel.GetSize()
-        dc.SetDeviceOrigin(int(size_x/2), int(size_y/2))
-        dc.SetBrush(wx.Brush('#000000'))
+        if self.error is not None:
+            font = wx.Font(6, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL,
+            wx.FONTWEIGHT_NORMAL)
+            dc.SetFont(font)
+            dc.SetTextForeground('#FF0000')
 
-        if len(self.polys):
-            # Create copy of poly list for scaling preview
-            polys = copy.deepcopy(self.polys)
+            dc.DrawLabel(self.error, wx.Rect(self.m_PreviewPanel.GetSize()), wx.ALIGN_CENTRE_HORIZONTAL)
+        else:
+            dc.SetPen(wx.Pen('#000000', width=1))
 
-            min_x = 0
-            max_x = 0
+            size_x, size_y = self.m_PreviewPanel.GetSize()
+            dc.SetDeviceOrigin(int(size_x/2), int(size_y/2))
+            dc.SetBrush(wx.Brush('#000000'))
 
-            for i in range(len(self.polys)):
-                for j in range(len(self.polys[i])):
-                    min_x = min(self.polys[i][j].x, min_x)
-                    max_x = max(self.polys[i][j].x, max_x)
+            if len(self.polys):
+                # Create copy of poly list for scaling preview
+                polys = copy.deepcopy(self.polys)
 
-            scale = (size_x * 0.95) / (max_x - min_x)
+                min_x = 0
+                max_x = 0
 
-            scale = min(15.0, scale)
-            for i in range(len(polys)):
-                for j in range(len(polys[i])):
-                    polys[i][j] = (scale*polys[i][j].x,scale*polys[i][j].y)
+                for i in range(len(self.polys)):
+                    for j in range(len(self.polys[i])):
+                        min_x = min(self.polys[i][j].x, min_x)
+                        max_x = max(self.polys[i][j].x, max_x)
 
-            dc.DrawPolygonList(polys)
+                scale = (size_x * 0.95) / (max_x - min_x)
+
+                scale = min(15.0, scale)
+                for i in range(len(polys)):
+                    for j in range(len(polys[i])):
+                        polys[i][j] = (scale*polys[i][j].x,scale*polys[i][j].y)
+
+                dc.DrawPolygonList(polys)
 
 
     def OnOkClick(self, event):
