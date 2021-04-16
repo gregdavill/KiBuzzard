@@ -87,13 +87,46 @@ class Buzzard():
         height += buff*2
         width = bbox[1].x - bbox[0].x
 
-        # Create outline around text with one side being an arc and the other a point
-        # these are svg path commands lowercase letters mean relative moves and uppercase are absolute moves
-        pstr = f"M {bbox[0].x},{bbox[0].y-buff} a {height/2},{height/2} 0 0 0 0,{height} h {width} l {height/2},{height/-2} l {height/-2},{height/-2} h {-1*width} z"
+        # Create outline around text 
+        if (self.leftCap != '') & (self.rightCap != ''):
+            print(self.leftCap, self.rightCap)
+            pstr = f'M {bbox[0].x},{bbox[0].y-buff} '
+            
+            if self.leftCap == 'round':
+                pstr += f'a {height/2},{height/2} 0 0 0 0,{height} '
+            if self.leftCap == 'square':
+                pstr += f'l {-buff},0 l 0,{height} l {buff},0 '
+            if self.leftCap == 'fslash':
+                pstr += f'l {-buff},0 l {-2*buff},{height} l {3*buff},0 '
+            if self.leftCap == 'bslash':
+                pstr += f'l {-3*buff},0 l {2*buff},{height} l {buff},0 '
+            if self.leftCap == 'pointer':
+                pstr += f'l {height/-2},{height/2} l {height/2},{height/2} '
+            if self.leftCap == 'flagtail':
+                pstr += f'l {-1*buff - height/2},0 l {height/2},{height/2} l {height/-2},{height/2} l {buff + height/2},0'
+                
+            pstr += f'h {width} '
+            
+            if self.rightCap == 'round':
+                pstr += f'a {height/2},{height/2} 0 0 0 0,{-height} '
+            if self.rightCap == 'square':
+                pstr += f'l {buff},0 l 0,{-height} l {-buff},0 '
+            if self.rightCap == 'fslash':
+                pstr += f'l {buff},0 l {2*buff},{-height} l {-3*buff},0 '
+            if self.rightCap == 'bslash':
+                pstr += f'l {3*buff},0 l {-2*buff},{-height} l {-buff},0 '
+            if self.rightCap == 'pointer':
+                pstr += f'l {height/2},{height/-2} l {height/-2},{height/-2} '
+            if self.rightCap == 'flagtail':
+                pstr += f'l {1*buff + height/2},0 l {height/-2},{height/-2} l {height/2},{height/-2} l {-buff -height/2},0'
 
-        p = svg.Path()
-        p.parse(pstr)
-        t.paths.append([p])
+            pstr += f'h {-1*width} z'
+
+            p = svg.Path()
+            p.parse(pstr)
+            t.paths.append([p])
+
+
 
         return t
 
