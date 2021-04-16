@@ -110,10 +110,10 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.buzzard.fontName = self.m_FontComboBox.GetStringSelection()
 
         # Validate scale factor
-        scale = 0.04
+        scale = 0.2
         if self.m_SizeYCtrl.GetValue() != "":
             try:
-                scale = float(self.m_SizeYCtrl.GetValue()) * 0.04
+                scale = float(self.m_SizeYCtrl.GetValue()) * 0.2
             except ValueError:
                 print("Scale not valid")
         self.buzzard.scaleFactor = scale
@@ -145,12 +145,12 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         dc = wx.PaintDC(self.m_PreviewPanel)
 
         if self.error is not None:
-            font = wx.Font(6, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL,
+            font = wx.Font(8, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL,
             wx.FONTWEIGHT_NORMAL)
             dc.SetFont(font)
             dc.SetTextForeground('#FF0000')
 
-            dc.DrawLabel(self.error, wx.Rect(self.m_PreviewPanel.GetSize()), wx.ALIGN_CENTRE_HORIZONTAL)
+            dc.DrawLabel(self.error, wx.Rect(self.m_PreviewPanel.GetSize()), wx.ALIGN_LEFT)
         else:
             dc.SetPen(wx.Pen('#000000', width=1))
 
@@ -164,15 +164,25 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
                 min_x = 0
                 max_x = 0
+            
+                min_y = 0
+                max_y = 0
 
                 for i in range(len(self.polys)):
                     for j in range(len(self.polys[i])):
                         min_x = min(self.polys[i][j].x, min_x)
                         max_x = max(self.polys[i][j].x, max_x)
 
+                for i in range(len(self.polys)):
+                    for j in range(len(self.polys[i])):
+                        min_y = min(self.polys[i][j].y, min_y)
+                        max_y = max(self.polys[i][j].y, max_y)
+
                 scale = (size_x * 0.95) / (max_x - min_x)
 
-                scale = min(15.0, scale)
+                scale = min(scale, (size_y * 0.95) / (max_y - min_y))
+
+                #scale = min(15.0, scale)
                 for i in range(len(polys)):
                     for j in range(len(polys[i])):
                         polys[i][j] = (scale*polys[i][j].x,scale*polys[i][j].y)

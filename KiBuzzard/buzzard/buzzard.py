@@ -45,13 +45,11 @@ class Buzzard():
                 continue
 
             fnt_lib[os.path.splitext(os.path.basename(entry_path))[0]] = {'Path':entry_path}
-
-        print(fnt_lib)
-        
+      
     def generate(self, inString):
         self.svgText = self.renderLabel(inString)
         
-        mod = Svg2Points(precision=1.0)
+        mod = Svg2Points(svg2mod.Svg2ModImport(), precision=1.0, scale_factor=self.scaleFactor, center=True)
         mod.add_svg_element(self.svgText)
         mod.write()
 
@@ -68,19 +66,17 @@ class Buzzard():
     def renderLabel(self, inString):
         # t is an svg Text element
         t = svg.Text()
-        
+
         #t.set_font(font="DejaVu Sans", italic=False, bold=True)
         t.set_font(self.fontName)
         # Add multiline text
         
         for i,s in enumerate(inString.split('\n')):
             t.add_text(s, origin=svg.Point(0, 15*i))
-        #t.add_text("Hello,")
-        #t.add_text("World", origin=svg.Point(0,15))
         
         # This needs to be called to convert raw text to useable path elements
         t.convert_to_path()
-
+    
         bbox = t.bbox()
         height = bbox[1].y - bbox[0].y
         buff = t.size/5
@@ -89,7 +85,6 @@ class Buzzard():
 
         # Create outline around text 
         if (self.leftCap != '') & (self.rightCap != ''):
-            print(self.leftCap, self.rightCap)
             pstr = f'M {bbox[0].x},{bbox[0].y-buff} '
             
             if self.leftCap == 'round':
@@ -126,12 +121,10 @@ class Buzzard():
             p.parse(pstr)
             t.paths.append([p])
 
-
-
         return t
 
     def create_v6_footprint(self):
-        mod = svg2mod.Svg2ModExportPretty(precision=1.0)
+        mod = svg2mod.Svg2ModExportPretty(precision=1.0, scale_factor=self.scaleFactor, center=True)
         mod.add_svg_element(self.svgText)
         mod.write()
         return mod.raw_file_data
