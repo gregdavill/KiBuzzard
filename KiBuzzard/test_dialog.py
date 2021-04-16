@@ -20,16 +20,6 @@ class MyApp(wx.App):
         return True
 
     def run(self, footprint_string):
-        # Copy footprint into clipboard
-        if sys.platform.startswith('linux'):
-            clip_args = ['xclip', '-sel', 'clip', '-noutf8']
-        elif sys.platform == 'darwin':
-            clip_args = ['pbcopy']
-        else:
-            clip_args = ['clip.exe']
-
-        process = subprocess.Popen(clip_args, stdin=subprocess.PIPE)
-        process.communicate(footprint_string.encode('ascii'))
         
         self.frame.EndModal(wx.ID_OK)
 

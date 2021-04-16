@@ -56,6 +56,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
 
     def loadConfig(self):
+
         try:
             self.config.SetPath('/')
             self.m_FontComboBox.SetStringSelection(self.config.Read('font', 'FredokaOne'))
@@ -66,6 +67,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         except:
             import traceback
             wx.LogError(traceback.format_exc())
+        self.m_MultiLineText.SetValue('AaBb_- [efg]')
         
     def saveConfig(self):
         try:
@@ -151,15 +153,15 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
             for i in range(len(self.polys)):
                 for j in range(len(self.polys[i])):
-                    min_x = min(self.polys[i][j][0], min_x)
-                    max_x = max(self.polys[i][j][0], max_x)
+                    min_x = min(self.polys[i][j].x, min_x)
+                    max_x = max(self.polys[i][j].x, max_x)
 
             scale = (size_x * 0.95) / (max_x - min_x)
 
-            scale = min(50.0, scale)
+            scale = min(15.0, scale)
             for i in range(len(polys)):
                 for j in range(len(polys[i])):
-                    polys[i][j] = (scale*polys[i][j][0],scale*polys[i][j][1])
+                    polys[i][j] = (scale*polys[i][j].x,scale*polys[i][j].y)
 
             dc.DrawPolygonList(polys)
 
