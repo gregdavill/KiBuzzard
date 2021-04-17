@@ -85,37 +85,37 @@ class Buzzard():
 
         # Create outline around text 
         if (self.leftCap != '') & (self.rightCap != ''):
-            pstr = f'M {bbox[0].x},{bbox[0].y-buff} '
+            pstr = "M {},{} ".format(bbox[0].x, bbox[0].y-buff)
             
             if self.leftCap == 'round':
-                pstr += f'a {height/2},{height/2} 0 0 0 0,{height} '
+                pstr += "a {},{} 0 0 0 0,{} ".format(height/2,height/2,height)
             if self.leftCap == 'square':
-                pstr += f'l {-buff},0 l 0,{height} l {buff},0 '
+                pstr += "l {},0 l 0,{} l {},0 ".format(-buff, height, buff)
             if self.leftCap == 'fslash':
-                pstr += f'l {-buff},0 l {-2*buff},{height} l {3*buff},0 '
+                pstr += "l {},0 l {},{} l {},0 ".format(-buff, -2*buff, height, 3*buff)
             if self.leftCap == 'bslash':
-                pstr += f'l {-3*buff},0 l {2*buff},{height} l {buff},0 '
+                pstr += "l {},0 l {},{} l {},0 ".format(-3*buff, 2*buff, height, buff)
             if self.leftCap == 'pointer':
-                pstr += f'l {height/-2},{height/2} l {height/2},{height/2} '
+                pstr += "l {},{} l {},{} ".format(height/-2, height/2, height/2, height/2)
             if self.leftCap == 'flagtail':
-                pstr += f'l {-1*buff - height/2},0 l {height/2},{height/2} l {height/-2},{height/2} l {buff + height/2},0'
+                pstr += "l {},0 l {},{} l {},{} l {},0".format(-1*buff - height/2, height/2, height/2, height/-2, height/2, buff + height/2)
                 
-            pstr += f'h {width} '
+            pstr += "h {} ".format(width)
             
             if self.rightCap == 'round':
-                pstr += f'a {height/2},{height/2} 0 0 0 0,{-height} '
+                pstr += "a {},{} 0 0 0 0,{} ".format(height/2, height/2,-height)
             if self.rightCap == 'square':
-                pstr += f'l {buff},0 l 0,{-height} l {-buff},0 '
+                pstr += "l {},0 l 0,{} l {},0 ".format(buff, -height, -buff)
             if self.rightCap == 'fslash':
-                pstr += f'l {buff},0 l {2*buff},{-height} l {-3*buff},0 '
+                pstr += "l {},0 l {},{} l {},0 ".format(buff, 2*buff, -height, -3*buff)
             if self.rightCap == 'bslash':
-                pstr += f'l {3*buff},0 l {-2*buff},{-height} l {-buff},0 '
+                pstr += "l {},0 l {},{} l {},0 ".format(3*buff, -2*buff, -height, -buff)
             if self.rightCap == 'pointer':
-                pstr += f'l {height/2},{height/-2} l {height/-2},{height/-2} '
+                pstr += "l {},{} l {},{} ".format(height/2, height/-2, height/-2, height/-2)
             if self.rightCap == 'flagtail':
-                pstr += f'l {1*buff + height/2},0 l {height/-2},{height/-2} l {height/2},{height/-2} l {-buff -height/2},0'
+                pstr += "l {},0 l {},{} l {},{} l {},0 ".format(1*buff + height/2, height/-2, height/-2, height/2, height/-2, -buff -height/2)
 
-            pstr += f'h {-1*width} z'
+            pstr += "h {} z".format(-1*width)
 
             p = svg.Path()
             p.parse(pstr)
