@@ -36,18 +36,13 @@ Example on KiCad 5.99 Ubuntu:
 ```
 
 ```console
-$ git clone https://github.com/gregdavill/KiBuzzard
+$ git clone https://github.com/gregdavill/KiBuzzard --recursive
 ```
 
-You will also require the FreeType DLLs
-This can be done with pip:
+If you didn't pull down the submodules when you cloned you can update them with
 ```console
-$ pip3 install freetype-py --user
+$ git submodule update --init
 ```
-
-Alternatively for Windows:
-Download FreeType dlls: https://github.com/ubawurinna/freetype-windows-binaries/releases/latest
-Copy win64/freetype.dll into C:/Program Files/KiCad/5.99/bin
 
 ## Licence and credits
 
