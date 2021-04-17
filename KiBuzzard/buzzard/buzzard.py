@@ -123,7 +123,11 @@ class Buzzard():
         return mod.raw_file_data
 
     def create_v5_footprint(self):
-        return ""
+        print(self.scaleFactor)
+        mod = svg2mod.Svg2ModExportPretty(svg2mod.Svg2ModImport(), precision=1.0, scale_factor=self.scaleFactor, center=True)
+        mod.add_svg_element(self.svgText)
+        mod.write()
+        return mod.raw_file_data
 
 class Svg2Points( svg2mod.Svg2ModExport ):
     ''' A child of Svg2ModExport that implements
