@@ -110,10 +110,10 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.buzzard.fontName = self.m_FontComboBox.GetStringSelection()
 
         # Validate scale factor
-        scale = 0.2
+        scale = 0.5
         if self.m_SizeYCtrl.GetValue() != "":
             try:
-                scale = float(self.m_SizeYCtrl.GetValue()) * 0.2
+                scale = float(self.m_SizeYCtrl.GetValue()) * 0.5
             except ValueError:
                 print("Scale not valid")
         self.buzzard.scaleFactor = scale
