@@ -1,10 +1,6 @@
 # Original code from: https://github.com/sparkfunX/Buzzard
 import sys
 import os
-from svgpathtools import Line, QuadraticBezier, Path, Arc
-from freetype import Face
-from svgelements import Path as elPath, Matrix
-import svgwrite
 import math
 import subprocess
 import re
@@ -14,7 +10,6 @@ import shlex
 from fontTools.ttLib import ttFont
 from fontTools.pens.recordingPen import RecordingPen
 from fontTools.pens.basePen import decomposeQuadraticSegment
-
 
 from svg2mod import svg2mod, svg
 
@@ -67,9 +62,7 @@ class Buzzard():
         # t is an svg Text element
         t = svg.Text()
 
-        #t.set_font(font="DejaVu Sans", italic=False, bold=True)
         t.set_font(self.fontName)
-        # Add multiline text
         
         for i,s in enumerate(inString.split('\n')):
             t.add_text(s, origin=svg.Point(0, 15*i))
@@ -124,7 +117,7 @@ class Buzzard():
         return t
 
     def create_v6_footprint(self):
-        mod = svg2mod.Svg2ModExportPretty(precision=1.0, scale_factor=self.scaleFactor, center=True)
+        mod = svg2mod.Svg2ModExportPretty(svg2mod.Svg2ModImport(), precision=1.0, scale_factor=self.scaleFactor, center=True)
         mod.add_svg_element(self.svgText)
         mod.write()
         return mod.raw_file_data
