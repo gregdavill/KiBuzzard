@@ -100,11 +100,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.sourceText = ""
 
     def ReGeneratePreview(self, e=None):
-        if len(self.m_MultiLineText.GetValue()) == 0:
-            return
-        if len(self.m_MultiLineText.GetValue()) > 64:
-            wx.LogError("Text length too long")
-            return
         
         self.polys = []
         self.buzzard.fontName = self.m_FontComboBox.GetStringSelection()
@@ -125,13 +120,19 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.buzzard.rightCap = styles[self.m_JustifyChoice.GetStringSelection()]
         self.error = None
 
+        if len(self.m_MultiLineText.GetValue()) == 0:
+            self.RePaint()
+            return
+        if len(self.m_MultiLineText.GetValue()) > 64:
+            wx.LogError("Text length too long")
+            return
+        
         try:
             self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
         except Exception as e:
             import traceback
             #wx.LogError(traceback.format_exc())
             self.error = traceback.format_exc()
-            
 
         self.RePaint()
 
@@ -162,17 +163,18 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                 # Create copy of poly list for scaling preview
                 polys = copy.deepcopy(self.polys)
 
+
+                # TODO use matrix for scaling
+                # TODO use bbox to determine scaling
                 min_x = 0
                 max_x = 0
-            
-                min_y = 0
-                max_y = 0
-
                 for i in range(len(self.polys)):
                     for j in range(len(self.polys[i])):
                         min_x = min(self.polys[i][j].x, min_x)
                         max_x = max(self.polys[i][j].x, max_x)
 
+                min_y = 0
+                max_y = 0
                 for i in range(len(self.polys)):
                     for j in range(len(self.polys[i])):
                         min_y = min(self.polys[i][j].y, min_y)
