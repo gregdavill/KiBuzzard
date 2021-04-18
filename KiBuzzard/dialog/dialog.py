@@ -7,6 +7,7 @@ import wx
 
 from . import dialog_text_base
 
+
 class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
     def __init__(self, parent, config, buzzard, func):
         dialog_text_base.DIALOG_TEXT_BASE.__init__(self, parent)
@@ -21,6 +22,9 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.m_FontComboBox.Append(os.path.splitext(entry)[0])
         
         self.m_FontComboBox.SetSelection(0)
+
+        #for fnt in buzzard.SystemFonts:
+        #    self.m_FontComboBox.Append(fnt)
 
 
         self.m_SizeYUnits.SetLabel("mm")

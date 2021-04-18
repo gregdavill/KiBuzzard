@@ -25,8 +25,10 @@ class Buzzard():
         self.rightCap = ''               # Used to store cap shape for right side of tag-
 
         self.svgText = None
+        self.SystemFonts = svg.Text._system_fonts
 
-#        svg.Text.load_system_fonts()
+        svg.Text.load_system_fonts()
+
         fnt_lib = svg.Text._system_fonts
         if fnt_lib is None:
             fnt_lib = {}
@@ -40,7 +42,7 @@ class Buzzard():
                 continue
 
             fnt_lib[os.path.splitext(os.path.basename(entry_path))[0]] = {'Path':entry_path}
-      
+
     def generate(self, inString):
         self.svgText = self.renderLabel(inString)
         
