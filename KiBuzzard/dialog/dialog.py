@@ -61,7 +61,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         try:
             self.config.SetPath('/')
-            self.m_FontComboBox.SetStringSelection(self.config.Read('font', 'FredokaOne'))
+            self.m_FontComboBox.SetStringSelection(self.config.Read('font', 'UbuntuMono-B'))
             self.m_MultiLineText.SetValue(self.config.Read('text', ''))
             self.m_SizeYCtrl.SetValue(str(self.config.ReadFloat('scale', 1.0)))
             self.m_JustifyChoice1.SetStringSelection(self.config.Read('l-cap', ''))
@@ -69,7 +69,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         except:
             import traceback
             wx.LogError(traceback.format_exc())
-        self.m_MultiLineText.SetValue('AaBb_- [efg]')
         
     def saveConfig(self):
         try:
@@ -123,15 +122,15 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         if len(self.m_MultiLineText.GetValue()) == 0:
             self.RePaint()
             return
-        if len(self.m_MultiLineText.GetValue()) > 64:
-            wx.LogError("Text length too long")
+        if len(self.m_MultiLineText.GetValue()) > 128:
+            self.error = "Text input loo long"
             return
         
         try:
             self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
         except Exception as e:
             import traceback
-            #wx.LogError(traceback.format_exc())
+            traceback.print_exc()
             self.error = traceback.format_exc()
 
         self.RePaint()
