@@ -28,7 +28,9 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
 
         self.m_SizeYUnits.SetLabel("mm")
-        self.m_ThicknessUnits.SetLabel("mm")
+        self.m_WidthUnits.SetLabel("mm")
+        self.m_PaddingUnits.SetLabel("mm")
+        
 
         best_size = self.BestSize
         # hack for some gtk themes that incorrectly calculate best size
@@ -67,31 +69,31 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.config.SetPath('/')
             self.m_FontComboBox.SetStringSelection(self.config.Read('font', 'UbuntuMono-B'))
             self.m_MultiLineText.SetValue(self.config.Read('text', ''))
-            self.m_SizeYCtrl.SetValue(str(self.config.ReadFloat('scale', 1.0)))
-            self.m_JustifyChoice1.SetStringSelection(self.config.Read('l-cap', ''))
-            self.m_JustifyChoice.SetStringSelection(self.config.Read('r-cap', ''))
+            self.m_HeightCtrl.SetValue(str(self.config.ReadFloat('scale', 1.0)))
+            self.m_CapLeftChoice.SetStringSelection(self.config.Read('l-cap', ''))
+            self.m_CapRightChoice.SetStringSelection(self.config.Read('r-cap', ''))
         except:
             import traceback
-            wx.LogError(traceback.format_exc())
+            print(traceback.format_exc())
         
     def saveConfig(self):
         try:
             self.config.SetPath('/')
             self.config.Write('font', self.m_FontComboBox.GetStringSelection())
             self.config.Write('text', self.m_MultiLineText.GetValue())
-            self.config.WriteFloat('scale', float(self.m_SizeYCtrl.GetValue()))
-            self.config.Write('l-cap', self.m_JustifyChoice1.GetStringSelection())
-            self.config.Write('r-cap', self.m_JustifyChoice.GetStringSelection())
+            self.config.WriteFloat('scale', float(self.m_HeightCtrl.GetValue()))
+            self.config.Write('l-cap', self.m_CapLeftChoice.GetStringSelection())
+            self.config.Write('r-cap', self.m_CapRightChoice.GetStringSelection())
 
             self.config.Flush()
         except:
             import traceback
-            wx.LogError(traceback.format_exc())
+            print(traceback.format_exc())
             
 
     def CurrentSettings(self):
-        return str(self.m_MultiLineText.GetValue()) + str(self.m_SizeYCtrl.GetValue()) + str(self.m_FontComboBox.GetStringSelection()) + \
-            self.m_JustifyChoice1.GetStringSelection() + self.m_JustifyChoice.GetStringSelection()
+        return str(self.m_MultiLineText.GetValue()) + str(self.m_HeightCtrl.GetValue()) + str(self.m_FontComboBox.GetStringSelection()) + \
+            self.m_CapLeftChoice.GetStringSelection() + self.m_CapRightChoice.GetStringSelection()
 
     def labelEditOnText( self, event ):
         while self.sourceText != self.CurrentSettings():
@@ -111,18 +113,18 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         # Validate scale factor
         scale = 0.5
-        if self.m_SizeYCtrl.GetValue() != "":
+        if self.m_HeightCtrl.GetValue() != "":
             try:
-                scale = float(self.m_SizeYCtrl.GetValue()) * 0.5
+                scale = float(self.m_HeightCtrl.GetValue()) * 0.5
             except ValueError:
                 print("Scale not valid")
         self.buzzard.scaleFactor = scale
 
         styles = {'':'', '(':'round', '[':'square', '<':'pointer', '/':'fslash', '\\':'bslash', '>':'flagtail'}
-        self.buzzard.leftCap = styles[self.m_JustifyChoice1.GetStringSelection()]
+        self.buzzard.leftCap = styles[self.m_CapLeftChoice.GetStringSelection()]
 
         styles = {'':'', ')':'round', ']':'square', '>':'pointer', '/':'fslash', '\\':'bslash', '<':'flagtail'}
-        self.buzzard.rightCap = styles[self.m_JustifyChoice.GetStringSelection()]
+        self.buzzard.rightCap = styles[self.m_CapRightChoice.GetStringSelection()]
         self.error = None
 
         if len(self.m_MultiLineText.GetValue()) == 0:
