@@ -1,6 +1,7 @@
 [submodule "KiBuzzard/deps/fonttools"]
 	path = KiBuzzard/deps/fonttools
-	url = https://github.com/fonttools/fonttools.git
+	url = https://github.com/gregdavill/fonttools.git
+	branch = py27
 [submodule "KiBuzzard/deps/svg2mod"]
 	path = KiBuzzard/deps/svg2mod
 	url = https://github.com/gregdavill/svg2mod.git
