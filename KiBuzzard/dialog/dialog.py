@@ -139,7 +139,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            self.error = traceback.format_exc()
 
         self.RePaint()
 
@@ -158,7 +157,9 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             dc.SetFont(font)
             dc.SetTextForeground('#FF0000')
 
-            dc.DrawLabel(self.error, wx.Rect(self.m_PreviewPanel.GetSize()), wx.ALIGN_LEFT)
+
+            rect = wx.Rect(0,0, self.m_PreviewPanel.GetSize().GetWidth(),self.m_PreviewPanel.GetSize().GetHeight())
+            dc.DrawLabel(self.error, rect, wx.ALIGN_LEFT)
         else:
             dc.SetPen(wx.Pen('#000000', width=1))
 
