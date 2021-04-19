@@ -92,8 +92,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             
 
     def CurrentSettings(self):
-        return str(self.m_MultiLineText.GetValue()) + str(self.m_HeightCtrl.GetValue()) + str(self.m_FontComboBox.GetStringSelection()) + \
-            self.m_CapLeftChoice.GetStringSelection() + self.m_CapRightChoice.GetStringSelection()
+        return self.m_MultiLineText.GetValue().encode('utf-8') + self.m_HeightCtrl.GetValue().encode('utf-8') + self.m_FontComboBox.GetStringSelection().encode('utf-8') + \
+            self.m_CapLeftChoice.GetStringSelection().encode('utf-8') + self.m_CapRightChoice.GetStringSelection().encode('utf-8')
 
     def labelEditOnText( self, event ):
         while self.sourceText != self.CurrentSettings():
