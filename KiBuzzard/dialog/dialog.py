@@ -82,6 +82,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.config.WriteFloat('scale', float(self.m_SizeYCtrl.GetValue()))
             self.config.Write('l-cap', self.m_JustifyChoice1.GetStringSelection())
             self.config.Write('r-cap', self.m_JustifyChoice.GetStringSelection())
+
+            self.config.Flush()
         except:
             import traceback
             wx.LogError(traceback.format_exc())
