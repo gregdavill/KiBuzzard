@@ -1,0 +1,34 @@
+include README.rst
+include LICENSE
+include LICENSE.external
+include NEWS.rst
+include Makefile
+include fonttools
+include Snippets/*.py
+include Snippets/README.md
+include MetaTools/*.py
+include Lib/fontTools/ttLib/tables/table_API_readme.txt
+
+include *requirements.txt
+include tox.ini
+include run-tests.sh
+
+include .appveyor.yml
+include .codecov.yml
+include .coveragerc
+include .travis.yml
+recursive-include .travis *.sh
+
+include Doc/Makefile
+include Doc/make.bat
+recursive-include Doc/man/man1 *.1
+recursive-include Doc/source *.py *.rst
+
+recursive-include Tests *.py *.ttx *.otx *.fea *.feax
+recursive-include Tests *.ttc *.ttf *.dfont *.woff *.woff2
+recursive-include Tests *.otf *.ttx.*
+recursive-include Tests *.glif *.plist
+recursive-include Tests *.txt README
+recursive-include Tests *.lwfn *.pfa *.pfb
+recursive-include Tests *.xml *.designspace *.bin
+recursive-include Tests *.afm
