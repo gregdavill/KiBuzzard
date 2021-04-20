@@ -36,12 +36,7 @@ Example on KiCad 5.99 Ubuntu:
 ```
 
 ```console
-$ git clone https://github.com/gregdavill/KiBuzzard --recursive
-```
-
-If you didn't pull down the submodules when you cloned you can update them with
-```console
-$ git submodule update --init
+$ git clone https://github.com/gregdavill/KiBuzzard
 ```
 
 ## Licence and credits
