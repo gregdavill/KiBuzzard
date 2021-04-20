@@ -35,7 +35,9 @@ Example on KiCad 5.99 Ubuntu:
 /home/__USERNAME__/.local/share/kicad/5.99/scripting/plugins
 ```
 
+You can either use git to download the plugin, or directly download as Zip.
 ```console
+$ cd /home/__USERNAME__/.config/kicad/5.99/scripting
 $ git clone https://github.com/gregdavill/KiBuzzard
 ```
 
