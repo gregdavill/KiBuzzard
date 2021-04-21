@@ -7,6 +7,14 @@ import wx
 
 from . import dialog_text_base
 
+def ParseFloat(InputString, DefaultValue=0.0):
+    value = DefaultValue
+    if InputString != "":
+        try:
+            value = float(InputString)
+        except ValueError:
+            print("Value not valid")
+    return value
 
 class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
     def __init__(self, parent, config, buzzard, func):
@@ -29,7 +37,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         self.m_SizeYUnits.SetLabel("mm")
         self.m_WidthUnits.SetLabel("mm")
-        self.m_PaddingUnits.SetLabel("mm")
+        self.m_PaddingUnits.SetLabel("")
         
 
         best_size = self.BestSize
@@ -93,7 +101,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
     def CurrentSettings(self):
         return self.m_MultiLineText.GetValue().encode('utf-8') + self.m_HeightCtrl.GetValue().encode('utf-8') + self.m_FontComboBox.GetStringSelection().encode('utf-8') + \
-            self.m_CapLeftChoice.GetStringSelection().encode('utf-8') + self.m_CapRightChoice.GetStringSelection().encode('utf-8')
+            self.m_CapLeftChoice.GetStringSelection().encode('utf-8') + self.m_CapRightChoice.GetStringSelection().encode('utf-8') + self.m_PaddingCtrl.GetValue().encode('utf-8')
 
     def labelEditOnText( self, event ):
         while self.sourceText != self.CurrentSettings():
@@ -112,13 +120,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.buzzard.fontName = self.m_FontComboBox.GetStringSelection()
 
         # Validate scale factor
-        scale = 0.5
-        if self.m_HeightCtrl.GetValue() != "":
-            try:
-                scale = float(self.m_HeightCtrl.GetValue()) * 0.5
-            except ValueError:
-                print("Scale not valid")
-        self.buzzard.scaleFactor = scale
+        self.buzzard.scale = ParseFloat(self.m_HeightCtrl.GetValue(), 1.0) * 0.5
+        self.buzzard.padding.SetValue(ParseFloat(self.m_PaddingCtrl.GetValue(), 0.2) * 0.5)
 
         styles = {'':'', '(':'round', '[':'square', '<':'pointer', '/':'fslash', '\\':'bslash', '>':'flagtail'}
         self.buzzard.leftCap = styles[self.m_CapLeftChoice.GetStringSelection()]

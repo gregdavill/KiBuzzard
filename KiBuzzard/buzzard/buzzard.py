@@ -13,6 +13,21 @@ from fontTools.pens.basePen import decomposeQuadraticSegment
 
 from svg2mod import svg2mod, svg
 
+class Padding():
+    def __init__(self):
+        self.left = 0
+        self.right = 0
+        self.top = 0
+        self.bottom = 0
+        
+
+    def SetValue(self, value):
+        self.left = value
+        self.right = 1
+        self.top = 1
+        self.bottom = 1
+        
+
 
 class Buzzard():
     def __init__(self):
@@ -21,6 +36,7 @@ class Buzzard():
         self.scaleFactor = 0.04
         self.subSampling = 0.1
         self.traceWidth = 0.1
+        self.padding = Padding()
         self.leftCap = ''                # Used to store cap shape for left side of tag
         self.rightCap = ''               # Used to store cap shape for right side of tag-
 
@@ -72,43 +88,46 @@ class Buzzard():
         # This needs to be called to convert raw text to useable path elements
         t.convert_to_path()
     
+        padding = self.padding
         bbox = t.bbox()
         height = bbox[1].y - bbox[0].y
-        buff = t.size/5
-        height += buff*2
+        
+        height += padding.top + padding.bottom
         width = bbox[1].x - bbox[0].x
 
         # Create outline around text 
         if (self.leftCap != '') & (self.rightCap != ''):
-            pstr = "M {},{} ".format(bbox[0].x, bbox[0].y-buff)
+            pstr = "M {},{} ".format(bbox[0].x, bbox[0].y-padding.top)
             
             if self.leftCap == 'round':
+                pstr += "l {},0 ".format(-padding.left)
                 pstr += "a {},{} 0 0 0 0,{} ".format(height/2,height/2,height)
+                pstr += "l {},0 ".format(padding.left)
             if self.leftCap == 'square':
-                pstr += "l {},0 l 0,{} l {},0 ".format(-buff, height, buff)
+                pstr += "l {},0 l 0,{} l {},0 ".format(-padding.left, height, padding.left)
             if self.leftCap == 'fslash':
-                pstr += "l {},0 l {},{} l {},0 ".format(-buff, -2*buff, height, 3*buff)
+                pstr += "l {},0 l {},{} l {},0 ".format(-padding.left, -2*padding.left, height, 3*padding.left)
             if self.leftCap == 'bslash':
-                pstr += "l {},0 l {},{} l {},0 ".format(-3*buff, 2*buff, height, buff)
+                pstr += "l {},0 l {},{} l {},0 ".format(-3*padding.left, 2*padding.left, height, padding.left)
             if self.leftCap == 'pointer':
                 pstr += "l {},{} l {},{} ".format(height/-2, height/2, height/2, height/2)
             if self.leftCap == 'flagtail':
-                pstr += "l {},0 l {},{} l {},{} l {},0".format(-1*buff - height/2, height/2, height/2, height/-2, height/2, buff + height/2)
+                pstr += "l {},0 l {},{} l {},{} l {},0".format(-1*padding.left - height/2, height/2, height/2, height/-2, height/2, padding.left + height/2)
                 
             pstr += "h {} ".format(width)
             
             if self.rightCap == 'round':
                 pstr += "a {},{} 0 0 0 0,{} ".format(height/2, height/2,-height)
             if self.rightCap == 'square':
-                pstr += "l {},0 l 0,{} l {},0 ".format(buff, -height, -buff)
+                pstr += "l {},0 l 0,{} l {},0 ".format(padding.right, -height, -padding.right)
             if self.rightCap == 'fslash':
-                pstr += "l {},0 l {},{} l {},0 ".format(buff, 2*buff, -height, -3*buff)
+                pstr += "l {},0 l {},{} l {},0 ".format(padding.right, 2*padding.right, -height, -3*padding.right)
             if self.rightCap == 'bslash':
-                pstr += "l {},0 l {},{} l {},0 ".format(3*buff, -2*buff, -height, -buff)
+                pstr += "l {},0 l {},{} l {},0 ".format(3*padding.right, -2*padding.right, -height, -padding.right)
             if self.rightCap == 'pointer':
                 pstr += "l {},{} l {},{} ".format(height/2, height/-2, height/-2, height/-2)
             if self.rightCap == 'flagtail':
-                pstr += "l {},0 l {},{} l {},{} l {},0 ".format(1*buff + height/2, height/-2, height/-2, height/2, height/-2, -buff -height/2)
+                pstr += "l {},0 l {},{} l {},{} l {},0 ".format(1*padding.right + height/2, height/-2, height/-2, height/2, height/-2, -padding.right -height/2)
 
             pstr += "h {} z".format(-1*width)
 
