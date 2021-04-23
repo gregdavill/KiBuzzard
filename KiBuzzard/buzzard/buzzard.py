@@ -55,7 +55,7 @@ class Buzzard():
     def generate(self, inString):
         self.svgText = self.renderLabel(inString)
         
-        mod = Svg2Points(svg2mod.Svg2ModImport(), precision=1.0, scale_factor=self.scaleFactor, center=True)
+        mod = Svg2Points(svg2mod.Svg2ModImport(), precision=1.0, scale_factor=1.0, center=True)
         mod.add_svg_element(self.svgText)
         mod.write()
 
