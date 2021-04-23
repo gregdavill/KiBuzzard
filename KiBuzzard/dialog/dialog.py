@@ -7,6 +7,14 @@ import wx
 
 from . import dialog_text_base
 
+def ParseFloat(InputString, DefaultValue=0.0):
+    value = DefaultValue
+    if InputString != "":
+        try:
+            value = float(InputString)
+        except ValueError:
+            print("Value not valid")
+    return value
 
 class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
     def __init__(self, parent, config, buzzard, func):
@@ -27,9 +35,9 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         #    self.m_FontComboBox.Append(fnt)
 
 
-        self.m_SizeYUnits.SetLabel("mm")
+        self.m_HeightUnits.SetLabel("mm")
         self.m_WidthUnits.SetLabel("mm")
-        self.m_PaddingUnits.SetLabel("mm")
+        self.m_PaddingUnits.SetLabel("")
         
 
         best_size = self.BestSize
@@ -72,6 +80,13 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.m_HeightCtrl.SetValue(str(self.config.ReadFloat('scale', 1.0)))
             self.m_CapLeftChoice.SetStringSelection(self.config.Read('l-cap', ''))
             self.m_CapRightChoice.SetStringSelection(self.config.Read('r-cap', ''))
+            self.m_AlignmentChoice.SetStringSelection(self.config.Read('align', ''))
+            self.m_WidthCtrl.SetValue(self.config.Read('width', ''))
+            self.m_PaddingTopCtrl.SetValue(self.config.Read('pad-top', ''))
+            self.m_PaddingLeftCtrl.SetValue(self.config.Read('pad-left', ''))
+            self.m_PaddingRightCtrl.SetValue(self.config.Read('pad-right', ''))
+            self.m_PaddingBottomCtrl.SetValue(self.config.Read('pad-bot', ''))
+            
         except:
             import traceback
             print(traceback.format_exc())
@@ -84,6 +99,12 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.config.WriteFloat('scale', float(self.m_HeightCtrl.GetValue()))
             self.config.Write('l-cap', self.m_CapLeftChoice.GetStringSelection())
             self.config.Write('r-cap', self.m_CapRightChoice.GetStringSelection())
+            self.config.Write('align', self.m_AlignmentChoice.GetStringSelection())
+            self.config.Write('width', self.m_WidthCtrl.GetValue())
+            self.config.Write('pad-top', self.m_PaddingTopCtrl.GetValue())
+            self.config.Write('pad-left', self.m_PaddingTopCtrl.GetValue())
+            self.config.Write('pad-right', self.m_PaddingRightCtrl.GetValue())
+            self.config.Write('pad-bot', self.m_PaddingBottomCtrl.GetValue())
 
             self.config.Flush()
         except:
@@ -92,8 +113,30 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             
 
     def CurrentSettings(self):
-        return self.m_MultiLineText.GetValue().encode('utf-8') + self.m_HeightCtrl.GetValue().encode('utf-8') + self.m_FontComboBox.GetStringSelection().encode('utf-8') + \
-            self.m_CapLeftChoice.GetStringSelection().encode('utf-8') + self.m_CapRightChoice.GetStringSelection().encode('utf-8')
+        values = [
+            self.m_MultiLineText,
+            self.m_HeightCtrl,
+            self.m_FontComboBox,
+            self.m_CapLeftChoice,
+            self.m_CapRightChoice,
+            self.m_PaddingTopCtrl,
+            self.m_PaddingLeftCtrl,
+            self.m_PaddingRightCtrl,
+            self.m_PaddingBottomCtrl,
+            self.m_WidthCtrl,
+            self.m_AlignmentChoice,
+        ]
+        StrValue = "".encode('utf-8')
+
+        for item in values:
+            if hasattr(item, "GetValue"):
+                StrValue += item.GetValue().encode('utf-8')
+            elif hasattr(item, "GetStringSelection"):
+                StrValue += item.GetStringSelection().encode('utf-8')
+            else:
+                raise Exception("Invalid item")    
+        return StrValue
+
 
     def labelEditOnText( self, event ):
         while self.sourceText != self.CurrentSettings():
@@ -112,13 +155,17 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.buzzard.fontName = self.m_FontComboBox.GetStringSelection()
 
         # Validate scale factor
-        scale = 0.5
-        if self.m_HeightCtrl.GetValue() != "":
-            try:
-                scale = float(self.m_HeightCtrl.GetValue()) * 0.5
-            except ValueError:
-                print("Scale not valid")
-        self.buzzard.scaleFactor = scale
+        self.buzzard.scale = ParseFloat(self.m_HeightCtrl.GetValue(), 1.0) * 0.5
+
+        DefaultPadding = self.buzzard.scale * 7.75 * 4 * 0.25
+        self.buzzard.padding.top = ParseFloat(self.m_PaddingTopCtrl.GetValue(), DefaultPadding) * 0.5
+        self.buzzard.padding.left = ParseFloat(self.m_PaddingLeftCtrl.GetValue(), DefaultPadding) * 0.5
+        self.buzzard.padding.right = ParseFloat(self.m_PaddingRightCtrl.GetValue(), DefaultPadding) * 0.5
+        self.buzzard.padding.bottom = ParseFloat(self.m_PaddingBottomCtrl.GetValue(), DefaultPadding) * 0.5
+
+        self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0) * 0.5
+
+        self.buzzard.alignment = self.m_AlignmentChoice.GetStringSelection()
 
         styles = {'':'', '(':'round', '[':'square', '<':'pointer', '/':'fslash', '\\':'bslash', '>':'flagtail'}
         self.buzzard.leftCap = styles[self.m_CapLeftChoice.GetStringSelection()]
@@ -157,13 +204,13 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             dc.SetFont(font)
             dc.SetTextForeground('#FF0000')
 
-
             rect = wx.Rect(0,0, self.m_PreviewPanel.GetSize().GetWidth(),self.m_PreviewPanel.GetSize().GetHeight())
             dc.DrawLabel(self.error, rect, wx.ALIGN_LEFT)
         else:
             dc.SetPen(wx.Pen('#000000', width=1))
 
             size_x, size_y = self.m_PreviewPanel.GetSize()
+
             dc.SetDeviceOrigin(int(size_x/2), int(size_y/2))
             dc.SetBrush(wx.Brush('#000000'))
 

@@ -96,7 +96,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         m_FontComboBoxChoices = []
         self.m_FontComboBox = wx.ComboBox( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, m_FontComboBoxChoices, wx.CB_READONLY )
-        fgSizerSetup.Add( self.m_FontComboBox, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+        fgSizerSetup.Add( self.m_FontComboBox, 2, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
 
         fgSizerSetup.Add( ( 0, 0), 0, wx.RIGHT|wx.LEFT, 40 )
@@ -109,7 +109,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         m_CapLeftChoiceChoices = [ wx.EmptyString, _(u"["), _(u"("), _(u"/"), _(u"\\"), _(u"<"), _(u">") ]
         self.m_CapLeftChoice = wx.Choice( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_CapLeftChoiceChoices, 0 )
         self.m_CapLeftChoice.SetSelection( 0 )
-        fgSizerSetup.Add( self.m_CapLeftChoice, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
+        fgSizerSetup.Add( self.m_CapLeftChoice, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
 
         self.m_HeightLabel = wx.StaticText( self, wx.ID_ANY, _(u"Height:"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_HeightLabel.Wrap( -1 )
@@ -120,10 +120,10 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_HeightCtrl.SetMaxLength( 0 )
         fgSizerSetup.Add( self.m_HeightCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
-        self.m_SizeYUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_SizeYUnits.Wrap( -1 )
+        self.m_HeightUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_HeightUnits.Wrap( -1 )
 
-        fgSizerSetup.Add( self.m_SizeYUnits, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
+        fgSizerSetup.Add( self.m_HeightUnits, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
 
         self.m_CapRightLabel = wx.StaticText( self, wx.ID_ANY, _(u"Cap Right:"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_CapRightLabel.Wrap( -1 )
@@ -134,26 +134,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_CapRightChoice = wx.Choice( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_CapRightChoiceChoices, 0 )
         self.m_CapRightChoice.SetSelection( 0 )
         fgSizerSetup.Add( self.m_CapRightChoice, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
-
-        self.m_PaddingLabel = wx.StaticText( self, wx.ID_ANY, _(u"Padding:"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_PaddingLabel.Wrap( -1 )
-
-        fgSizerSetup.Add( self.m_PaddingLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
-
-        self.m_PaddingCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
-        self.m_PaddingCtrl.SetMaxLength( 0 )
-        fgSizerSetup.Add( self.m_PaddingCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 2 )
-
-        self.m_PaddingUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_PaddingUnits.Wrap( -1 )
-
-        fgSizerSetup.Add( self.m_PaddingUnits, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
-
-
-        fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
-
-
-        fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
         self.m_WidthLabel = wx.StaticText( self, wx.ID_ANY, _(u"Width:"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_WidthLabel.Wrap( -1 )
@@ -169,11 +149,95 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerSetup.Add( self.m_WidthUnits, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
 
+        self.m_AlignmentLabel = wx.StaticText( self, wx.ID_ANY, _(u"Alignment:"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_AlignmentLabel.Wrap( -1 )
+
+        fgSizerSetup.Add( self.m_AlignmentLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
+
+        m_AlignmentChoiceChoices = [ _(u"Left"), _(u"Center"), _(u"Right") ]
+        self.m_AlignmentChoice = wx.Choice( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_AlignmentChoiceChoices, 0 )
+        self.m_AlignmentChoice.SetSelection( 0 )
+        fgSizerSetup.Add( self.m_AlignmentChoice, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
+
 
         bMainSizer.Add( fgSizerSetup, 0, wx.EXPAND|wx.RIGHT|wx.LEFT, 10 )
 
 
         bMainSizer.Add( ( 0, 0), 0, wx.TOP, 5 )
+
+        self.m_staticline1 = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
+        bMainSizer.Add( self.m_staticline1, 0, wx.BOTTOM|wx.EXPAND|wx.LEFT|wx.RIGHT, 5 )
+
+        fgSizerPadding = wx.FlexGridSizer( 0, 6, 4, 4 )
+        fgSizerPadding.AddGrowableCol( 1 )
+        fgSizerPadding.AddGrowableCol( 2 )
+        fgSizerPadding.AddGrowableCol( 3 )
+        fgSizerPadding.AddGrowableCol( 4 )
+        fgSizerPadding.SetFlexibleDirection( wx.BOTH )
+        fgSizerPadding.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
+
+        self.m_PaddingLabel = wx.StaticText( self, wx.ID_ANY, _(u"Padding:"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_PaddingLabel.Wrap( -1 )
+
+        fgSizerPadding.Add( self.m_PaddingLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
+
+        self.m_PaddingTopLabel = wx.StaticText( self, wx.ID_ANY, _(u"Top"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_PaddingTopLabel.Wrap( -1 )
+
+        fgSizerPadding.Add( self.m_PaddingTopLabel, 1, wx.ALIGN_CENTER, 5 )
+
+        self.m_PaddingLeftLabel = wx.StaticText( self, wx.ID_ANY, _(u"Left"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_PaddingLeftLabel.Wrap( -1 )
+
+        fgSizerPadding.Add( self.m_PaddingLeftLabel, 1, wx.ALIGN_CENTER, 5 )
+
+        self.m_PaddingRightLabel = wx.StaticText( self, wx.ID_ANY, _(u"Right"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_PaddingRightLabel.Wrap( -1 )
+
+        fgSizerPadding.Add( self.m_PaddingRightLabel, 1, wx.ALIGN_CENTER, 5 )
+
+        self.m_PaddingBottomLabel = wx.StaticText( self, wx.ID_ANY, _(u"Bottom"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_PaddingBottomLabel.Wrap( -1 )
+
+        fgSizerPadding.Add( self.m_PaddingBottomLabel, 1, wx.ALIGN_CENTER, 5 )
+
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+        self.m_PaddingTopCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
+        self.m_PaddingTopCtrl.SetMaxLength( 0 )
+        self.m_PaddingTopCtrl.SetMinSize( wx.Size( 64,-1 ) )
+
+        fgSizerPadding.Add( self.m_PaddingTopCtrl, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+
+        self.m_PaddingLeftCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
+        self.m_PaddingLeftCtrl.SetMaxLength( 0 )
+        self.m_PaddingLeftCtrl.SetMinSize( wx.Size( 64,-1 ) )
+
+        fgSizerPadding.Add( self.m_PaddingLeftCtrl, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+
+        self.m_PaddingRightCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
+        self.m_PaddingRightCtrl.SetMaxLength( 0 )
+        self.m_PaddingRightCtrl.SetMinSize( wx.Size( 64,-1 ) )
+
+        fgSizerPadding.Add( self.m_PaddingRightCtrl, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+
+        self.m_PaddingBottomCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
+        self.m_PaddingBottomCtrl.SetMaxLength( 0 )
+        self.m_PaddingBottomCtrl.SetMinSize( wx.Size( 64,-1 ) )
+
+        fgSizerPadding.Add( self.m_PaddingBottomCtrl, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+
+        self.m_PaddingUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_PaddingUnits.Wrap( -1 )
+
+        fgSizerPadding.Add( self.m_PaddingUnits, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
+
+
+        bMainSizer.Add( fgSizerPadding, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 10 )
 
         self.m_staticline = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
         bMainSizer.Add( self.m_staticline, 0, wx.EXPAND|wx.TOP|wx.RIGHT|wx.LEFT, 10 )
@@ -205,8 +269,11 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         # Connect Events
         self.Bind( wx.EVT_INIT_DIALOG, self.OnInitDlg )
         self.m_HeightCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
-        self.m_PaddingCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_WidthCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
+        self.m_PaddingTopCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
+        self.m_PaddingLeftCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
+        self.m_PaddingRightCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
+        self.m_PaddingBottomCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_sdbSizerOK.Bind( wx.EVT_BUTTON, self.OnOkClick )
 
     def __del__( self ):
@@ -219,6 +286,9 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
     def OnOkClick( self, event ):
         pass
+
+
+
 
 
 
