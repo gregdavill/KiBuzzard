@@ -155,15 +155,16 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.buzzard.fontName = self.m_FontComboBox.GetStringSelection()
 
         # Validate scale factor
-        self.buzzard.scaleFactor = ParseFloat(self.m_HeightCtrl.GetValue(), 1.0) * 0.5
+        scale = ParseFloat(self.m_HeightCtrl.GetValue(), 1.0)
+        self.buzzard.scaleFactor = scale * 0.5
 
-        DefaultPadding = self.buzzard.scaleFactor * 7.75 * 4 * 0.25
+        DefaultPadding = 7.75 * 4 * 0.25 * (1/scale)
         self.buzzard.padding.top = ParseFloat(self.m_PaddingTopCtrl.GetValue(), DefaultPadding) * 0.5
         self.buzzard.padding.left = ParseFloat(self.m_PaddingLeftCtrl.GetValue(), DefaultPadding) * 0.5
         self.buzzard.padding.right = ParseFloat(self.m_PaddingRightCtrl.GetValue(), DefaultPadding) * 0.5
         self.buzzard.padding.bottom = ParseFloat(self.m_PaddingBottomCtrl.GetValue(), DefaultPadding) * 0.5
 
-        self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0) *  7.75
+        self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0) *  7.75 * (1/scale)
 
         self.buzzard.alignment = self.m_AlignmentChoice.GetStringSelection()
 
