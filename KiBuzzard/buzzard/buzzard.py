@@ -81,7 +81,11 @@ class Buzzard():
         # This needs to be called to convert raw text to useable path elements
         t.convert_to_path()
     
+        # bounds check padding
         padding = self.padding
+        for attr in ['left', 'right', 'top', 'bottom']:
+            if getattr(padding,attr) <= 0: setattr(padding, attr, 0.001)
+
         bbox = t.bbox()
         height = bbox[1].y - bbox[0].y
         
