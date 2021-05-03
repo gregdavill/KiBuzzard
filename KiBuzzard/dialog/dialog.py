@@ -102,7 +102,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.config.Write('align', self.m_AlignmentChoice.GetStringSelection())
             self.config.Write('width', self.m_WidthCtrl.GetValue())
             self.config.Write('pad-top', self.m_PaddingTopCtrl.GetValue())
-            self.config.Write('pad-left', self.m_PaddingTopCtrl.GetValue())
+            self.config.Write('pad-left', self.m_PaddingLeftCtrl.GetValue())
             self.config.Write('pad-right', self.m_PaddingRightCtrl.GetValue())
             self.config.Write('pad-bot', self.m_PaddingBottomCtrl.GetValue())
 
