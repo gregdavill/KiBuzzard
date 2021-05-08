@@ -150,7 +150,7 @@ class Buzzard():
         return t
 
     def create_v6_footprint(self):
-        mod = svg2mod.Svg2ModExportPretty(svg2mod.Svg2ModImport(), precision=1.0, scale_factor=self.scaleFactor, center=True)
+        mod = svg2mod.Svg2ModExportv6Pretty(svg2mod.Svg2ModImport(), precision=1.0, scale_factor=self.scaleFactor, center=True)
         mod.add_svg_element(self.svgText)
         mod.write()
         return mod.raw_file_data
