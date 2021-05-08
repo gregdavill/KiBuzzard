@@ -82,10 +82,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             elif '5.99' in self.kicad_build_version or '6.0' in self.kicad_build_version:
                 footprint_string = p_buzzard.create_v6_footprint()
 
-
-                if wx.TheClipboard.Open():
-                    wx.TheClipboard.SetData(wx.TextDataObject(footprint_string))
-                    wx.TheClipboard.Close()
+                clipboard = wx.Clipboard.Get()
+                if clipboard.Open():
+                    clipboard.SetData(wx.TextDataObject(footprint_string))
+                    clipboard.Close()
                     
             dlg.EndModal(wx.ID_OK)
 
