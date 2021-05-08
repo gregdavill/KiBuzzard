@@ -1735,6 +1735,33 @@ class Svg2ModExportPretty( Svg2ModExport ):
 
     #------------------------------------------------------------------------
 
+
+#----------------------------------------------------------------------------
+
+class Svg2ModExportv6Pretty( Svg2ModExportPretty ):
+    ''' This provides functionality for v6 attrs
+    `board_only`, `exclude_from_pos_files` `exclude_from_bom`.
+    It is a child of Svg2ModExportPretty.
+    '''
+
+    #------------------------------------------------------------------------
+
+    def _write_library_intro( self, cmdline ):
+
+        self.output_file.write( """(module {0} (layer F.Cu) (tedit {1:8X})
+  (attr board_only exclude_from_pos_files exclude_from_bom)
+  (descr "{2}")
+  (tags {3})
+""".format(
+                self.imported.module_name, #0
+                int( round( #1
+                    os.path.getctime( self.imported.file_name ) if self.imported.file_name else time.time()
+                ) ),
+                "Converted using: {}".format( cmdline.replace("\\", "\\\\") ), #2
+                "svg2mod", #3
+            )
+        )
+        
 #----------------------------------------------------------------------------
 
 def get_arguments():
