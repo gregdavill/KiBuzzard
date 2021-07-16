@@ -1,11 +1,6 @@
 # Original code from: https://github.com/sparkfunX/Buzzard
-import sys
 import os
-import math
-import subprocess
-import re
-import xml.etree.ElementTree as XMLET
-import shlex
+import time
 
 from fontTools.ttLib import ttFont
 from fontTools.pens.recordingPen import RecordingPen
@@ -150,13 +145,15 @@ class Buzzard():
         return t
 
     def create_v6_footprint(self):
-        mod = svg2mod.Svg2ModExportv6Pretty(svg2mod.Svg2ModImport(), precision=1.0, scale_factor=self.scaleFactor, center=True)
+        name = "kibuzzard-{:8X}".format(int(round(time.time())))
+        mod = svg2mod.Svg2ModExportv6Pretty(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True)
         mod.add_svg_element(self.svgText)
         mod.write()
         return mod.raw_file_data
 
     def create_v5_footprint(self):
-        mod = svg2mod.Svg2ModExportPretty(svg2mod.Svg2ModImport(), precision=1.0, scale_factor=self.scaleFactor, center=True)
+        name = "kibuzzard-{:8X}".format(int(round(time.time())))
+        mod = svg2mod.Svg2ModExportPretty(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True)
         mod.add_svg_element(self.svgText)
         mod.write()
         return mod.raw_file_data
