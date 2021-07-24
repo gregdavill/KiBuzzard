@@ -959,9 +959,9 @@ class Svg2ModExport(object):
         min_point = self.transform_point( min_point, flip = False )
         max_point = self.transform_point( max_point, flip = False )
 
-        label_offset = 1200
-        label_size = 600
-        label_pen = 120
+        label_offset = 0.2
+        label_size = 0.1
+        label_pen = 0.001
 
         if self.use_mm:
             label_size = self._convert_decimal_to_mm( label_size )
