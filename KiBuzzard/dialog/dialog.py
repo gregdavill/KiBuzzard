@@ -156,6 +156,13 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         # Validate scale factor
         scale = ParseFloat(self.m_HeightCtrl.GetValue(), 1.0)
+
+        if scale == 0:
+            if self.buzzard.scaleFactor != 0:
+                scale = self.buzzard.scaleFactor * 2.0
+            else:
+                scale = 0.01 # avoid a /0, when changing the scale.
+
         self.buzzard.scaleFactor = scale * 0.5
 
         DefaultPadding = 7.75 * 4 * 0.25 * (1/scale)
