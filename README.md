@@ -41,6 +41,8 @@ $ cd /home/__USERNAME__/.config/kicad/5.99/scripting
 $ git clone https://github.com/gregdavill/KiBuzzard
 ```
 
+For Arch Linux users is already a [kicad-kibuzzard-git](https://aur.archlinux.org/packages/kicad-kibuzzard-git/) package in the AUR.
+
 ## Licence and credits
 
 Plugin code licensed under MIT, see `LICENSE` for more info.
