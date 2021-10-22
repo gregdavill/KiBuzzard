@@ -102,41 +102,22 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                     keyinput.Char(ord("V"), wx.MOD_CONTROL)    
 
     def InitLogger(self):
-        # Remove all handlers associated with the root logger object.
-        for handler in logging.root.handlers[:]:
-            logging.root.removeHandler(handler)
+        root = logging.getLogger()
+        root.setLevel(logging.DEBUG)
 
-        log_file = os.path.join(os.path.dirname(__file__), '..', 'kibuzzard.log')
+        # Log to stderr
+        handler1 = logging.StreamHandler(sys.stderr)
+        handler1.setLevel(logging.DEBUG)
 
-        # set up logger
-        logging.basicConfig(level=logging.DEBUG,
-                            filename=log_file,
-                            filemode='w',
-                            format='%(asctime)s %(name)s %(lineno)d:%(message)s',
-                            datefmt='%m-%d %H:%M:%S')
+        log_file = os.path.join(os.path.dirname(__file__), "..", "kibuzzard.log")
 
-        stdout_logger = logging.getLogger('STDOUT')
-        sl_out = StreamToLogger(stdout_logger, logging.INFO)
-        sys.stdout = sl_out
-
-        stderr_logger = logging.getLogger('STDERR')
-        sl_err = StreamToLogger(stderr_logger, logging.ERROR)
-        sys.stderr = sl_err
-
-
-class StreamToLogger(object):
-    """
-    Fake file-like stream object that redirects writes to a logger instance.
-    """
-    def __init__(self, logger, log_level=logging.INFO):
-        self.logger = logger
-        self.log_level = log_level
-        self.linebuf = ''
-
-    def write(self, buf):
-        for line in buf.rstrip().splitlines():
-            self.logger.log(self.log_level, line.rstrip())
-
-    def flush(self, *args, **kwargs):
-        """No-op for wrapper"""
-        pass
+        # and to our error file
+        handler2 = logging.FileHandler(log_file)
+        handler2.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(
+            "%(asctime)s %(name)s %(lineno)d:%(message)s", datefmt="%m-%d %H:%M:%S"
+        )
+        handler1.setFormatter(formatter)
+        handler2.setFormatter(formatter)
+        root.addHandler(handler1)
+        root.addHandler(handler2)
