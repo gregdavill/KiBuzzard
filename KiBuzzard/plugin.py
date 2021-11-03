@@ -1,6 +1,6 @@
 import os
 import sys
-import subprocess
+import time
 import tempfile
 import logging
 import wx
@@ -99,7 +99,11 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                     self._pcbnew_frame.Raise()
                     wx.Yield()
                     keyinput = wx.UIActionSimulator()
-                    keyinput.Char(ord("V"), wx.MOD_CONTROL)    
+                    
+                    # Press and release CTRL + V
+                    keyinput.KeyDown(ord("V"), wx.MOD_CONTROL)
+                    time.sleep(0.2)
+                    keyinput.KeyUp(ord("V"), wx.MOD_CONTROL) 
 
     def InitLogger(self):
         root = logging.getLogger()
