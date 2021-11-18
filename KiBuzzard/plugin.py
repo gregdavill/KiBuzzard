@@ -93,7 +93,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     
         if dlg.ShowModal() == wx.ID_OK:
             
-            if '5.99' in self.kicad_build_version:
+            if '5.99' in self.kicad_build_version or '6.0' in self.kicad_build_version:
                 if self._pcbnew_frame is not None:
                     # Set focus to main window and attempt to execute a Paste operation
                     self._pcbnew_frame.Raise()
