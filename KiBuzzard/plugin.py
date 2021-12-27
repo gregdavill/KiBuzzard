@@ -14,11 +14,11 @@ from .buzzard.buzzard import Buzzard
 
 
 class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
-    config_file = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
 
     def __init__(self):
         super(KiBuzzardPlugin, self).__init__()
 
+        self.config_file = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
         self.InitLogger()
         self.logger = logging.getLogger(__name__)
 
@@ -119,10 +119,29 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         handler1 = logging.StreamHandler(sys.stderr)
         handler1.setLevel(logging.DEBUG)
 
-        log_file = os.path.join(os.path.dirname(__file__), "..", "kibuzzard.log")
+
+        log_path = os.path.dirname(__file__)
+        log_file = os.path.join(log_path, "..", "kibuzzard.log")
 
         # and to our error file
-        handler2 = logging.FileHandler(log_file)
+        # Check logging file permissions, if fails, move log file to tmp folder
+        handler2 = None
+        try:
+            handler2 = logging.FileHandler(log_file)
+        except PermissionError:
+            log_path = os.path.join(tempfile.mkdtemp()) 
+            try: # Use try/except here because python 2.7 doesn't support exist_ok
+                os.makedirs(log_path)
+
+            except:
+                pass
+            log_file = os.path.join(log_path, "kibuzzard.log")
+            handler2 = logging.FileHandler(log_file)
+
+            # Also move config file
+            self.config_file = os.path.join(log_path, 'config.ini')
+            self.config = FileConfig(localFilename=self.config_file)
+        
         handler2.setLevel(logging.DEBUG)
         formatter = logging.Formatter(
             "%(asctime)s %(name)s %(lineno)d:%(message)s", datefmt="%m-%d %H:%M:%S"
@@ -131,3 +150,4 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         handler2.setFormatter(formatter)
         root.addHandler(handler1)
         root.addHandler(handler2)
+       

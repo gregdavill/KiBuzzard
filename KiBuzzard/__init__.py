@@ -47,11 +47,14 @@ try:
     plugin = KiBuzzardPlugin()
     plugin.register()
 except Exception as e:
-    import os
-    plugin_dir = os.path.dirname(os.path.realpath(__file__))
-    log_file = os.path.join(plugin_dir, 'error.log')
-    with open(log_file, 'w') as f:
-        f.write(repr(e))
+    # import os
+    # plugin_dir = os.path.dirname(os.path.realpath(__file__))
+    # log_file = os.path.join(plugin_dir, 'error.log')
+    # with open(log_file, 'w') as f:
+    #     f.write(repr(e))
+    import logging    
+    root = logging.getLogger()
+    root.debug(repr(e))
 
 # Add a button the hacky way if plugin button is not supported
 # in pcbnew, unless this is linux.
