@@ -34,13 +34,19 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         self._pcbnew_frame = None
 
         self.kicad_build_version = pcbnew.GetBuildVersion()
-        if '5.1' in self.kicad_build_version or '5.0' in self.kicad_build_version:
+        if self.IsVersion(['5.0','5.1']):
             # Library location for KiCad 5.1
             self.filepath = os.path.join(tempfile.mkdtemp(), 'buzzard_labels.pretty', 'label.kicad_mod') 
             try: # Use try/except here because python 2.7 doesn't support exist_ok
                 os.makedirs(os.path.dirname(self.filepath))
             except:
                 pass
+
+    def IsVersion(self, VersionStr):
+        for v in VersionStr:
+            if v in self.kicad_build_version:
+                return True
+        return False
 
     def Run(self):
         if self._pcbnew_frame is None:
@@ -59,7 +65,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 dlg.EndModal(wx.ID_CANCEL)
                 return
 
-            if '5.1' in self.kicad_build_version or '5.0' in self.kicad_build_version:
+            if self.IsVersion(['5.1','5.0']):
                 # Handle KiCad 5.1
                 filepath = self.filepath
 
@@ -79,7 +85,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 #b = footprint.GetBoundingBox()
                 #pcbnew.WindowZoom(b.GetX(), b.GetY(), b.GetWidth(), b.GetHeight())
 
-            elif '5.99' in self.kicad_build_version or '6.0' in self.kicad_build_version:
+            elif self.IsVersion(['5.99','6.0', '6.99']):
                 footprint_string = p_buzzard.create_v6_footprint()
 
                 clipboard = wx.Clipboard.Get()
@@ -93,7 +99,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     
         if dlg.ShowModal() == wx.ID_OK:
             
-            if '5.99' in self.kicad_build_version or '6.0' in self.kicad_build_version:
+            if self.IsVersion(['5.99','6.0', '6.99']):
                 if self._pcbnew_frame is not None:
                     # Set focus to main window and attempt to execute a Paste operation
                     self._pcbnew_frame.Raise()
