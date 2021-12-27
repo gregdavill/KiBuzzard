@@ -43,7 +43,7 @@ $ cd scripting
 $ git clone https://github.com/gregdavill/KiBuzzard
 ```
 
-Note: `KiBuzzard` should be the root folder of the plugin, with this README in it, when downloading as a zip KiBuzzard may have been put into a subfolder.
+    Note: `KiBuzzard` should be the root folder of the plugin, with this README in it, when downloading as a zip KiBuzzard may have been put into a subfolder.
 ```console
 ~/.config/kicad/6.00/scripting$ ls -l KiBuzzard/ 
 total 728
@@ -59,6 +59,15 @@ drwxrwxr-x 6 greg greg   4096 Jul 16 09:47 KiBuzzard
 ```
 
 For Arch Linux users is already a [kicad-kibuzzard-git](https://aur.archlinux.org/packages/kicad-kibuzzard-git/) package in the AUR.
+
+## Custom fonts
+
+You should be able to load in extra TrueType fonts into `KiBuzzard/buzzard/typeface`. 
+You may need to reopen KiCad, and then the extra fonts should be visible in the font selection dropdown.
+
+    Note: be sure to understand your PCB fabs capability when it comes to silkscreen resolution when selecting a custom font.
+
+![Screenshot showing extra fonts](doc/KiBuzzard_fonts.png)
 
 ## Licence and credits
 
