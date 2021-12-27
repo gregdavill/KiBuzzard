@@ -11,7 +11,7 @@ This plugin lets you easily create labels in various fonts, and with inverted ba
 ![screenshot](doc/KiBuzzard_screenshot.png)
 
 ## Compatibility
-This plugin has been designed to work on all platforms (Win, Linux, Mac) and with both Current KiCad 5.1 and Nightly Releases.
+This plugin has been designed to work on all platforms (Win, Linux, Mac) and with both Current KiCad 5.1, 6.0 and Nightly Releases.
 
     Note: currently in v5 the labels are placed at 0,0 when created. 
     With Nightly they are copied to the clipboard and can be placed interactively.
@@ -24,21 +24,38 @@ You can find the location of scripting directories by opening a KiCad scripting 
 import pcbnew; print(pcbnew.PLUGIN_DIRECTORIES_SEARCH)
 ```
 
-Example on KiCad 5.99 Ubuntu:
+Example on KiCad 6.00 Ubuntu (from KiCad-Nightly package):
 ```console
 >>> import pcbnew; print(pcbnew.PLUGIN_DIRECTORIES_SEARCH)
 /usr/share/kicad-nightly/scripting
 /usr/share/kicad-nightly/scripting/plugins
-/home/__USERNAME__/.config/kicad/5.99/scripting
-/home/__USERNAME__/.config/kicad/5.99/scripting/plugins
-/home/__USERNAME__/.local/share/kicad/5.99/scripting
-/home/__USERNAME__/.local/share/kicad/5.99/scripting/plugins
+/home/__USERNAME__/.config/kicad/6.00/scripting
+/home/__USERNAME__/.config/kicad/6.00/scripting/plugins
+/home/__USERNAME__/.local/share/kicad/6.00/scripting
+/home/__USERNAME__/.local/share/kicad/6.00/scripting/plugins
 ```
 
 You can either use git to download the plugin, or directly download as Zip.
 ```console
-$ cd /home/__USERNAME__/.config/kicad/5.99/scripting
+$ cd /home/__USERNAME__/.config/kicad/6.00
+$ mkdir scripting
+$ cd scripting
 $ git clone https://github.com/gregdavill/KiBuzzard
+```
+
+Note: `KiBuzzard` should be the root folder of the plugin, with this README in it, when downloading as a zip KiBuzzard may have been put into a subfolder.
+```console
+~/.config/kicad/6.00/scripting$ ls -l KiBuzzard/ 
+total 728
+drwxrwxr-x 2 greg greg   4096 Apr 19  2021 doc
+drwxrwxr-x 2 greg greg   4096 Jan 15  2021 icons
+drwxrwxr-x 6 greg greg   4096 Jul 16 09:47 KiBuzzard
+-rw-rw-r-- 1 greg greg     29 Apr 14  2021 __init__.py
+-rw-rw-r-- 1 greg greg    126 Dec 28 08:01 config.ini
+-rw-rw-r-- 1 greg greg   3275 Jan 15  2021 icon.png
+-rw-rw-r-- 1 greg greg   1092 Nov 21  2020 LICENCE
+-rw-rw-r-- 1 greg greg   2179 Dec 28 08:12 README.md
+-rw-rw-r-- 1 greg greg 144967 Apr 23  2021 text_dialog.fbp
 ```
 
 For Arch Linux users is already a [kicad-kibuzzard-git](https://aur.archlinux.org/packages/kicad-kibuzzard-git/) package in the AUR.
