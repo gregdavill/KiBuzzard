@@ -3,3 +3,4 @@ __pycache__/
 config.ini
 kibuzzard.log
 error.log
+pcm/build/

@@ -1,0 +1,35 @@
+{
+    "$schema": "https://go.kicad.org/pcm/schemas/v1",
+    "name": "KiBuzzard",
+    "description": "Custom font label generator",
+    "description_full": "A label generator that renders svgs from truetype fonts, and creates silkscreen footprints for your PCB. Based of a similar plugin for Cadsoft Eagle called Buzzard",
+    "identifier": "com.github.gregdavill.KiBuzzard",
+    "type": "plugin",
+    "author": {
+        "name": "Greg Davill",
+        "contact": {
+            "github": "https://github.com/gregdavill",
+            "web": "https://gregdavill.com",
+            "twitter": "https://twitter.com/gregdavill"
+        }
+    },    
+    "maintainer": {
+        "name": "Greg Davill",
+        "contact": {
+            "github": "https://github.com/gregdavill",
+            "web": "https://gregdavill.com",
+            "twitter": "https://twitter.com/gregdavill"
+        }
+    },
+    "license": "MIT",
+    "resources": {
+        "homepage": "https://github.com/gregdavill/KiBuzzard"
+    },
+    "versions": [
+        {
+            "version": "1.0.0",
+            "status": "stable",
+            "kicad_version": "5.99"
+        }
+    ]
+}
