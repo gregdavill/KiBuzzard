@@ -32,32 +32,36 @@ shutil.copy(metadata_template, path.join('plugin','metadata.json'))
 # copy icon
 shutil.copytree(resources_path, path.join('plugin','resources'))
 
+# load up json script
+from pathlib import Path
+import json
+with open(metadata_template) as f:
+    md = json.load(f)
+
+
 
 # zip all files
-shutil.make_archive('KiBuzzard_pcm', 'zip', 'plugin')
+zip_file = 'KiBuzzard-{0}-pcm.zip'.format(md['versions'][0]['version'])
+shutil.make_archive(Path(zip_file).stem, 'zip', 'plugin')
 
 
-zip_size = path.getsize('KiBuzzard_pcm.zip')
+zip_size = path.getsize(zip_file)
 
-from pathlib import Path
 
 uncompressed_size = sum(f.stat().st_size for f in Path('plugin').glob('**/*') if f.is_file())
 
 import hashlib
-with open('KiBuzzard_pcm.zip', 'rb') as f:
+with open(zip_file, 'rb') as f:
     zip_sha256 = hashlib.sha256(f.read()).hexdigest()
 
-# load up json script
-import json
 
-with open(metadata_template) as f:
-    md = json.load(f)
-    md['versions'][0].update({
-        'install_size': uncompressed_size,
-        'download_size': zip_size,
-        'download_sha256': zip_sha256,
-        'download_url': 'https://github.com/gregdavill/KiBuzzard/releases/download/{0}/KiBuzzard-{0}-pcm.zip'.format(md['versions'][0]['version'])
-    })
-        
-    with open('metadata.json', 'w') as of:
-        json.dump(md, of, indent=2)
+
+md['versions'][0].update({
+    'install_size': uncompressed_size,
+    'download_size': zip_size,
+    'download_sha256': zip_sha256,
+    'download_url': 'https://github.com/gregdavill/KiBuzzard/releases/download/{0}/KiBuzzard-{0}-pcm.zip'.format(md['versions'][0]['version'])
+})
+    
+with open('metadata.json', 'w') as of:
+    json.dump(md, of, indent=2)
