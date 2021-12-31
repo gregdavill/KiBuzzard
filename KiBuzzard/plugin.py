@@ -26,7 +26,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         self.category = "Modify PCB"
         self.pcbnew_icon_support = hasattr(self, "show_toolbar_button")
         self.show_toolbar_button = True
-        icon_dir = os.path.dirname(os.path.dirname(__file__))
+        icon_dir = os.path.dirname(__file__)
         self.icon_file_name = os.path.join(icon_dir, 'icon.png')
         self.description = "Create Labels"
         self.config = FileConfig(localFilename=self.config_file)
