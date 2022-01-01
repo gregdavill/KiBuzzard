@@ -105,13 +105,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
                         b = pcbnew.GetBoard()
                         new_fp.SetPosition(pos)
-
-                        dlg.updateFootprint.GraphicalItems().clear()
-                        for item in list(new_fp.GraphicalItems()):
-                            dlg.updateFootprint.GraphicalItems().push_back(item)
-
-                        dlg.updateFootprint.SetKeywords("kb_params=" + json_str)
-
+                        
+                        b.Add(new_fp)
+                        b.Remove(dlg.updateFootprint)
+                        
                         pcbnew.Refresh()
 
                     except:
