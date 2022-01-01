@@ -56,9 +56,6 @@ class Buzzard():
 
         return mod.polys
 
-
-
-
     # ******************************************************************************
     #
     # Create SVG Document containing properly formatted inString
@@ -144,12 +141,13 @@ class Buzzard():
 
         return t
 
-    def create_v6_footprint(self):
+    def create_v6_footprint(self, parm_text=None):
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
-        mod = svg2mod.Svg2ModExportv6Pretty(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True)
+        mod = Svg2ModExportv6PrettyUser(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True, params=parm_text)
         mod.add_svg_element(self.svgText)
         mod.write()
         return mod.raw_file_data
+
 
     def create_v5_footprint(self):
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
@@ -157,6 +155,49 @@ class Buzzard():
         mod.add_svg_element(self.svgText)
         mod.write()
         return mod.raw_file_data
+
+
+class Svg2ModExportv6PrettyUser( svg2mod.Svg2ModExportv6Pretty ):
+    
+    def __init__(
+        self,
+        svg2mod_import = svg2mod.Svg2ModImport(),
+        file_name = None,
+        center = True,
+        scale_factor = 1.0,
+        precision = 20.0,
+        use_mm = True,
+        dpi = svg2mod.DEFAULT_DPI,
+        params = None
+    ):
+        self.params = params
+        super( Svg2ModExportv6PrettyUser, self ).__init__(
+            svg2mod_import,
+            file_name,
+            center,
+            scale_factor,
+            precision,
+            use_mm,
+            dpi,
+            pads = False,
+        )
+
+
+    def _write_library_intro( self, cmdline ):
+        self.output_file.write( """(footprint {0} (layer F.Cu) (tedit {1:8X}) (generator kibuzzard)
+    (attr virtual)
+    (descr "{2}")
+    (tags "kb_params={3}")
+    """.format(
+                self.imported.module_name, #0
+                int( round( #1
+                    os.path.getctime( self.imported.file_name ) if self.imported.file_name else time.time()
+                ) ),
+                "Converted using: {}".format( cmdline.replace("\\", "\\\\") ), #2
+                self.params, #3
+            )
+        )
+
 
 class Svg2Points( svg2mod.Svg2ModExport ):
     ''' A child of Svg2ModExport that implements

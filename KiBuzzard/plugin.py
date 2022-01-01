@@ -8,6 +8,7 @@ import wx.aui
 from wx import FileConfig
 
 import pcbnew
+import json
 from .dialog import Dialog
 
 from .buzzard.buzzard import Buzzard
@@ -18,7 +19,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     def __init__(self):
         super(KiBuzzardPlugin, self).__init__()
 
-        self.config_file = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
+        self.config_file = os.path.join(os.path.dirname(__file__), '..', 'config.json')
         self.InitLogger()
         self.logger = logging.getLogger(__name__)
 
@@ -29,7 +30,6 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         icon_dir = os.path.dirname(__file__)
         self.icon_file_name = os.path.join(icon_dir, 'icon.png')
         self.description = "Create Labels"
-        self.config = FileConfig(localFilename=self.config_file)
         
         self._pcbnew_frame = None
 
@@ -86,18 +86,48 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 #pcbnew.WindowZoom(b.GetX(), b.GetY(), b.GetWidth(), b.GetHeight())
 
             elif self.IsVersion(['5.99','6.0', '6.99']):
-                footprint_string = p_buzzard.create_v6_footprint()
+                json_str = json.dumps(dlg.label_params, sort_keys=True).replace('"', "'")
+                footprint_string = p_buzzard.create_v6_footprint(parm_text=json_str)
 
-                clipboard = wx.Clipboard.Get()
-                if clipboard.Open():
-                    clipboard.SetData(wx.TextDataObject(footprint_string))
-                    clipboard.Close()
+                if dlg.updateFootprint is None:
+                    # New footprint
+                    clipboard = wx.Clipboard.Get()
+                    if clipboard.Open():
+                        clipboard.SetData(wx.TextDataObject(footprint_string))
+                        clipboard.Close()
+                else:
+                    # Create new footprint, and replace old ones place
+                    try:
+                        pos = dlg.updateFootprint.GetPosition()
+
+                        io = pcbnew.PCB_PLUGIN()
+                        new_fp = pcbnew.Cast_to_FOOTPRINT(io.Parse(footprint_string))
+
+                        b = pcbnew.GetBoard()
+                        new_fp.SetPosition(pos)
+
+                        dlg.updateFootprint.GraphicalItems().clear()
+                        for item in list(new_fp.GraphicalItems()):
+                            dlg.updateFootprint.GraphicalItems().push_back(item)
+
+                        dlg.updateFootprint.SetKeywords("kb_params=" + json_str)
+
+                        pcbnew.Refresh()
+
+                    except:
+                        import traceback
+                        wx.LogError(traceback.format_exc())
+                        dlg.EndModal(wx.ID_CANCEL)
+                    dlg.EndModal(wx.ID_CANCEL)
                     
             dlg.EndModal(wx.ID_OK)
 
-        dlg = Dialog(self._pcbnew_frame, self.config, Buzzard(), run_buzzard)
+        dlg = Dialog(self._pcbnew_frame, self.config_file, Buzzard(), run_buzzard)
     
         if dlg.ShowModal() == wx.ID_OK:
+            # Don't try to paste if we've updated a footprint
+            if dlg.updateFootprint is not None:
+                return
             
             if self.IsVersion(['5.99','6.0', '6.99']):
                 if self._pcbnew_frame is not None:
