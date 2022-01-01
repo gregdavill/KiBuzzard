@@ -19,7 +19,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     def __init__(self):
         super(KiBuzzardPlugin, self).__init__()
 
-        self.config_file = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
+        self.config_file = os.path.join(os.path.dirname(__file__), '..', 'config.json')
         self.InitLogger()
         self.logger = logging.getLogger(__name__)
 
@@ -30,7 +30,6 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         icon_dir = os.path.dirname(__file__)
         self.icon_file_name = os.path.join(icon_dir, 'icon.png')
         self.description = "Create Labels"
-        self.config = FileConfig(localFilename=self.config_file)
         
         self._pcbnew_frame = None
 
@@ -89,8 +88,6 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             elif self.IsVersion(['5.99','6.0', '6.99']):
                 json_str = json.dumps(dlg.label_params, sort_keys=True).replace('"', "'")
                 footprint_string = p_buzzard.create_v6_footprint(parm_text=json_str)
-                
-
 
                 if dlg.updateFootprint is None:
                     # New footprint
@@ -125,7 +122,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                     
             dlg.EndModal(wx.ID_OK)
 
-        dlg = Dialog(self._pcbnew_frame, self.config, Buzzard(), run_buzzard)
+        dlg = Dialog(self._pcbnew_frame, self.config_file, Buzzard(), run_buzzard)
     
         if dlg.ShowModal() == wx.ID_OK:
             # Don't try to paste if we've updated a footprint
