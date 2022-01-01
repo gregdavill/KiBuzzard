@@ -20,19 +20,19 @@ def ParseFloat(InputString, DefaultValue=0.0):
 
 class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
-    config_keys = [
-        'MultiLineText',
-        'HeightCtrl',
-        'FontComboBox',
-        'CapLeftChoice',
-        'CapRightChoice',
-        'PaddingTopCtrl',
-        'PaddingLeftCtrl',
-        'PaddingRightCtrl',
-        'PaddingBottomCtrl',
-        'WidthCtrl',
-        'AlignmentChoice',
-    ]
+    config_defaults = {
+        'MultiLineText': 'KiBuzzard',
+        'HeightCtrl': '2',
+        'FontComboBox': 'UbuntuMono-B',
+        'CapLeftChoice': '[',
+        'CapRightChoice': ']',
+        'PaddingTopCtrl': '5',
+        'PaddingLeftCtrl': '5',
+        'PaddingRightCtrl': '5',
+        'PaddingBottomCtrl': '5',
+        'WidthCtrl': None,
+        'AlignmentChoice': 'Center'
+    }
 
     def __init__(self, parent, config, buzzard, func):
         dialog_text_base.DIALOG_TEXT_BASE.__init__(self, parent)
@@ -115,13 +115,20 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             wx.LogError(traceback.format_exc())
 
         # else load up last sessions config
+        params = self.config_defaults
         try:
             with open(self.config_file, 'r') as cf:
-                params = json.load(cf)
-                self.LoadSettings(params)
+                json_params = json.load(cf)
+            params.update(json_params)
+
+            # Clear text between uses
+            params['MultiLineText'] = '' 
         except Exception as e:
             # Don't throw exception if we can't load previous config
+            print(e)
             pass
+
+        self.LoadSettings(params)
         
     def saveConfig(self):
         try:
@@ -133,8 +140,11 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             
     def LoadSettings(self, params):
         for key,value in params.items():
-            if key not in self.config_keys:
+            if key not in self.config_defaults.keys():
                 continue
+            if value is None:
+                continue
+
             try:
                 obj = getattr(self, "m_{}".format(key))
                 if hasattr(obj, "SetValue"):
@@ -150,7 +160,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
     def CurrentSettings(self):
         params = {}
 
-        for item in self.config_keys:
+        for item in self.config_defaults.keys():
             obj = getattr(self, "m_{}".format(item))
             if hasattr(obj, "GetValue"):
                 params.update({item: obj.GetValue()})
