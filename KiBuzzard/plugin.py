@@ -129,13 +129,15 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             if self.IsVersion(['5.99','6.0', '6.99']):
                 if self._pcbnew_frame is not None:
                     # Set focus to main window and attempt to execute a Paste operation
-                    self._pcbnew_frame.Raise()
-                    wx.Yield()
                     keyinput = wx.UIActionSimulator()
+                    self._pcbnew_frame.Raise()
+                    self._pcbnew_frame.SetFocus()
+                    wx.MilliSleep(100)
+                    wx.Yield()
                     
                     # Press and release CTRL + V
                     keyinput.KeyDown(ord("V"), wx.MOD_CONTROL)
-                    time.sleep(0.2)
+                    wx.MilliSleep(100)
                     keyinput.KeyUp(ord("V"), wx.MOD_CONTROL) 
 
     def InitLogger(self):
