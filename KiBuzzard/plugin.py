@@ -87,7 +87,8 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
             elif self.IsVersion(['5.99','6.0', '6.99']):
                 json_str = json.dumps(dlg.label_params, sort_keys=True).replace('"', "'")
-                footprint_string = p_buzzard.create_v6_footprint(parm_text=json_str)
+                hex_str = json_str.encode('utf-8').hex()
+                footprint_string = p_buzzard.create_v6_footprint(parm_text=hex_str)
 
                 if dlg.updateFootprint is None:
                     # New footprint
@@ -134,11 +135,12 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                     self._pcbnew_frame.SetFocus()
                     wx.MilliSleep(100)
                     wx.Yield()
-                    
+
                     # Press and release CTRL + V
                     keyinput.KeyDown(ord("V"), wx.MOD_CONTROL)
                     wx.MilliSleep(100)
                     keyinput.KeyUp(ord("V"), wx.MOD_CONTROL) 
+                    wx.MilliSleep(100)
 
     def InitLogger(self):
         root = logging.getLogger()

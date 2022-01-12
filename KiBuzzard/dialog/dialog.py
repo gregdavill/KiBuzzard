@@ -103,7 +103,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                 if 'kibuzzard' in f.GetReference():
                     param_str = f.GetKeywords()
                     if param_str.startswith("kb_params="):
-                        json_str = param_str[10:].replace("'", '"')
+                        hex_str = param_str[10:]
+                        json_str = bytes.fromhex(hex_str).decode('utf-8').replace("'", '"')
                         params = json.loads(json_str)
                         self.LoadSettings(params)
                         self.updateFootprint = f
@@ -113,6 +114,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         except:
             import traceback
             wx.LogError(traceback.format_exc())
+            return
 
         # else load up last sessions config
         params = self.config_defaults
