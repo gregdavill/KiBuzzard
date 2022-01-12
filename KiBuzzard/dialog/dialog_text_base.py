@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 3.9.0 Apr 11 2021)
+## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -89,14 +89,14 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         fgSizerSetup.SetFlexibleDirection( wx.BOTH )
         fgSizerSetup.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
 
-        self.m_FontLabel = wx.StaticText( self, wx.ID_ANY, _(u"Font:"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_FontLabel.Wrap( -1 )
+        self.m_LayerLabel = wx.StaticText( self, wx.ID_ANY, _(u"Layer:"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_LayerLabel.Wrap( -1 )
 
-        fgSizerSetup.Add( self.m_FontLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
+        fgSizerSetup.Add( self.m_LayerLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
 
-        m_FontComboBoxChoices = []
-        self.m_FontComboBox = wx.ComboBox( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, m_FontComboBoxChoices, wx.CB_READONLY )
-        fgSizerSetup.Add( self.m_FontComboBox, 2, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+        m_LayerComboBoxChoices = []
+        self.m_LayerComboBox = wx.ComboBox( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, m_LayerComboBoxChoices, wx.CB_READONLY )
+        fgSizerSetup.Add( self.m_LayerComboBox, 2, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
 
         fgSizerSetup.Add( ( 0, 0), 0, wx.RIGHT|wx.LEFT, 40 )
@@ -244,6 +244,9 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         lowerSizer = wx.BoxSizer( wx.HORIZONTAL )
 
+        self.fontButton = wx.Button( self, wx.ID_ANY, _(u"Font Settings"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        lowerSizer.Add( self.fontButton, 0, wx.ALL, 5 )
+
 
         lowerSizer.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
@@ -274,13 +277,14 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_PaddingLeftCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_PaddingRightCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_PaddingBottomCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
+        self.fontButton.Bind( wx.EVT_BUTTON, self.fontDialog )
         self.m_sdbSizerOK.Bind( wx.EVT_BUTTON, self.OnOkClick )
 
     def __del__( self ):
         pass
 
 
-    # Virtual event handlers, overide them in your derived class
+    # Virtual event handlers, override them in your derived class
     def OnInitDlg( self, event ):
         pass
 
@@ -291,6 +295,9 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
 
 
+
+    def fontDialog( self, event ):
+        pass
 
 
 

@@ -18,7 +18,8 @@ class Padding():
 
 class Buzzard():
     def __init__(self):
-        self.fontName = 'FredokaOne'
+        self.fontName = 'Arial'
+        self.layer = 'F.Cu'
         self.verbose = True
         self.scaleFactor = 0.04
         self.subSampling = 0.1
@@ -29,23 +30,8 @@ class Buzzard():
         self.leftCap = ''                # Used to store cap shape for left side of tag
         self.rightCap = ''               # Used to store cap shape for right side of tag-
         self.svgText = None
-        self.SystemFonts = svg.Text._system_fonts
+        self.Layer = None
 
-        svg.Text.load_system_fonts()
-
-        fnt_lib = svg.Text._system_fonts
-        if fnt_lib is None:
-            fnt_lib = {}
-
-        # Load included fonts 
-        typeface_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'typeface')
-        for entry in os.listdir(typeface_path):
-            entry_path = os.path.join(typeface_path, entry)
-            
-            if not entry_path.endswith('.ttf'):
-                continue
-
-            fnt_lib[os.path.splitext(os.path.basename(entry_path))[0]] = {'Path':entry_path}
 
     def generate(self, inString):
         self.svgText = self.renderLabel(inString)
@@ -65,7 +51,7 @@ class Buzzard():
         # t is an svg Text element
         t = svg.Text()
 
-        t.set_font(self.fontName)
+        t.set_font(font=self.fontName)
         
         for i,s in enumerate(inString.split('\n')):
             t.add_text(s, origin=svg.Point(0, 15*i))
@@ -144,7 +130,7 @@ class Buzzard():
     def create_v6_footprint(self, parm_text=None):
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
         mod = Svg2ModExportv6PrettyUser(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True, params=parm_text)
-        mod.add_svg_element(self.svgText)
+        mod.add_svg_element(self.svgText, layer=self.layer)
         mod.write()
         return mod.raw_file_data
 
@@ -152,7 +138,7 @@ class Buzzard():
     def create_v5_footprint(self):
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
         mod = svg2mod.Svg2ModExportPretty(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True)
-        mod.add_svg_element(self.svgText)
+        mod.add_svg_element(self.svgText, layer=self.layer)
         mod.write()
         return mod.raw_file_data
 

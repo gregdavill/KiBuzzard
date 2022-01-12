@@ -23,7 +23,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
     config_defaults = {
         'MultiLineText': 'KiBuzzard',
         'HeightCtrl': '2',
-        'FontComboBox': 'UbuntuMono-B',
+        'LayerComboBox': 'F.Cu',
         'CapLeftChoice': '[',
         'CapRightChoice': ']',
         'PaddingTopCtrl': '5',
@@ -36,20 +36,20 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
     def __init__(self, parent, config, buzzard, func):
         dialog_text_base.DIALOG_TEXT_BASE.__init__(self, parent)
-        
+
         typeface_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'buzzard', 'typeface')
         for entry in os.listdir(typeface_path):
             entry_path = os.path.join(typeface_path, entry)
-            
+
             if not entry_path.endswith('.ttf'):
                 continue
-            
-            self.m_FontComboBox.Append(os.path.splitext(entry)[0])
-        
-        self.m_FontComboBox.SetSelection(0)
 
-        #for fnt in buzzard.SystemFonts:
-        #    self.m_FontComboBox.Append(fnt)
+        self.font = None
+
+        layer_choices = [u"F.Cu", u"B.Cu", u"F.Paste", u"B.Paste", u"F.SilkS", u"B.SilkS", u"F.Mask",
+                         u"B.Mask", u"Edge.Cuts"]
+        self.m_LayerComboBox.AppendItems(layer_choices)
+        self.m_LayerComboBox.SetSelection(0)
 
 
         self.m_HeightUnits.SetLabel("mm")
@@ -185,7 +185,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
     def ReGeneratePreview(self, e=None):
         
         self.polys = []
-        self.buzzard.fontName = self.m_FontComboBox.GetValue()
+
+        self.buzzard.fontName = self.buzzard.fontName
 
         # Validate scale factor
         scale = ParseFloat(self.m_HeightCtrl.GetValue(), 1.0)
@@ -203,6 +204,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.buzzard.padding.left = ParseFloat(self.m_PaddingLeftCtrl.GetValue(), DefaultPadding) * 0.5
         self.buzzard.padding.right = ParseFloat(self.m_PaddingRightCtrl.GetValue(), DefaultPadding) * 0.5
         self.buzzard.padding.bottom = ParseFloat(self.m_PaddingBottomCtrl.GetValue(), DefaultPadding) * 0.5
+
+        self.buzzard.layer = self.m_LayerComboBox.GetStringSelection()
 
         self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0) *  7.75 * (1/scale)
 
@@ -287,6 +290,15 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
                 dc.DrawPolygonList(polys)
 
+    def fontDialog(self, event):
+        dialog = wx.FontDialog(None, wx.FontData())
+        if dialog.ShowModal() == wx.ID_OK:
+            try:
+                data = dialog.GetFontData()
+                self.buzzard.fontName = data.GetChosenFont().GetFaceName()
+                return self.buzzard.fontName
+            finally:
+                self.ReGeneratePreview()
 
     def OnOkClick(self, event):
         self.timer.Stop()
