@@ -19,7 +19,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     def __init__(self):
         super(KiBuzzardPlugin, self).__init__()
 
-        self.config_file = os.path.join(os.path.dirname(__file__), '..', 'config.json')
+        self.config_file = os.path.join(os.path.dirname(__file__), 'config.json')
         self.InitLogger()
         self.logger = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
 
         log_path = os.path.dirname(__file__)
-        log_file = os.path.join(log_path, "..", "kibuzzard.log")
+        log_file = os.path.join(log_path, "kibuzzard.log")
 
         # and to our error file
         # Check logging file permissions, if fails, move log file to tmp folder
@@ -170,8 +170,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             handler2 = logging.FileHandler(log_file)
 
             # Also move config file
-            self.config_file = os.path.join(log_path, 'config.ini')
-            self.config = FileConfig(localFilename=self.config_file)
+            self.config_file = os.path.join(log_path, 'config.json')
         
         handler2.setLevel(logging.DEBUG)
         formatter = logging.Formatter(

@@ -127,7 +127,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             params['MultiLineText'] = '' 
         except Exception as e:
             # Don't throw exception if we can't load previous config
-            print(e)
             pass
 
         self.LoadSettings(params)
