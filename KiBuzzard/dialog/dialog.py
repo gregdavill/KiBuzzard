@@ -35,7 +35,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
     }
 
     def __init__(self, parent, config, buzzard, func):
-        dialog_text_base.DIALOG_TEXT_BASE.__init__(self, parent)
 
         typeface_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'buzzard', 'typeface')
         for entry in os.listdir(typeface_path):
@@ -43,6 +42,10 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
             if not entry_path.endswith('.ttf'):
                 continue
+
+            wx.Font.AddPrivateFont(entry_path)
+
+        dialog_text_base.DIALOG_TEXT_BASE.__init__(self, parent)
 
         self.font = None
 

@@ -1013,12 +1013,14 @@ class Text(Transformable):
     # class Text handles the <text> tag
     tag = 'text'
 
+    typeface_path = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', '..', '..', 'buzzard', 'typeface'))
+
     default_font = None
     _system_fonts = {}
     _os_font_paths = {
-        "Darwin": ["/Library/Fonts", "~/Library/Fonts"],
-        "Linux": ["/usr/share/fonts","/usr/local/share/fonts","~/.local/share/fonts"],
-        "Windows": ["C:/Windows/Fonts", "~/AppData/Local/Microsoft/Windows/Fonts"]
+        "Darwin": ["/Library/Fonts", "~/Library/Fonts", typeface_path],
+        "Linux": ["/usr/share/fonts","/usr/local/share/fonts","~/.local/share/fonts", typeface_path],
+        "Windows": ["C:/Windows/Fonts", "~/AppData/Local/Microsoft/Windows/Fonts", typeface_path]
     }
 
     def __init__(self, elt=None, parent=None):

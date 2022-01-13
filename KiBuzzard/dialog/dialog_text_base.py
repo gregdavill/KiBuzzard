@@ -68,7 +68,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         m_MultiLineSizer.Add( self.m_MultiLineText, 1, wx.EXPAND|wx.BOTTOM|wx.RIGHT|wx.LEFT, 5 )
 
 
-        bMainSizer.Add( m_MultiLineSizer, 20, wx.EXPAND|wx.ALL, 10 )
+        bMainSizer.Add( m_MultiLineSizer, 5, wx.EXPAND|wx.ALL, 10 )
 
         m_SingleLineSizer = wx.BoxSizer( wx.VERTICAL )
 
@@ -81,7 +81,22 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         m_SingleLineSizer.Add( self.m_PreviewPanel, 1, wx.ALL|wx.EXPAND, 5 )
 
 
-        bMainSizer.Add( m_SingleLineSizer, 20, wx.EXPAND|wx.BOTTOM|wx.RIGHT|wx.LEFT, 10 )
+        bMainSizer.Add( m_SingleLineSizer, 5, wx.EXPAND|wx.BOTTOM|wx.RIGHT|wx.LEFT, 10 )
+
+        fgSizer3 = wx.FlexGridSizer( 1, 0, 0, 0 )
+        fgSizer3.AddGrowableCol( 1 )
+        fgSizer3.AddGrowableCol( 2 )
+        fgSizer3.SetFlexibleDirection( wx.BOTH )
+        fgSizer3.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
+
+        self.m_invertBox = wx.CheckBox( self, wx.ID_ANY, _(u"Invert"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        fgSizer3.Add( self.m_invertBox, 0, wx.ALL, 5 )
+
+        self.m_mirrorBox = wx.CheckBox( self, wx.ID_ANY, _(u"Mirror"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        fgSizer3.Add( self.m_mirrorBox, 0, wx.ALL, 5 )
+
+
+        bMainSizer.Add( fgSizer3, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 10 )
 
         fgSizerSetup = wx.FlexGridSizer( 0, 5, 4, 0 )
         fgSizerSetup.AddGrowableCol( 1 )
