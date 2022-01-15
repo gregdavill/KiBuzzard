@@ -30,7 +30,6 @@ class Buzzard():
         self.leftCap = ''                # Used to store cap shape for left side of tag
         self.rightCap = ''               # Used to store cap shape for right side of tag-
         self.svgText = None
-        self.Layer = None
 
 
     def generate(self, inString):

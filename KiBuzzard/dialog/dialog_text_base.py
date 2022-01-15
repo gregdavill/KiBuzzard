@@ -286,6 +286,8 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         # Connect Events
         self.Bind( wx.EVT_INIT_DIALOG, self.OnInitDlg )
+        self.m_invertBox.Bind( wx.EVT_CHECKBOX, self.invertCheck )
+        self.m_mirrorBox.Bind( wx.EVT_CHECKBOX, self.mirrorCheck )
         self.m_HeightCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_WidthCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_PaddingTopCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
@@ -301,6 +303,12 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
     # Virtual event handlers, override them in your derived class
     def OnInitDlg( self, event ):
+        pass
+
+    def invertCheck( self, event ):
+        pass
+
+    def mirrorCheck( self, event ):
         pass
 
     def OnOkClick( self, event ):
