@@ -49,8 +49,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         self.font = None
 
-        layer_choices = [u"F.Cu", u"B.Cu", u"F.Paste", u"B.Paste", u"F.SilkS", u"B.SilkS", u"F.Mask",
-                         u"B.Mask", u"Edge.Cuts"]
+        layer_choices = [u"F.Cu", u"F.Paste", u"F.SilkS", u"F.Mask", u"Edge.Cuts"]
         self.m_LayerComboBox.AppendItems(layer_choices)
         self.m_LayerComboBox.SetSelection(0)
 

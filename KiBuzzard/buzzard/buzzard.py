@@ -18,7 +18,7 @@ class Padding():
 
 class Buzzard():
     def __init__(self):
-        self.fontName = 'Arial'
+        self.fontName = 'UbuntuMono-B'
         self.layer = 'F.Cu'
         self.verbose = True
         self.scaleFactor = 0.04
@@ -30,7 +30,23 @@ class Buzzard():
         self.leftCap = ''                # Used to store cap shape for left side of tag
         self.rightCap = ''               # Used to store cap shape for right side of tag-
         self.svgText = None
+        self.SystemFonts = svg.Text._system_fonts
 
+        svg.Text.load_system_fonts()
+
+        fnt_lib = svg.Text._system_fonts
+        if fnt_lib is None:
+            fnt_lib = {}
+
+        # Load included fonts
+        typeface_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'typeface')
+        for entry in os.listdir(typeface_path):
+            entry_path = os.path.join(typeface_path, entry)
+
+            if not entry_path.endswith('.ttf'):
+                continue
+
+            fnt_lib[os.path.splitext(os.path.basename(entry_path))[0]] = {'Path':entry_path}
 
     def generate(self, inString):
         self.svgText = self.renderLabel(inString)
