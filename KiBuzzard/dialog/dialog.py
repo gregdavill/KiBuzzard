@@ -245,11 +245,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
     def OnPaint(self, e):
         dc = wx.PaintDC(self.m_PreviewPanel)
-
-        if self.m_mirrorBox.IsChecked():
-            dc.SetAxisOrientation(False, False)
-        else:
-            dc.SetAxisOrientation(True, False)
+        dc.SetAxisOrientation(True, False)
 
         if self.error is not None:
             font = wx.Font(8, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL,
@@ -310,9 +306,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                 self.ReGeneratePreview()
 
     def invertCheck( self, event ):
-        self.ReGeneratePreview()
-
-    def mirrorCheck( self, event ):
         self.ReGeneratePreview()
 
     def OnOkClick(self, event):

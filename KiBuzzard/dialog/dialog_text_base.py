@@ -92,9 +92,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_invertBox = wx.CheckBox( self, wx.ID_ANY, _(u"Invert"), wx.DefaultPosition, wx.DefaultSize, 0 )
         fgSizer3.Add( self.m_invertBox, 0, wx.ALL, 5 )
 
-        self.m_mirrorBox = wx.CheckBox( self, wx.ID_ANY, _(u"Mirror"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        fgSizer3.Add( self.m_mirrorBox, 0, wx.ALL, 5 )
-
 
         bMainSizer.Add( fgSizer3, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 10 )
 
@@ -287,7 +284,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         # Connect Events
         self.Bind( wx.EVT_INIT_DIALOG, self.OnInitDlg )
         self.m_invertBox.Bind( wx.EVT_CHECKBOX, self.invertCheck )
-        self.m_mirrorBox.Bind( wx.EVT_CHECKBOX, self.mirrorCheck )
         self.m_HeightCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_WidthCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_PaddingTopCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
@@ -306,9 +302,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         pass
 
     def invertCheck( self, event ):
-        pass
-
-    def mirrorCheck( self, event ):
         pass
 
     def OnOkClick( self, event ):
