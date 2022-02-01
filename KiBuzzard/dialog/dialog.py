@@ -209,6 +209,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         self.buzzard.layer = self.m_LayerComboBox.GetStringSelection()
 
+        self.buzzard.invert = self.m_invertBox.IsChecked()
+
         self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0) *  7.75 * (1/scale)
 
         self.buzzard.alignment = self.m_AlignmentChoice.GetStringSelection()
@@ -306,6 +308,9 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                 return self.buzzard.fontName
             finally:
                 self.ReGeneratePreview()
+
+    def invertCheck( self, event ):
+        self.ReGeneratePreview()
 
     def mirrorCheck( self, event ):
         self.ReGeneratePreview()
