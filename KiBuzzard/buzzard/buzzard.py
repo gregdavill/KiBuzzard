@@ -19,6 +19,7 @@ class Padding():
 class Buzzard():
     def __init__(self):
         self.fontName = 'FredokaOne'
+        self.layer = 'F.Cu'
         self.verbose = True
         self.scaleFactor = 0.04
         self.subSampling = 0.1
@@ -144,7 +145,7 @@ class Buzzard():
     def create_v6_footprint(self, parm_text=None):
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
         mod = Svg2ModExportv6PrettyUser(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True, params=parm_text)
-        mod.add_svg_element(self.svgText)
+        mod.add_svg_element(self.svgText, layer=self.layer)
         mod.write()
         return mod.raw_file_data
 
@@ -152,7 +153,7 @@ class Buzzard():
     def create_v5_footprint(self):
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
         mod = svg2mod.Svg2ModExportPretty(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True)
-        mod.add_svg_element(self.svgText)
+        mod.add_svg_element(self.svgText, layer=self.layer)
         mod.write()
         return mod.raw_file_data
 

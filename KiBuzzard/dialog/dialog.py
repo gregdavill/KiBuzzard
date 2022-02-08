@@ -24,6 +24,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         'MultiLineText': 'KiBuzzard',
         'HeightCtrl': '2',
         'FontComboBox': 'UbuntuMono-B',
+        'LayerComboBox': 'F.Cu',
         'CapLeftChoice': '[',
         'CapRightChoice': ']',
         'PaddingTopCtrl': '5',
@@ -51,6 +52,9 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         #for fnt in buzzard.SystemFonts:
         #    self.m_FontComboBox.Append(fnt)
 
+        layer_choices = [u"F.Cu", u"F.Paste", u"F.SilkS", u"F.Mask", u"Edge.Cuts"]
+        self.m_LayerComboBox.AppendItems(layer_choices)
+        self.m_LayerComboBox.SetSelection(0)
 
         self.m_HeightUnits.SetLabel("mm")
         self.m_WidthUnits.SetLabel("mm")
@@ -204,6 +208,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.buzzard.padding.left = ParseFloat(self.m_PaddingLeftCtrl.GetValue(), DefaultPadding) * 0.5
         self.buzzard.padding.right = ParseFloat(self.m_PaddingRightCtrl.GetValue(), DefaultPadding) * 0.5
         self.buzzard.padding.bottom = ParseFloat(self.m_PaddingBottomCtrl.GetValue(), DefaultPadding) * 0.5
+
+        self.buzzard.layer = self.m_LayerComboBox.GetStringSelection()
 
         self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0) *  7.75 * (1/scale)
 
