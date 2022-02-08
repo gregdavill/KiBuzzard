@@ -30,7 +30,6 @@ class Buzzard():
         self.leftCap = ''                # Used to store cap shape for left side of tag
         self.rightCap = ''               # Used to store cap shape for right side of tag-
         self.svgText = None
-        self.invert = False
         self.SystemFonts = svg.Text._system_fonts
 
         svg.Text.load_system_fonts()
@@ -75,72 +74,71 @@ class Buzzard():
         # This needs to be called to convert raw text to useable path elements
         t.convert_to_path()
 
-        if not self.invert:
-            # bounds check padding
-            padding = self.padding
-            for attr in ['left', 'right', 'top', 'bottom']:
-                if getattr(padding,attr) <= 0: setattr(padding, attr, 0.001)
+        # bounds check padding
+        padding = self.padding
+        for attr in ['left', 'right', 'top', 'bottom']:
+            if getattr(padding,attr) <= 0: setattr(padding, attr, 0.001)
 
-            bbox = t.bbox()
-            height = bbox[1].y - bbox[0].y
+        bbox = t.bbox()
+        height = bbox[1].y - bbox[0].y
 
-            height += padding.top + padding.bottom
-            width = bbox[1].x - bbox[0].x
-            textWidth = (width + (self.padding.left + self.padding.right))
+        height += padding.top + padding.bottom
+        width = bbox[1].x - bbox[0].x
+        textWidth = (width + (self.padding.left + self.padding.right))
 
 
-            fixedWidth = max(0, self.width - (self.padding.left + self.padding.right))
-            width = max(width, fixedWidth)
+        fixedWidth = max(0, self.width - (self.padding.left + self.padding.right))
+        width = max(width, fixedWidth)
 
+        alignmentOffset = 0
+        if self.alignment == 'Left' or fixedWidth != width:
             alignmentOffset = 0
-            if self.alignment == 'Left' or fixedWidth != width:
-                alignmentOffset = 0
-            elif self.alignment == 'Center':
-                alignmentOffset = (self.width - textWidth)/2
-            elif self.alignment == 'Right':
-                alignmentOffset = (self.width - textWidth)
+        elif self.alignment == 'Center':
+            alignmentOffset = (self.width - textWidth)/2
+        elif self.alignment == 'Right':
+            alignmentOffset = (self.width - textWidth)
 
-            # Create outline around text
-            if (self.leftCap != '') & (self.rightCap != ''):
-                pstr = "M {},{} ".format(bbox[0].x - alignmentOffset, bbox[0].y-padding.top)
-                pstr += "h {} ".format(-padding.left)
+        # Create outline around text
+        if (self.leftCap != '') & (self.rightCap != ''):
+            pstr = "M {},{} ".format(bbox[0].x - alignmentOffset, bbox[0].y-padding.top)
+            pstr += "h {} ".format(-padding.left)
 
-                if self.leftCap == 'round':
-                    pstr += "a {},{} 0 0 0 0,{} ".format(height/2,height/2,height)
-                if self.leftCap == 'square':
-                    pstr += "v {} ".format(height)
-                if self.leftCap == 'fslash':
-                    pstr += "l {},{} h {} ".format(-0.3*height, height, 0.3*height)
-                if self.leftCap == 'bslash':
-                    pstr += "h {} l {},{} ".format(-0.3*height, 0.3*height, height)
-                if self.leftCap == 'pointer':
-                    pstr += "l {},{} l {},{} ".format(height/-3, height/2, height/3, height/2)
-                if self.leftCap == 'flagtail':
-                    pstr += "h {} l {},{} l {},{} h {}".format(height/-3, height/3, height/2, height/-3, height/2, height/3)
+            if self.leftCap == 'round':
+                pstr += "a {},{} 0 0 0 0,{} ".format(height/2,height/2,height)
+            if self.leftCap == 'square':
+                pstr += "v {} ".format(height)
+            if self.leftCap == 'fslash':
+                pstr += "l {},{} h {} ".format(-0.3*height, height, 0.3*height)
+            if self.leftCap == 'bslash':
+                pstr += "h {} l {},{} ".format(-0.3*height, 0.3*height, height)
+            if self.leftCap == 'pointer':
+                pstr += "l {},{} l {},{} ".format(height/-3, height/2, height/3, height/2)
+            if self.leftCap == 'flagtail':
+                pstr += "h {} l {},{} l {},{} h {}".format(height/-3, height/3, height/2, height/-3, height/2, height/3)
 
-                pstr += "h {} ".format(padding.left)
-                pstr += "h {} ".format(width)
-                pstr += "h {} ".format(padding.right)
+            pstr += "h {} ".format(padding.left)
+            pstr += "h {} ".format(width)
+            pstr += "h {} ".format(padding.right)
 
-                if self.rightCap == 'round':
-                    pstr += "a {},{} 0 0 0 0,{} ".format(height/2, height/2,-height)
-                if self.rightCap == 'square':
-                    pstr += "v {} ".format(-height)
-                if self.rightCap == 'fslash':
-                    pstr += "l {},{} h {} ".format(0.3*height, -height, -0.3*height)
-                if self.rightCap == 'bslash':
-                    pstr += "h {} l {},{} ".format(0.3*height, -0.3*height, -height)
-                if self.rightCap == 'pointer':
-                    pstr += "l {},{} l {},{} ".format(height/3, height/-2, height/-3, height/-2)
-                if self.rightCap == 'flagtail':
-                    pstr += "h {} l {},{} l {},{} h {}".format(height/3, height/-3, height/-2, height/3, height/-2, height/-3)
+            if self.rightCap == 'round':
+                pstr += "a {},{} 0 0 0 0,{} ".format(height/2, height/2,-height)
+            if self.rightCap == 'square':
+                pstr += "v {} ".format(-height)
+            if self.rightCap == 'fslash':
+                pstr += "l {},{} h {} ".format(0.3*height, -height, -0.3*height)
+            if self.rightCap == 'bslash':
+                pstr += "h {} l {},{} ".format(0.3*height, -0.3*height, -height)
+            if self.rightCap == 'pointer':
+                pstr += "l {},{} l {},{} ".format(height/3, height/-2, height/-3, height/-2)
+            if self.rightCap == 'flagtail':
+                pstr += "h {} l {},{} l {},{} h {}".format(height/3, height/-3, height/-2, height/3, height/-2, height/-3)
 
-                pstr += "h {} ".format(-padding.right)
-                pstr += "h {} z".format(-1*width)
+            pstr += "h {} ".format(-padding.right)
+            pstr += "h {} z".format(-1*width)
 
-                p = svg.Path()
-                p.parse(pstr)
-                t.paths.append([p])
+            p = svg.Path()
+            p.parse(pstr)
+            t.paths.append([p])
 
         return t
 

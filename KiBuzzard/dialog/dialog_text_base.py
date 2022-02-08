@@ -83,18 +83,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         bMainSizer.Add( m_SingleLineSizer, 5, wx.EXPAND|wx.BOTTOM|wx.RIGHT|wx.LEFT, 10 )
 
-        fgSizer3 = wx.FlexGridSizer( 1, 0, 0, 0 )
-        fgSizer3.AddGrowableCol( 1 )
-        fgSizer3.AddGrowableCol( 2 )
-        fgSizer3.SetFlexibleDirection( wx.BOTH )
-        fgSizer3.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
-
-        self.m_invertBox = wx.CheckBox( self, wx.ID_ANY, _(u"Invert"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        fgSizer3.Add( self.m_invertBox, 0, wx.ALL, 5 )
-
-
-        bMainSizer.Add( fgSizer3, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 10 )
-
         fgSizerSetup = wx.FlexGridSizer( 0, 5, 4, 0 )
         fgSizerSetup.AddGrowableCol( 1 )
         fgSizerSetup.AddGrowableCol( 4 )
@@ -283,7 +271,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         # Connect Events
         self.Bind( wx.EVT_INIT_DIALOG, self.OnInitDlg )
-        self.m_invertBox.Bind( wx.EVT_CHECKBOX, self.invertCheck )
         self.m_HeightCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_WidthCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_PaddingTopCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
@@ -299,9 +286,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
     # Virtual event handlers, override them in your derived class
     def OnInitDlg( self, event ):
-        pass
-
-    def invertCheck( self, event ):
         pass
 
     def OnOkClick( self, event ):

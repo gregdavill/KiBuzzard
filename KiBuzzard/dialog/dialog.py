@@ -209,8 +209,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         self.buzzard.layer = self.m_LayerComboBox.GetStringSelection()
 
-        self.buzzard.invert = self.m_invertBox.IsChecked()
-
         self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0) *  7.75 * (1/scale)
 
         self.buzzard.alignment = self.m_AlignmentChoice.GetStringSelection()
@@ -301,12 +299,10 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             try:
                 data = dialog.GetFontData()
                 self.buzzard.fontName = data.GetChosenFont().GetFaceName()
+                #Font file names must match the facename, example: Fredoka One's facename is "Fredoka One", but the ttf file is "FredokaOne.ttf", this means the font can not be found.
                 return self.buzzard.fontName
             finally:
                 self.ReGeneratePreview()
-
-    def invertCheck( self, event ):
-        self.ReGeneratePreview()
 
     def OnOkClick(self, event):
         self.timer.Stop()
