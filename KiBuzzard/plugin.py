@@ -108,9 +108,11 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
                         b = pcbnew.GetBoard()
                         new_fp.SetPosition(pos)
-                        
+                        b.RemoveNative(dlg.updateFootprint)
+                        #b.SwapData(, new_fp)
+
                         b.Add(new_fp)
-                        b.Remove(dlg.updateFootprint)
+                        
                         
                         pcbnew.Refresh()
 
