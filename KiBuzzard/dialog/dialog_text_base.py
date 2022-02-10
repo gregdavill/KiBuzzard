@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -160,6 +160,24 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         fgSizerSetup.Add( self.m_AlignmentChoice, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
 
 
+        fgSizerSetup.Add( ( 0, 0), 0, wx.EXPAND, 5 )
+
+
+        fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+
+        fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+        self.m_LayerComboBox1 = wx.StaticText( self, wx.ID_ANY, _(u"Layer:"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_LayerComboBox1.Wrap( -1 )
+
+        fgSizerSetup.Add( self.m_LayerComboBox1, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
+
+        m_LayerComboBoxChoices = []
+        self.m_LayerComboBox = wx.ComboBox( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, m_LayerComboBoxChoices, 0 )
+        fgSizerSetup.Add( self.m_LayerComboBox, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+
+
         bMainSizer.Add( fgSizerSetup, 0, wx.EXPAND|wx.RIGHT|wx.LEFT, 10 )
 
 
@@ -243,15 +261,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         bMainSizer.Add( self.m_staticline, 0, wx.EXPAND|wx.TOP|wx.RIGHT|wx.LEFT, 10 )
 
         lowerSizer = wx.BoxSizer( wx.HORIZONTAL )
-
-        self.m_LayerComboBox = wx.StaticText( self, wx.ID_ANY, _(u"Layer:"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_LayerComboBox.Wrap( -1 )
-
-        lowerSizer.Add( self.m_LayerComboBox, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
-
-        m_LayerComboBoxChoices = []
-        self.m_LayerComboBox = wx.ComboBox( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, m_LayerComboBoxChoices, 0 )
-        lowerSizer.Add( self.m_LayerComboBox, 0, wx.ALL, 5 )
 
 
         lowerSizer.Add( ( 0, 0), 1, wx.EXPAND, 5 )
