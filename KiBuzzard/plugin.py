@@ -8,6 +8,7 @@ import wx.aui
 from wx import FileConfig
 
 import pcbnew
+import base64
 import json
 from .dialog import Dialog
 
@@ -87,9 +88,9 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 #pcbnew.WindowZoom(b.GetX(), b.GetY(), b.GetWidth(), b.GetHeight())
 
             elif self.IsVersion(['5.99','6.0', '6.99']):
-                json_str = json.dumps(dlg.label_params, sort_keys=True).replace('"', "'")
-                hex_str = json_str.encode('utf-8').hex()
-                footprint_string = p_buzzard.create_v6_footprint(parm_text=hex_str)
+                json_str = json.dumps(dlg.label_params, sort_keys=True)
+                encoded_str = base64.b64encode(json_str.encode('utf-8')).decode('ascii')
+                footprint_string = p_buzzard.create_v6_footprint(parm_text=encoded_str)
 
                 if dlg.updateFootprint is None:
                     # New footprint
@@ -151,10 +152,9 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         wx.MilliSleep(100)
                         wx.Yield()
                         # Press and release CTRL + V
-                        keyinput.KeyDown(ord("V"), wx.MOD_CONTROL)
+                        keyinput.Char(ord("V"), wx.MOD_CONTROL)
                         wx.MilliSleep(100)
-                        keyinput.KeyUp(ord("V"), wx.MOD_CONTROL) 
-                        wx.MilliSleep(100)
+                        
                     
     def InitLogger(self):
         root = logging.getLogger()

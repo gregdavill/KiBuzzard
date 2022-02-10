@@ -5,6 +5,7 @@ import re
 import copy
 
 import wx
+import base64
 import json
 
 from . import dialog_text_base
@@ -107,8 +108,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                 if 'kibuzzard' in f.GetReference():
                     param_str = f.GetKeywords()
                     if param_str.startswith("kb_params="):
-                        hex_str = param_str[10:]
-                        json_str = bytes.fromhex(hex_str).decode('utf-8').replace("'", '"')
+                        encoded_str = param_str[10:]
+                        json_str = base64.b64decode(encoded_str).decode('utf-8')
                         params = json.loads(json_str)
                         self.LoadSettings(params)
                         self.updateFootprint = f
