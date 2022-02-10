@@ -52,6 +52,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         if self._pcbnew_frame is None:
             try:
                 self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if ('pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()) or ('pcb editor' in x.GetTitle().lower())]
+                print(self._pcbnew_frame)
                 if len(self._pcbnew_frame) == 1:
                     self._pcbnew_frame = self._pcbnew_frame[0]
                 else:
@@ -120,6 +121,8 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                     
             dlg.EndModal(wx.ID_OK)
 
+
+        print(wx.version())
         dlg = Dialog(self._pcbnew_frame, self.config_file, Buzzard(), run_buzzard)
     
         if dlg.ShowModal() == wx.ID_OK:
@@ -129,19 +132,30 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             
             if self.IsVersion(['5.99','6.0', '6.99']):
                 if self._pcbnew_frame is not None:
-                    # Set focus to main window and attempt to execute a Paste operation
-                    keyinput = wx.UIActionSimulator()
-                    self._pcbnew_frame.Raise()
-                    self._pcbnew_frame.SetFocus()
-                    wx.MilliSleep(100)
-                    wx.Yield()
-
-                    # Press and release CTRL + V
-                    keyinput.KeyDown(ord("V"), wx.MOD_CONTROL)
-                    wx.MilliSleep(100)
-                    keyinput.KeyUp(ord("V"), wx.MOD_CONTROL) 
-                    wx.MilliSleep(100)
-
+                    # Set focus to main window and attempt to execute a Paste operation 
+                    try:
+                        evt = wx.KeyEvent(wx.wxEVT_CHAR_HOOK)
+                        evt.SetKeyCode(ord('V'))
+                        #evt.SetUnicodeKey(ord('V'))
+                        evt.SetControlDown(True)
+                
+                        wnd = [i for i in self._pcbnew_frame.Children if i.ClassName == 'wxWindow'][0]
+                        #print(wnd)
+                        #print(evt)
+                        wx.PostEvent(wnd, evt)
+                    except:
+                        # Likely on Linux with old wx python support :(
+                        keyinput = wx.UIActionSimulator()
+                        self._pcbnew_frame.Raise()
+                        self._pcbnew_frame.SetFocus()
+                        wx.MilliSleep(100)
+                        wx.Yield()
+                        # Press and release CTRL + V
+                        keyinput.KeyDown(ord("V"), wx.MOD_CONTROL)
+                        wx.MilliSleep(100)
+                        keyinput.KeyUp(ord("V"), wx.MOD_CONTROL) 
+                        wx.MilliSleep(100)
+                    
     def InitLogger(self):
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
@@ -181,3 +195,5 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         root.addHandler(handler1)
         root.addHandler(handler2)
        
+
+    
