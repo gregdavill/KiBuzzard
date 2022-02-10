@@ -22,7 +22,7 @@ class MyApp(wx.App):
         return True
 
     def run(self, footprint_string, dlg):
-        
+
         self.frame.EndModal(wx.ID_OK)
 
 
