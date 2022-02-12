@@ -101,21 +101,15 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 else:
                     # Create new footprint, and replace old ones place
                     try:
+                        b = pcbnew.GetBoard()
+                        
                         pos = dlg.updateFootprint.GetPosition()
-
                         io = pcbnew.PCB_PLUGIN()
                         new_fp = pcbnew.Cast_to_FOOTPRINT(io.Parse(footprint_string))
-
-                        b = pcbnew.GetBoard()
-                        new_fp.SetPosition(pos)
-                        b.RemoveNative(dlg.updateFootprint)
-                        #b.SwapData(, new_fp)
-
                         b.Add(new_fp)
+                        new_fp.SetPosition(pos)
                         
-                        
-                        pcbnew.Refresh()
-
+                        b.RemoveNative(dlg.updateFootprint)
                     except:
                         import traceback
                         wx.LogError(traceback.format_exc())
