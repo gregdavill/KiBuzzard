@@ -64,7 +64,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         def run_buzzard(dlg, p_buzzard): 
 
             if len(dlg.polys) == 0:
-                dlg.EndModal(wx.ID_CANCEL)
+                dlg.EndModal(wx.ID_OK)
                 return
 
             if self.IsVersion(['5.1','5.0']):
@@ -108,13 +108,11 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         new_fp = pcbnew.Cast_to_FOOTPRINT(io.Parse(footprint_string))
                         b.Add(new_fp)
                         new_fp.SetPosition(pos)
-                        
-                        b.RemoveNative(dlg.updateFootprint)
+
+                        b.Remove(dlg.updateFootprint)
                     except:
                         import traceback
                         wx.LogError(traceback.format_exc())
-                        dlg.EndModal(wx.ID_CANCEL)
-                    dlg.EndModal(wx.ID_CANCEL)
                     
             dlg.EndModal(wx.ID_OK)
 
@@ -122,34 +120,39 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         print(wx.version())
         dlg = Dialog(self._pcbnew_frame, self.config_file, Buzzard(), run_buzzard)
     
-        if dlg.ShowModal() == wx.ID_OK:
-            # Don't try to paste if we've updated a footprint
-            if dlg.updateFootprint is not None:
-                return
-            
-            if self.IsVersion(['5.99','6.0', '6.99']):
-                if self._pcbnew_frame is not None:
-                    # Set focus to main window and attempt to execute a Paste operation 
-                    try:
-                        evt = wx.KeyEvent(wx.wxEVT_CHAR_HOOK)
-                        evt.SetKeyCode(ord('V'))
-                        #evt.SetUnicodeKey(ord('V'))
-                        evt.SetControlDown(True)
+        try:
+            if dlg.ShowModal() == wx.ID_OK:
+                if len(dlg.polys) == 0:
+                    return 
+                # Don't try to paste if we've updated a footprint
+                if dlg.updateFootprint is not None:
+                    return
                 
-                        wnd = [i for i in self._pcbnew_frame.Children if i.ClassName == 'wxWindow'][0]
-                        #print(wnd)
-                        #print(evt)
-                        wx.PostEvent(wnd, evt)
-                    except:
-                        # Likely on Linux with old wx python support :(
-                        keyinput = wx.UIActionSimulator()
-                        self._pcbnew_frame.Raise()
-                        self._pcbnew_frame.SetFocus()
-                        wx.MilliSleep(100)
-                        wx.Yield()
-                        # Press and release CTRL + V
-                        keyinput.Char(ord("V"), wx.MOD_CONTROL)
-                        wx.MilliSleep(100)
+                if self.IsVersion(['5.99','6.0', '6.99']):
+                    if self._pcbnew_frame is not None:
+                        # Set focus to main window and attempt to execute a Paste operation 
+                        try:
+                            evt = wx.KeyEvent(wx.wxEVT_CHAR_HOOK)
+                            evt.SetKeyCode(ord('V'))
+                            #evt.SetUnicodeKey(ord('V'))
+                            evt.SetControlDown(True)
+                    
+                            wnd = [i for i in self._pcbnew_frame.Children if i.ClassName == 'wxWindow'][0]
+                            #print(wnd)
+                            #print(evt)
+                            wx.PostEvent(wnd, evt)
+                        except:
+                            # Likely on Linux with old wx python support :(
+                            keyinput = wx.UIActionSimulator()
+                            self._pcbnew_frame.Raise()
+                            self._pcbnew_frame.SetFocus()
+                            wx.MilliSleep(100)
+                            wx.Yield()
+                            # Press and release CTRL + V
+                            keyinput.Char(ord("V"), wx.MOD_CONTROL)
+                            wx.MilliSleep(100)
+        finally:
+            dlg.Destroy()
                         
                     
     def InitLogger(self):
