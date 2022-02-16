@@ -30,9 +30,9 @@ class Buzzard():
         self.leftCap = ''                # Used to store cap shape for left side of tag
         self.rightCap = ''               # Used to store cap shape for right side of tag-
         self.svgText = None
-        self.SystemFonts = svg.Text._system_fonts
+        #self.SystemFonts = svg.Text._system_fonts
 
-        svg.Text.load_system_fonts()
+        #svg.Text.load_system_fonts()
 
         fnt_lib = svg.Text._system_fonts
         if fnt_lib is None:
