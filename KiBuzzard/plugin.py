@@ -116,8 +116,6 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                     
             dlg.EndModal(wx.ID_OK)
 
-
-        print(wx.version())
         dlg = Dialog(self._pcbnew_frame, self.config_file, Buzzard(), run_buzzard)
     
         try:
