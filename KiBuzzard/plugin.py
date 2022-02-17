@@ -104,10 +104,12 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         b = pcbnew.GetBoard()
                         
                         pos = dlg.updateFootprint.GetPosition()
+                        orient = dlg.updateFootprint.GetOrientation()
                         io = pcbnew.PCB_PLUGIN()
                         new_fp = pcbnew.Cast_to_FOOTPRINT(io.Parse(footprint_string))
                         b.Add(new_fp)
                         new_fp.SetPosition(pos)
+                        new_fp.SetOrientation(orient)
 
                         b.Remove(dlg.updateFootprint)
                     except:
