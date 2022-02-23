@@ -53,7 +53,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         #for fnt in buzzard.SystemFonts:
         #    self.m_FontComboBox.Append(fnt)
 
-        self._layer_choices = layer_choices = ["F.Cu", "F.Paste", "F.SilkS", "F.Mask"]
+        self._layer_choices = layer_choices = ["F.Cu", "F.Paste", "F.SilkS", "F.Mask", "F.Cu/F.Mask"]
         self.m_LayerComboBox.AppendItems(layer_choices)
         self.m_LayerComboBox.SetSelection(0)
 

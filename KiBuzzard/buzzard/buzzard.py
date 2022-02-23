@@ -1,6 +1,7 @@
 # Original code from: https://github.com/sparkfunX/Buzzard
 import os
 import time
+import copy
 
 from fontTools.ttLib import ttFont
 from fontTools.pens.recordingPen import RecordingPen
@@ -145,7 +146,14 @@ class Buzzard():
     def create_v6_footprint(self, parm_text=None):
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
         mod = Svg2ModExportv6PrettyUser(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True, params=parm_text)
-        mod.add_svg_element(self.svgText, layer=self.layer)
+        if self.layer == "F.Cu/F.Mask":
+            print(self.svgText)
+            mod.add_svg_element(self.svgText, layer="F.Cu")
+            offset_text = copy.copy(self.svgText)
+            offset_text.style += "stroke-width:0.2;"
+            mod.add_svg_element(offset_text, layer="F.Mask")
+        else:
+            mod.add_svg_element(self.svgText, layer=self.layer)
         mod.write()
         return mod.raw_file_data
 
@@ -153,7 +161,13 @@ class Buzzard():
     def create_v5_footprint(self):
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
         mod = svg2mod.Svg2ModExportPretty(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True)
-        mod.add_svg_element(self.svgText, layer=self.layer)
+        if self.layer == "F.Cu/F.Mask":
+            mod.add_svg_element(self.svgText, layer="F.Cu")
+            offset_text = copy.copy(self.svgText)
+            offset_text.style += "stroke-width:0.2;"
+            mod.add_svg_element(offset_text, layer="F.Mask")
+        else:
+            mod.add_svg_element(self.svgText, layer=self.layer)
         mod.write()
         return mod.raw_file_data
 
