@@ -35,13 +35,6 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         self._pcbnew_frame = None
 
         self.kicad_build_version = pcbnew.GetBuildVersion()
-        if self.IsVersion(['5.0','5.1']):
-            # Library location for KiCad 5.1
-            self.filepath = os.path.join(tempfile.mkdtemp(), 'buzzard_labels.pretty', 'label.kicad_mod') 
-            try: # Use try/except here because python 2.7 doesn't support exist_ok
-                os.makedirs(os.path.dirname(self.filepath))
-            except:
-                pass
 
     def IsVersion(self, VersionStr):
         for v in VersionStr:
@@ -53,7 +46,6 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         if self._pcbnew_frame is None:
             try:
                 self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if ('pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()) or ('pcb editor' in x.GetTitle().lower())]
-                print(self._pcbnew_frame)
                 if len(self._pcbnew_frame) == 1:
                     self._pcbnew_frame = self._pcbnew_frame[0]
                 else:
@@ -67,27 +59,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 dlg.EndModal(wx.ID_OK)
                 return
 
-            if self.IsVersion(['5.1','5.0']):
-                # Handle KiCad 5.1
-                filepath = self.filepath
-
-                with open(filepath, 'w+') as f:
-                    f.write(p_buzzard.create_v5_footprint())
-
-                print(os.path.dirname(filepath))
-
-                board = pcbnew.GetBoard()
-                footprint = pcbnew.FootprintLoad(os.path.dirname(filepath), 'label')
-
-                footprint.SetPosition(pcbnew.wxPoint(0, 0))
-                board.Add(footprint)
-                pcbnew.Refresh()
-
-                # Zoom doesn't seem to work.
-                #b = footprint.GetBoundingBox()
-                #pcbnew.WindowZoom(b.GetX(), b.GetY(), b.GetWidth(), b.GetHeight())
-
-            elif self.IsVersion(['5.99','6.0', '6.99']):
+            if self.IsVersion(['5.99','6.0', '6.99']):
                 json_str = json.dumps(dlg.label_params, sort_keys=True)
                 encoded_str = base64.b64encode(json_str.encode('utf-8')).decode('ascii')
                 footprint_string = p_buzzard.create_v6_footprint(parm_text=encoded_str)

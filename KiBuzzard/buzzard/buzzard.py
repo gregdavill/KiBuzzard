@@ -7,7 +7,9 @@ from fontTools.ttLib import ttFont
 from fontTools.pens.recordingPen import RecordingPen
 from fontTools.pens.basePen import decomposeQuadraticSegment
 
-from svg2mod import svg2mod, svg
+from svg2mod import svg, svg2mod
+from svg2mod.exporter import Svg2ModExport, Svg2ModExportLatest, DEFAULT_DPI
+from svg2mod.importer import Svg2ModImport
 
 class Padding():
     def __init__(self):
@@ -51,8 +53,9 @@ class Buzzard():
 
     def generate(self, inString):
         self.svgText = self.renderLabel(inString)
+        self.svgText.style['fill'] = True
         
-        mod = Svg2Points(svg2mod.Svg2ModImport(), precision=1.0, scale_factor=1.0, center=True)
+        mod = Svg2Points(Svg2ModImport(), precision=1.0, scale_factor=1.0, center=True)
         mod.add_svg_element(self.svgText)
         mod.write()
 
@@ -145,7 +148,7 @@ class Buzzard():
 
     def create_v6_footprint(self, parm_text=None):
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
-        mod = Svg2ModExportv6PrettyUser(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True, params=parm_text)
+        mod = Svg2ModExportLatestCustom(Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True, params=parm_text)
         if self.layer == "F.Cu/F.Mask":
             print(self.svgText)
             mod.add_svg_element(self.svgText, layer="F.Cu")
@@ -158,35 +161,21 @@ class Buzzard():
         return mod.raw_file_data
 
 
-    def create_v5_footprint(self):
-        name = "kibuzzard-{:8X}".format(int(round(time.time())))
-        mod = svg2mod.Svg2ModExportPretty(svg2mod.Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True)
-        if self.layer == "F.Cu/F.Mask":
-            mod.add_svg_element(self.svgText, layer="F.Cu")
-            offset_text = copy.copy(self.svgText)
-            offset_text.style += "stroke-width:0.2;"
-            mod.add_svg_element(offset_text, layer="F.Mask")
-        else:
-            mod.add_svg_element(self.svgText, layer=self.layer)
-        mod.write()
-        return mod.raw_file_data
-
-
-class Svg2ModExportv6PrettyUser( svg2mod.Svg2ModExportv6Pretty ):
+class Svg2ModExportLatestCustom( Svg2ModExportLatest ):
     
     def __init__(
         self,
-        svg2mod_import = svg2mod.Svg2ModImport(),
+        svg2mod_import = Svg2ModImport(),
         file_name = None,
         center = True,
         scale_factor = 1.0,
         precision = 20.0,
         use_mm = True,
-        dpi = svg2mod.DEFAULT_DPI,
+        dpi = DEFAULT_DPI,
         params = None
     ):
         self.params = params
-        super( Svg2ModExportv6PrettyUser, self ).__init__(
+        super( Svg2ModExportLatestCustom, self ).__init__(
             svg2mod_import,
             file_name,
             center,
@@ -214,7 +203,7 @@ class Svg2ModExportv6PrettyUser( svg2mod.Svg2ModExportv6Pretty ):
         )
 
 
-class Svg2Points( svg2mod.Svg2ModExport ):
+class Svg2Points( Svg2ModExport ):
     ''' A child of Svg2ModExport that implements
     specific functionality for creating points to render
     '''
@@ -243,13 +232,13 @@ class Svg2Points( svg2mod.Svg2ModExport ):
 
     def __init__(
         self,
-        svg2mod_import = svg2mod.Svg2ModImport(),
+        svg2mod_import = Svg2ModImport(),
         file_name = None,
         center = True,
         scale_factor = 1.0,
         precision = 20.0,
         use_mm = True,
-        dpi = svg2mod.DEFAULT_DPI,
+        dpi = DEFAULT_DPI,
     ):
         super( Svg2Points, self ).__init__(
             svg2mod_import,
@@ -268,7 +257,7 @@ class Svg2Points( svg2mod.Svg2ModExport ):
 
     #------------------------------------------------------------------------
 
-    def _get_layer_name( self, name, front ):
+    def _get_layer_name( self, item_name, name, front ):
 
         layer_info = self.layer_map[ name ]
         layer = layer_info[ 0 ]
@@ -321,9 +310,17 @@ class Svg2Points( svg2mod.Svg2ModExport ):
     #------------------------------------------------------------------------
 
     def _write_polygon( self, points, layer, fill, stroke, stroke_width ):
-        self._write_polygon_filled(
-            points, layer
-        )
+
+        if len(points) > 2:
+            self._write_polygon_filled(
+                points, layer
+            )
+            return
+ 
+        if len(points) < 3:
+            print("  Not writing non-polygon with no stroke.")
+        else:
+            print("  Polygon has no stroke or fill. Skipping.")
 
 
     #------------------------------------------------------------------------
@@ -350,4 +347,8 @@ class Svg2Points( svg2mod.Svg2ModExport ):
     def _write_polygon_segment( self, p, q, layer, stroke_width ):
         self._write_polygon_point(p)
         self._write_polygon_point(q)
+
+
+    def _write_thru_hole( self, circle, layer ):
+        pass
 
