@@ -1,13 +1,10 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
-from fontTools.misc.fixedTools import otRound
+from fontTools.misc.roundTools import noRound, otRound
 from fontTools.ttLib.tables import otTables as ot
 from fontTools.varLib.models import supportScalar
 from fontTools.varLib.builder import (buildVarRegionList, buildVarStore,
 				      buildVarRegion, buildVarData)
 from functools import partial
 from collections import defaultdict
-from array import array
 
 
 def _getLocationKey(loc):
@@ -70,7 +67,7 @@ class OnlineVarStoreBuilder(object):
 			self._outer = varDataIdx
 			self._data = self._store.VarData[varDataIdx]
 			self._cache = self._varDataCaches[key]
-			if len(self._data.Item) == 0xFFF:
+			if len(self._data.Item) == 0xFFFF:
 				# This is full.  Need new one.
 				varDataIdx = None
 
@@ -85,15 +82,12 @@ class OnlineVarStoreBuilder(object):
 
 
 	def storeMasters(self, master_values):
-		deltas = self._model.getDeltas(master_values)
-		base = otRound(deltas.pop(0))
-		return base, self.storeDeltas(deltas)
+		deltas = self._model.getDeltas(master_values, round=round)
+		base = deltas.pop(0)
+		return base, self.storeDeltas(deltas, round=noRound)
 
-	def storeDeltas(self, deltas):
-		# Pity that this exists here, since VarData_addItem
-		# does the same.  But to look into our cache, it's
-		# good to adjust deltas here as well...
-		deltas = [otRound(d) for d in deltas]
+	def storeDeltas(self, deltas, *, round=round):
+		deltas = [round(d) for d in deltas]
 		if len(deltas) == len(self._supports) + 1:
 			deltas = tuple(deltas[1:])
 		else:
@@ -111,14 +105,14 @@ class OnlineVarStoreBuilder(object):
 			# Full array. Start new one.
 			self._add_VarData()
 			return self.storeDeltas(deltas)
-		self._data.addItem(deltas)
+		self._data.addItem(deltas, round=noRound)
 
 		varIdx = (self._outer << 16) + inner
 		self._cache[deltas] = varIdx
 		return varIdx
 
-def VarData_addItem(self, deltas):
-	deltas = [otRound(d) for d in deltas]
+def VarData_addItem(self, deltas, *, round=round):
+	deltas = [round(d) for d in deltas]
 
 	countUs = self.VarRegionCount
 	countThem = len(deltas)
@@ -380,11 +374,10 @@ class _Encoding(object):
 		as a VarData."""
 		c = 6
 		while chars:
-			if chars & 3:
+			if chars & 0b1111:
 				c += 2
-			chars >>= 2
+			chars >>= 4
 		return c
-
 
 	def _find_yourself_best_new_encoding(self, done_by_width):
 		self.best_new_encoding = None
@@ -410,14 +403,31 @@ class _EncodingDict(dict):
 	@staticmethod
 	def _row_characteristics(row):
 		"""Returns encoding characteristics for a row."""
+		longWords = False
+
 		chars = 0
 		i = 1
 		for v in row:
 			if v:
 				chars += i
 			if not (-128 <= v <= 127):
-				chars += i * 2
-			i <<= 2
+				chars += i * 0b0010
+			if not (-32768 <= v <= 32767):
+				longWords = True
+				break
+			i <<= 4
+
+		if longWords:
+			# Redo; only allow 2byte/4byte encoding
+			chars = 0
+			i = 1
+			for v in row:
+				if v:
+					chars += i * 0b0011
+				if not (-32768 <= v <= 32767):
+					chars += i * 0b1100
+				i <<= 4
+
 		return chars
 
 
@@ -428,7 +438,7 @@ def VarStore_optimize(self):
 	# Check that no two VarRegions are the same; if they are, fold them.
 
 	n = len(self.VarRegionList.Region) # Number of columns
-	zeroes = array('h', [0]*n)
+	zeroes = [0] * n
 
 	front_mapping = {} # Map from old VarIdxes to full row tuples
 
@@ -440,7 +450,7 @@ def VarStore_optimize(self):
 
 		for minor,item in enumerate(data.Item):
 
-			row = array('h', zeroes)
+			row = list(zeroes)
 			for regionIdx,v in zip(regionIndices, item):
 				row[regionIdx] += v
 			row = tuple(row)
@@ -547,12 +557,13 @@ ot.VarStore.optimize = VarStore_optimize
 
 
 def main(args=None):
+	"""Optimize a font's GDEF variation store"""
 	from argparse import ArgumentParser
 	from fontTools import configLogger
 	from fontTools.ttLib import TTFont
 	from fontTools.ttLib.tables.otBase import OTTableWriter
 
-	parser = ArgumentParser(prog='varLib.varStore')
+	parser = ArgumentParser(prog='varLib.varStore', description= main.__doc__)
 	parser.add_argument('fontfile')
 	parser.add_argument('outfile', nargs='?')
 	options = parser.parse_args(args)

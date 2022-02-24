@@ -1,5 +1,3 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.pens.basePen import BasePen
 from reportlab.graphics.shapes import Path
 
@@ -9,7 +7,7 @@ __all__ = ["ReportLabPen"]
 
 class ReportLabPen(BasePen):
 
-	"""A pen for drawing onto a reportlab.graphics.shapes.Path object."""
+	"""A pen for drawing onto a ``reportlab.graphics.shapes.Path`` object."""
 
 	def __init__(self, glyphSet, path=None):
 		BasePen.__init__(self, glyphSet)

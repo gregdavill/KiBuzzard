@@ -1,16 +1,90 @@
 """
 User name to file name conversion.
-This was taken form the UFO 3 spec.
+This was taken from the UFO 3 spec.
 """
-from __future__ import absolute_import, unicode_literals
-from fontTools.misc.py23 import basestring, unicode
 
-
-illegalCharacters = r"\" * + / : < > ? [ \ ] | \0".split(" ")
-illegalCharacters += [chr(i) for i in range(1, 32)]
-illegalCharacters += [chr(0x7F)]
-reservedFileNames = "CON PRN AUX CLOCK$ NUL A:-Z: COM1".lower().split(" ")
-reservedFileNames += "LPT1 LPT2 LPT3 COM2 COM3 COM4".lower().split(" ")
+# Restrictions are taken mostly from
+# https://docs.microsoft.com/en-gb/windows/win32/fileio/naming-a-file#naming-conventions.
+#
+# 1. Integer value zero, sometimes referred to as the ASCII NUL character.
+# 2. Characters whose integer representations are in the range 1 to 31,
+#    inclusive.
+# 3. Various characters that (mostly) Windows and POSIX-y filesystems don't
+#    allow, plus "(" and ")", as per the specification.
+illegalCharacters = {
+    "\x00",
+    "\x01",
+    "\x02",
+    "\x03",
+    "\x04",
+    "\x05",
+    "\x06",
+    "\x07",
+    "\x08",
+    "\t",
+    "\n",
+    "\x0b",
+    "\x0c",
+    "\r",
+    "\x0e",
+    "\x0f",
+    "\x10",
+    "\x11",
+    "\x12",
+    "\x13",
+    "\x14",
+    "\x15",
+    "\x16",
+    "\x17",
+    "\x18",
+    "\x19",
+    "\x1a",
+    "\x1b",
+    "\x1c",
+    "\x1d",
+    "\x1e",
+    "\x1f",
+    '"',
+    "*",
+    "+",
+    "/",
+    ":",
+    "<",
+    ">",
+    "?",
+    "[",
+    "\\",
+    "]",
+    "(",
+    ")",
+    "|",
+    "\x7f",
+}
+reservedFileNames = {
+    "aux",
+    "clock$",
+    "com1",
+    "com2",
+    "com3",
+    "com4",
+    "com5",
+    "com6",
+    "com7",
+    "com8",
+    "com9",
+    "con",
+    "lpt1",
+    "lpt2",
+    "lpt3",
+    "lpt4",
+    "lpt5",
+    "lpt6",
+    "lpt7",
+    "lpt8",
+    "lpt9",
+    "nul",
+    "prn",
+}
 maxFileNameLength = 255
 
 
@@ -18,10 +92,9 @@ class NameTranslationError(Exception):
 	pass
 
 
-def userNameToFileName(userName, existing=[], prefix="", suffix=""):
+def userNameToFileName(userName: str, existing=(), prefix="", suffix=""):
 	"""
-	existing should be a case-insensitive list
-	of all existing file names.
+	`existing` should be a set-like object.
 
 	>>> userNameToFileName("a") == "a"
 	True
@@ -68,9 +141,9 @@ def userNameToFileName(userName, existing=[], prefix="", suffix=""):
 	>>> userNameToFileName("alt.con") == "alt._con"
 	True
 	"""
-	# the incoming name must be a unicode string
-	if not isinstance(userName, unicode):
-		raise ValueError("The value for userName must be a unicode string.")
+	# the incoming name must be a string
+	if not isinstance(userName, str):
+		raise ValueError("The value for userName must be a string.")
 	# establish the prefix and suffix lengths
 	prefixLength = len(prefix)
 	suffixLength = len(suffix)

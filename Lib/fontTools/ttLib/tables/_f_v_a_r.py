@@ -1,8 +1,11 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.misc import sstruct
-from fontTools.misc.fixedTools import fixedToFloat, floatToFixed
-from fontTools.misc.textTools import safeEval, num2binary, binary2num
+from fontTools.misc.fixedTools import (
+    fixedToFloat as fi2fl,
+    floatToFixed as fl2fi,
+    floatToFixedToStr as fl2str,
+    strToFixedToFloat as str2fl,
+)
+from fontTools.misc.textTools import Tag, bytesjoin, safeEval
 from fontTools.ttLib import TTLibError
 from . import DefaultTable
 import struct
@@ -130,9 +133,9 @@ class Axis(object):
         writer.newline()
         for tag, value in [("AxisTag", self.axisTag),
                            ("Flags", "0x%X" % self.flags),
-                           ("MinValue", str(self.minValue)),
-                           ("DefaultValue", str(self.defaultValue)),
-                           ("MaxValue", str(self.maxValue)),
+                           ("MinValue", fl2str(self.minValue, 16)),
+                           ("DefaultValue", fl2str(self.defaultValue, 16)),
+                           ("MaxValue", fl2str(self.maxValue, 16)),
                            ("AxisNameID", str(self.axisNameID))]:
             writer.begintag(tag)
             writer.write(value)
@@ -149,7 +152,11 @@ class Axis(object):
                 self.axisTag = Tag(value)
             elif tag in {"Flags", "MinValue", "DefaultValue", "MaxValue",
                          "AxisNameID"}:
-                setattr(self, tag[0].lower() + tag[1:], safeEval(value))
+                setattr(
+                    self,
+                    tag[0].lower() + tag[1:],
+                    str2fl(value, 16) if tag.endswith("Value") else safeEval(value)
+                )
 
 
 class NamedInstance(object):
@@ -162,7 +169,7 @@ class NamedInstance(object):
     def compile(self, axisTags, includePostScriptName):
         result = [sstruct.pack(FVAR_INSTANCE_FORMAT, self)]
         for axis in axisTags:
-            fixedCoord = floatToFixed(self.coordinates[axis], 16)
+            fixedCoord = fl2fi(self.coordinates[axis], 16)
             result.append(struct.pack(">l", fixedCoord))
         if includePostScriptName:
             result.append(struct.pack(">H", self.postscriptNameID))
@@ -173,7 +180,7 @@ class NamedInstance(object):
         pos = sstruct.calcsize(FVAR_INSTANCE_FORMAT)
         for axis in axisTags:
             value = struct.unpack(">l", data[pos : pos + 4])[0]
-            self.coordinates[axis] = fixedToFloat(value, 16)
+            self.coordinates[axis] = fi2fl(value, 16)
             pos += 4
         if pos + 2 <= len(data):
           self.postscriptNameID = struct.unpack(">H", data[pos : pos + 2])[0]
@@ -200,7 +207,7 @@ class NamedInstance(object):
         writer.newline()
         for axis in ttFont["fvar"].axes:
             writer.simpletag("coord", axis=axis.axisTag,
-                             value=self.coordinates[axis.axisTag])
+                             value=fl2str(self.coordinates[axis.axisTag], 16))
             writer.newline()
         writer.endtag("NamedInstance")
         writer.newline()
@@ -216,4 +223,5 @@ class NamedInstance(object):
 
         for tag, elementAttrs, _ in filter(lambda t: type(t) is tuple, content):
             if tag == "coord":
-                self.coordinates[elementAttrs["axis"]] = safeEval(elementAttrs["value"])
+                value = str2fl(elementAttrs["value"], 16)
+                self.coordinates[elementAttrs["axis"]] = value

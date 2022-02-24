@@ -1,7 +1,6 @@
-from __future__ import absolute_import, unicode_literals
-import sys
 import os
 from copy import deepcopy
+from os import fsdecode
 import logging
 import zipfile
 import enum
@@ -15,13 +14,12 @@ import fs.osfs
 import fs.zipfs
 import fs.tempfs
 import fs.tools
-from fontTools.misc.py23 import basestring, unicode, tounicode
 from fontTools.misc import plistlib
 from fontTools.ufoLib.validators import *
 from fontTools.ufoLib.filenames import userNameToFileName
 from fontTools.ufoLib.converters import convertUFO1OrUFO2KerningToUFO3Kerning
 from fontTools.ufoLib.errors import UFOLibError
-from fontTools.ufoLib.utils import datetimeAsTimestamp, fsdecode, numberTypes
+from fontTools.ufoLib.utils import numberTypes, _VersionTupleEnumMixin
 
 """
 A library for importing .ufo files and their descendants.
@@ -94,7 +92,11 @@ LAYERINFO_FILENAME = "layerinfo.plist"
 
 DEFAULT_LAYER_NAME = "public.default"
 
-supportedUFOFormatVersions = [1, 2, 3]
+
+class UFOFormatVersion(tuple, _VersionTupleEnumMixin, enum.Enum):
+	FORMAT_1_0 = (1, 0)
+	FORMAT_2_0 = (2, 0)
+	FORMAT_3_0 = (3, 0)
 
 
 class UFOFileStructure(enum.Enum):
@@ -107,7 +109,7 @@ class UFOFileStructure(enum.Enum):
 # --------------
 
 
-class _UFOBaseIO(object):
+class _UFOBaseIO:
 
 	def getFileModificationTime(self, path):
 		"""
@@ -121,7 +123,7 @@ class _UFOBaseIO(object):
 		except (fs.errors.MissingInfoNamespace, fs.errors.ResourceNotFound):
 			return None
 		else:
-			return datetimeAsTimestamp(dt)
+			return dt.timestamp()
 
 	def _getPlist(self, fileName, default=None):
 		"""
@@ -147,7 +149,7 @@ class _UFOBaseIO(object):
 		except Exception as e:
 			# TODO(anthrotype): try to narrow this down a little
 			raise UFOLibError(
-				"'%s' could not be read on %s: %s" % (fileName, self.fs, e)
+				f"'{fileName}' could not be read on {self.fs}: {e}"
 			)
 
 	def _writePlist(self, fileName, obj):
@@ -205,7 +207,7 @@ class UFOReader(_UFOBaseIO):
 		if hasattr(path, "__fspath__"):  # support os.PathLike objects
 			path = path.__fspath__()
 
-		if isinstance(path, basestring):
+		if isinstance(path, str):
 			structure = _sniffFileStructure(path)
 			try:
 				if structure is UFOFileStructure.ZIP:
@@ -213,7 +215,7 @@ class UFOReader(_UFOBaseIO):
 				else:
 					parentFS = fs.osfs.OSFS(path)
 			except fs.errors.CreateFailed as e:
-				raise UFOLibError("unable to open '%s': %s" % (path, e))
+				raise UFOLibError(f"unable to open '{path}': {e}")
 
 			if structure is UFOFileStructure.ZIP:
 				# .ufoz zip files must contain a single root directory, with arbitrary
@@ -252,7 +254,7 @@ class UFOReader(_UFOBaseIO):
 				path = filesystem.getsyspath("/")
 			except fs.errors.NoSysPath:
 				# network or in-memory FS may not map to the local one
-				path = unicode(filesystem)
+				path = str(filesystem)
 			# when user passed an already initialized fs instance, it is her
 			# responsibility to close it, thus UFOReader.close/__exit__ are no-op
 			self._shouldClose = False
@@ -265,8 +267,13 @@ class UFOReader(_UFOBaseIO):
 			)
 		self._path = fsdecode(path)
 		self._validate = validate
-		self.readMetaInfo(validate=validate)
 		self._upConvertedKerningData = None
+
+		try:
+			self.readMetaInfo(validate=validate)
+		except UFOLibError:
+			self.close()
+			raise
 
 	# properties
 
@@ -283,9 +290,26 @@ class UFOReader(_UFOBaseIO):
 	path = property(_get_path, doc="The path of the UFO (DEPRECATED).")
 
 	def _get_formatVersion(self):
-		return self._formatVersion
+		import warnings
 
-	formatVersion = property(_get_formatVersion, doc="The format version of the UFO. This is determined by reading metainfo.plist during __init__.")
+		warnings.warn(
+			"The 'formatVersion' attribute is deprecated; use the 'formatVersionTuple'",
+			DeprecationWarning,
+			stacklevel=2,
+		)
+		return self._formatVersion.major
+
+	formatVersion = property(
+		_get_formatVersion,
+		doc="The (major) format version of the UFO. DEPRECATED: Use formatVersionTuple"
+	)
+
+	@property
+	def formatVersionTuple(self):
+		"""The (major, minor) format version of the UFO.
+		This is determined by reading metainfo.plist during __init__.
+		"""
+		return self._formatVersion
 
 	def _get_fileStructure(self):
 		return self._fileStructure
@@ -324,12 +348,12 @@ class UFOReader(_UFOBaseIO):
 				if not isinstance(groups, dict):
 					raise UFOLibError(invalidFormatMessage)
 				for groupName, glyphList in groups.items():
-					if not isinstance(groupName, basestring):
+					if not isinstance(groupName, str):
 						raise UFOLibError(invalidFormatMessage)
 					elif not isinstance(glyphList, list):
 						raise UFOLibError(invalidFormatMessage)
 					for glyphName in glyphList:
-						if not isinstance(glyphName, basestring):
+						if not isinstance(glyphName, str):
 							raise UFOLibError(invalidFormatMessage)
 			self._upConvertedKerningData = dict(
 				kerning={},
@@ -340,7 +364,8 @@ class UFOReader(_UFOBaseIO):
 			# convert kerning and groups
 			kerning, groups, conversionMaps = convertUFO1OrUFO2KerningToUFO3Kerning(
 				self._upConvertedKerningData["originalKerning"],
-				deepcopy(self._upConvertedKerningData["originalGroups"])
+				deepcopy(self._upConvertedKerningData["originalGroups"]),
+				self.getGlyphSet()
 			)
 			# store
 			self._upConvertedKerningData["kerning"] = kerning
@@ -366,7 +391,7 @@ class UFOReader(_UFOBaseIO):
 		The path must be relative to the UFO path.
 		Returns None if the file does not exist.
 		By default the file is opened in binary mode (reads bytes).
-		If encoding is passed, the file is opened in text mode (reads unicode).
+		If encoding is passed, the file is opened in text mode (reads str).
 
 		Note: The caller is responsible for closing the open file.
 		"""
@@ -380,9 +405,9 @@ class UFOReader(_UFOBaseIO):
 			return None
 	# metainfo.plist
 
-	def readMetaInfo(self, validate=None):
+	def _readMetaInfo(self, validate=None):
 		"""
-		Read metainfo.plist. Only used for internal operations.
+		Read metainfo.plist and return raw data. Only used for internal operations.
 
 		``validate`` will validate the read data, by default it is set
 		to the class's validate value, can be overridden.
@@ -392,24 +417,54 @@ class UFOReader(_UFOBaseIO):
 		data = self._getPlist(METAINFO_FILENAME)
 		if validate and not isinstance(data, dict):
 			raise UFOLibError("metainfo.plist is not properly formatted.")
-		formatVersion = data["formatVersion"]
-		if validate:
-			if not isinstance(formatVersion, int):
-				raise UFOLibError(
-					"formatVersion must be specified as an integer in '%s' on %s"
-					% (METAINFO_FILENAME, self.fs)
-				)
-			if formatVersion not in supportedUFOFormatVersions:
-				raise UFOLibError(
-					"Unsupported UFO format (%d) in '%s' on %s"
-					% (formatVersion, METAINFO_FILENAME, self.fs)
-				)
-		self._formatVersion = formatVersion
+		try:
+			formatVersionMajor = data["formatVersion"]
+		except KeyError:
+			raise UFOLibError(
+				f"Missing required formatVersion in '{METAINFO_FILENAME}' on {self.fs}"
+			)
+		formatVersionMinor = data.setdefault("formatVersionMinor", 0)
+
+		try:
+			formatVersion = UFOFormatVersion((formatVersionMajor, formatVersionMinor))
+		except ValueError as e:
+			unsupportedMsg = (
+				f"Unsupported UFO format ({formatVersionMajor}.{formatVersionMinor}) "
+				f"in '{METAINFO_FILENAME}' on {self.fs}"
+			)
+			if validate:
+				from fontTools.ufoLib.errors import UnsupportedUFOFormat
+
+				raise UnsupportedUFOFormat(unsupportedMsg) from e
+
+			formatVersion = UFOFormatVersion.default()
+			logger.warning(
+				"%s. Assuming the latest supported version (%s). "
+				"Some data may be skipped or parsed incorrectly",
+				unsupportedMsg, formatVersion
+			)
+		data["formatVersionTuple"] = formatVersion
+		return data
+
+	def readMetaInfo(self, validate=None):
+		"""
+		Read metainfo.plist and set formatVersion. Only used for internal operations.
+
+		``validate`` will validate the read data, by default it is set
+		to the class's validate value, can be overridden.
+		"""
+		data = self._readMetaInfo(validate=validate)
+		self._formatVersion = data["formatVersionTuple"]
 
 	# groups.plist
 
 	def _readGroups(self):
-		return self._getPlist(GROUPS_FILENAME, {})
+		groups = self._getPlist(GROUPS_FILENAME, {})
+		# remove any duplicate glyphs in a kerning group
+		for groupName, glyphList in groups.items():
+			if groupName.startswith(('public.kern1.', 'public.kern2.')):
+				groups[groupName] = list(OrderedDict.fromkeys(glyphList))
+		return groups
 
 	def readGroups(self, validate=None):
 		"""
@@ -420,7 +475,7 @@ class UFOReader(_UFOBaseIO):
 		if validate is None:
 			validate = self._validate
 		# handle up conversion
-		if self._formatVersion < 3:
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
 			self._upConvertKerning(validate)
 			groups = self._upConvertedKerningData["groups"]
 		# normal
@@ -436,7 +491,7 @@ class UFOReader(_UFOBaseIO):
 		"""
 		Get maps defining the renaming that was done during any
 		needed kerning group conversion. This method returns a
-		dictionary of this form:
+		dictionary of this form::
 
 			{
 				"side1" : {"old group name" : "new group name"},
@@ -451,7 +506,7 @@ class UFOReader(_UFOBaseIO):
 		"""
 		if validate is None:
 			validate = self._validate
-		if self._formatVersion >= 3:
+		if self._formatVersion >= UFOFormatVersion.FORMAT_3_0:
 			return dict(side1={}, side2={})
 		# use the public group reader to force the load and
 		# conversion of the data if it hasn't happened yet.
@@ -481,7 +536,7 @@ class UFOReader(_UFOBaseIO):
 		infoDict = self._readInfo(validate)
 		infoDataToSet = {}
 		# version 1
-		if self._formatVersion == 1:
+		if self._formatVersion == UFOFormatVersion.FORMAT_1_0:
 			for attr in fontInfoAttributesVersion1:
 				value = infoDict.get(attr)
 				if value is not None:
@@ -489,15 +544,15 @@ class UFOReader(_UFOBaseIO):
 			infoDataToSet = _convertFontInfoDataVersion1ToVersion2(infoDataToSet)
 			infoDataToSet = _convertFontInfoDataVersion2ToVersion3(infoDataToSet)
 		# version 2
-		elif self._formatVersion == 2:
+		elif self._formatVersion == UFOFormatVersion.FORMAT_2_0:
 			for attr, dataValidationDict in list(fontInfoAttributesVersion2ValueData.items()):
 				value = infoDict.get(attr)
 				if value is None:
 					continue
 				infoDataToSet[attr] = value
 			infoDataToSet = _convertFontInfoDataVersion2ToVersion3(infoDataToSet)
-		# version 3
-		elif self._formatVersion == 3:
+		# version 3.x
+		elif self._formatVersion.major == UFOFormatVersion.FORMAT_3_0.major:
 			for attr, dataValidationDict in list(fontInfoAttributesVersion3ValueData.items()):
 				value = infoDict.get(attr)
 				if value is None:
@@ -505,7 +560,7 @@ class UFOReader(_UFOBaseIO):
 				infoDataToSet[attr] = value
 		# unsupported version
 		else:
-			raise NotImplementedError
+			raise NotImplementedError(self._formatVersion)
 		# validate data
 		if validate:
 			infoDataToSet = validateInfoVersion3Data(infoDataToSet)
@@ -532,7 +587,7 @@ class UFOReader(_UFOBaseIO):
 		if validate is None:
 			validate = self._validate
 		# handle up conversion
-		if self._formatVersion < 3:
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
 			self._upConvertKerning(validate)
 			kerningNested = self._upConvertedKerningData["kerning"]
 		# normal
@@ -572,7 +627,7 @@ class UFOReader(_UFOBaseIO):
 
 	def readFeatures(self):
 		"""
-		Read features.fea. Return a unicode string.
+		Read features.fea. Return a string.
 		The returned string is empty if the file is missing.
 		"""
 		try:
@@ -590,7 +645,7 @@ class UFOReader(_UFOBaseIO):
 
 		``validate`` will validate the layer contents.
 		"""
-		if self._formatVersion < 3:
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
 			return [(DEFAULT_LAYER_NAME, DEFAULT_GLYPHS_DIRNAME)]
 		contents = self._getPlist(LAYERCONTENTS_FILENAME)
 		if validate:
@@ -638,7 +693,7 @@ class UFOReader(_UFOBaseIO):
 
 		``validateRead`` will validate the read data, by default it is set to the
 		class's validate value, can be overridden.
-		``validateWrte`` will validate the written data, by default it is set to the
+		``validateWrite`` will validate the written data, by default it is set to the
 		class's validate value, can be overridden.
 		"""
 		from fontTools.ufoLib.glifLib import GlyphSet
@@ -661,13 +716,14 @@ class UFOReader(_UFOBaseIO):
 			glyphSubFS = self.fs.opendir(directory)
 		except fs.errors.ResourceNotFound:
 			raise UFOLibError(
-				"No '%s' directory for layer '%s'" % (directory, layerName)
+				f"No '{directory}' directory for layer '{layerName}'"
 			)
 		return GlyphSet(
 			glyphSubFS,
 			ufoFormatVersion=self._formatVersion,
 			validateRead=validateRead,
 			validateWrite=validateWrite,
+			expectContentsFile=True
 		)
 
 	def getCharacterMapping(self, layerName=None, validate=None):
@@ -722,7 +778,7 @@ class UFOReader(_UFOBaseIO):
 		``validate`` will validate the data, by default it is set to the
 		class's validate value, can be overridden.
 		"""
-		if self._formatVersion < 3:
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
 			return []
 		if validate is None:
 			validate = self._validate
@@ -760,7 +816,7 @@ class UFOReader(_UFOBaseIO):
 				dataFS = self.fs.opendir(DATA_DIRNAME)
 			data = dataFS.readbytes(fileName)
 		except fs.errors.ResourceNotFound:
-			raise UFOLibError("No data file named '%s' on %s" % (fileName, self.fs))
+			raise UFOLibError(f"No data file named '{fileName}' on {self.fs}")
 		return data
 
 	def readImage(self, fileName, validate=None):
@@ -772,8 +828,10 @@ class UFOReader(_UFOBaseIO):
 		"""
 		if validate is None:
 			validate = self._validate
-		if self._formatVersion < 3:
-			raise UFOLibError("Reading images is not allowed in UFO %d." % self._formatVersion)
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
+			raise UFOLibError(
+				f"Reading images is not allowed in UFO {self._formatVersion.major}."
+			)
 		fileName = fsdecode(fileName)
 		try:
 			try:
@@ -783,7 +841,7 @@ class UFOReader(_UFOBaseIO):
 				imagesFS = self.fs.opendir(IMAGES_DIRNAME)
 			data = imagesFS.readbytes(fileName)
 		except fs.errors.ResourceNotFound:
-			raise UFOLibError("No image file named '%s' on %s" % (fileName, self.fs))
+			raise UFOLibError(f"No image file named '{fileName}' on {self.fs}")
 		if validate:
 			valid, error = pngValidator(data=data)
 			if not valid:
@@ -813,23 +871,35 @@ class UFOWriter(UFOReader):
 	By default, the written data will be validated before writing. Set ``validate`` to
 	``False`` if you do not want to validate the data. Validation can also be overriden
 	on a per method level if desired.
+
+	The ``formatVersion`` argument allows to specify the UFO format version as a tuple
+	of integers (major, minor), or as a single integer for the major digit only (minor
+	is implied as 0). By default the latest formatVersion will be used; currently it's
+	3.0, which is equivalent to formatVersion=(3, 0).
+
+	An UnsupportedUFOFormat exception is raised if the requested UFO formatVersion is
+	not supported.
 	"""
 
 	def __init__(
 		self,
 		path,
-		formatVersion=3,
+		formatVersion=None,
 		fileCreator="com.github.fonttools.ufoLib",
 		structure=None,
 		validate=True,
 	):
-		if formatVersion not in supportedUFOFormatVersions:
-			raise UFOLibError("Unsupported UFO format (%d)." % formatVersion)
+		try:
+			formatVersion = UFOFormatVersion(formatVersion)
+		except ValueError as e:
+			from fontTools.ufoLib.errors import UnsupportedUFOFormat
+
+			raise UnsupportedUFOFormat(f"Unsupported UFO format: {formatVersion!r}") from e
 
 		if hasattr(path, "__fspath__"):  # support os.PathLike objects
 			path = path.__fspath__()
 
-		if isinstance(path, basestring):
+		if isinstance(path, str):
 			# normalize path by removing trailing or double slashes
 			path = os.path.normpath(path)
 			havePreviousFile = os.path.exists(path)
@@ -909,7 +979,7 @@ class UFOWriter(UFOReader):
 				path = filesystem.getsyspath("/")
 			except fs.errors.NoSysPath:
 				# network or in-memory FS may not map to the local one
-				path = unicode(filesystem)
+				path = str(filesystem)
 			# if passed an FS object, always use 'package' structure
 			if structure and structure is not UFOFileStructure.PACKAGE:
 				import warnings
@@ -940,22 +1010,20 @@ class UFOWriter(UFOReader):
 		# this will be needed for up and down conversion.
 		previousFormatVersion = None
 		if self._havePreviousFile:
-			metaInfo = self._getPlist(METAINFO_FILENAME)
-			previousFormatVersion = metaInfo.get("formatVersion")
-			try:
-				previousFormatVersion = int(previousFormatVersion)
-			except (ValueError, TypeError):
-				self.fs.close()
-				raise UFOLibError("The existing metainfo.plist is not properly formatted.")
-			if previousFormatVersion not in supportedUFOFormatVersions:
-				self.fs.close()
-				raise UFOLibError("Unsupported UFO format (%d)." % formatVersion)
-		# catch down conversion
-		if previousFormatVersion is not None and previousFormatVersion > formatVersion:
-			raise UFOLibError("The UFO located at this path is a higher version (%d) than the version (%d) that is trying to be written. This is not supported." % (previousFormatVersion, formatVersion))
+			metaInfo = self._readMetaInfo(validate=validate)
+			previousFormatVersion = metaInfo["formatVersionTuple"]
+			# catch down conversion
+			if previousFormatVersion > formatVersion:
+				from fontTools.ufoLib.errors import UnsupportedUFOFormat
+
+				raise UnsupportedUFOFormat(
+					"The UFO located at this path is a higher version "
+					f"({previousFormatVersion}) than the version ({formatVersion}) "
+					"that is trying to be written. This is not supported."
+				)
 		# handle the layer contents
 		self.layerContents = {}
-		if previousFormatVersion is not None and previousFormatVersion >= 3:
+		if previousFormatVersion is not None and previousFormatVersion.major >= 3:
 			# already exists
 			self.layerContents = OrderedDict(self._readLayerContents(validate))
 		else:
@@ -1040,7 +1108,7 @@ class UFOWriter(UFOReader):
 				return self.fs.open(path, mode=mode, encoding=encoding)
 		except fs.errors.ResourceError as e:
 			return UFOLibError(
-				"unable to open '%s' on %s: %s" % (path, self.fs, e)
+				f"unable to open '{path}' on {self.fs}: {e}"
 			)
 
 	def removePath(self, path, force=False, removeEmptyParents=True):
@@ -1060,7 +1128,7 @@ class UFOWriter(UFOReader):
 		except fs.errors.ResourceNotFound:
 			if not force:
 				raise UFOLibError(
-					"'%s' does not exist on %s" % (path, self.fs)
+					f"'{path}' does not exist on {self.fs}"
 				)
 		if removeEmptyParents:
 			parent = fs.path.dirname(path)
@@ -1091,8 +1159,10 @@ class UFOWriter(UFOReader):
 	def _writeMetaInfo(self):
 		metaInfo = dict(
 			creator=self._fileCreator,
-			formatVersion=self._formatVersion
+			formatVersion=self._formatVersion.major,
 		)
+		if self._formatVersion.minor != 0:
+			metaInfo["formatVersionMinor"] = self._formatVersion.minor
 		self._writePlist(METAINFO_FILENAME, metaInfo)
 
 	# groups.plist
@@ -1103,7 +1173,7 @@ class UFOWriter(UFOReader):
 		when writing groups and kerning in UFO 1 and UFO 2.
 		This will effectively undo the conversion done when
 		UFOReader reads this data. The dictionary should have
-		this form:
+		this form::
 
 			{
 				"side1" : {"group name to use when writing" : "group name in data"},
@@ -1113,7 +1183,7 @@ class UFOWriter(UFOReader):
 		This is the same form returned by UFOReader's
 		getKerningGroupConversionRenameMaps method.
 		"""
-		if self._formatVersion >= 3:
+		if self._formatVersion >= UFOFormatVersion.FORMAT_3_0:
 			return # XXX raise an error here
 		# flip the dictionaries
 		remap = {}
@@ -1138,7 +1208,10 @@ class UFOWriter(UFOReader):
 			if not valid:
 				raise UFOLibError(message)
 		# down convert
-		if self._formatVersion < 3 and self._downConversionKerningData is not None:
+		if (
+			self._formatVersion < UFOFormatVersion.FORMAT_3_0
+			and self._downConversionKerningData is not None
+		):
 			remap = self._downConversionKerningData["groupRenameMap"]
 			remappedGroups = {}
 			# there are some edge cases here that are ignored:
@@ -1199,20 +1272,21 @@ class UFOWriter(UFOReader):
 					continue
 				infoData[attr] = value
 		# down convert data if necessary and validate
-		if self._formatVersion == 3:
+		if self._formatVersion == UFOFormatVersion.FORMAT_3_0:
 			if validate:
 				infoData = validateInfoVersion3Data(infoData)
-		elif self._formatVersion == 2:
+		elif self._formatVersion == UFOFormatVersion.FORMAT_2_0:
 			infoData = _convertFontInfoDataVersion3ToVersion2(infoData)
 			if validate:
 				infoData = validateInfoVersion2Data(infoData)
-		elif self._formatVersion == 1:
+		elif self._formatVersion == UFOFormatVersion.FORMAT_1_0:
 			infoData = _convertFontInfoDataVersion3ToVersion2(infoData)
 			if validate:
 				infoData = validateInfoVersion2Data(infoData)
 			infoData = _convertFontInfoDataVersion2ToVersion1(infoData)
-		# write file
-		self._writePlist(FONTINFO_FILENAME, infoData)
+		# write file if there is anything to write
+		if infoData:
+			self._writePlist(FONTINFO_FILENAME, infoData)
 
 	# kerning.plist
 
@@ -1241,14 +1315,17 @@ class UFOWriter(UFOReader):
 					raise UFOLibError(invalidFormatMessage)
 				if not len(pair) == 2:
 					raise UFOLibError(invalidFormatMessage)
-				if not isinstance(pair[0], basestring):
+				if not isinstance(pair[0], str):
 					raise UFOLibError(invalidFormatMessage)
-				if not isinstance(pair[1], basestring):
+				if not isinstance(pair[1], str):
 					raise UFOLibError(invalidFormatMessage)
 				if not isinstance(value, numberTypes):
 					raise UFOLibError(invalidFormatMessage)
 		# down convert
-		if self._formatVersion < 3 and self._downConversionKerningData is not None:
+		if (
+			self._formatVersion < UFOFormatVersion.FORMAT_3_0
+			and self._downConversionKerningData is not None
+		):
 			remap = self._downConversionKerningData["groupRenameMap"]
 			remappedKerning = {}
 			for (side1, side2), value in list(kerning.items()):
@@ -1298,10 +1375,10 @@ class UFOWriter(UFOReader):
 		"""
 		if validate is None:
 			validate = self._validate
-		if self._formatVersion == 1:
+		if self._formatVersion == UFOFormatVersion.FORMAT_1_0:
 			raise UFOLibError("features.fea is not allowed in UFO Format Version 1.")
 		if validate:
-			if not isinstance(features, basestring):
+			if not isinstance(features, str):
 				raise UFOLibError("The features are not text.")
 		if features:
 			self.writeBytesToPath(FEATURES_FILENAME, features.encode("utf8"))
@@ -1317,15 +1394,13 @@ class UFOWriter(UFOReader):
 		"""
 		if validate is None:
 			validate = self._validate
-		if self.formatVersion < 3:
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
 			return
 		if layerOrder is not None:
 			newOrder = []
 			for layerName in layerOrder:
 				if layerName is None:
 					layerName = DEFAULT_LAYER_NAME
-				else:
-					layerName = tounicode(layerName)
 				newOrder.append(layerName)
 			layerOrder = newOrder
 		else:
@@ -1348,7 +1423,15 @@ class UFOWriter(UFOReader):
 			raise UFOLibError("Could not locate a glyph set directory for the layer named %s." % layerName)
 		return foundDirectory
 
-	def getGlyphSet(self, layerName=None, defaultLayer=True, glyphNameToFileNameFunc=None, validateRead=None, validateWrite=None):
+	def getGlyphSet(
+		self,
+		layerName=None,
+		defaultLayer=True,
+		glyphNameToFileNameFunc=None,
+		validateRead=None,
+		validateWrite=None,
+		expectContentsFile=False,
+	):
 		"""
 		Return the GlyphSet object associated with the
 		appropriate glyph directory in the .ufo.
@@ -1361,14 +1444,23 @@ class UFOWriter(UFOReader):
 		class's validate value, can be overridden.
 		``validateWrte`` will validate the written data, by default it is set to the
 		class's validate value, can be overridden.
+		``expectContentsFile`` will raise a GlifLibError if a contents.plist file is
+		not found on the glyph set file system. This should be set to ``True`` if you
+		are reading an existing UFO and ``False`` if you use ``getGlyphSet`` to create
+		a fresh	glyph set.
 		"""
 		if validateRead is None:
 			validateRead = self._validate
 		if validateWrite is None:
 			validateWrite = self._validate
 		# only default can be written in < 3
-		if self._formatVersion < 3 and (not defaultLayer or layerName is not None):
-			raise UFOLibError("Only the default layer can be writen in UFO %d." % self.formatVersion)
+		if (
+			self._formatVersion < UFOFormatVersion.FORMAT_3_0
+			and (not defaultLayer or layerName is not None)
+		):
+			raise UFOLibError(
+				f"Only the default layer can be writen in UFO {self._formatVersion.major}."
+			)
 		# locate a layer name when None has been given
 		if layerName is None and defaultLayer:
 			for existingLayerName, directory in self.layerContents.items():
@@ -1379,40 +1471,53 @@ class UFOWriter(UFOReader):
 		elif layerName is None and not defaultLayer:
 			raise UFOLibError("A layer name must be provided for non-default layers.")
 		# move along to format specific writing
-		if self.formatVersion == 1:
-			return self._getGlyphSetFormatVersion1(validateRead, validateWrite, glyphNameToFileNameFunc=glyphNameToFileNameFunc)
-		elif self.formatVersion == 2:
-			return self._getGlyphSetFormatVersion2(validateRead, validateWrite, glyphNameToFileNameFunc=glyphNameToFileNameFunc)
-		elif self.formatVersion == 3:
-			return self._getGlyphSetFormatVersion3(validateRead, validateWrite, layerName=layerName, defaultLayer=defaultLayer, glyphNameToFileNameFunc=glyphNameToFileNameFunc)
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
+			return self._getDefaultGlyphSet(
+				validateRead,
+				validateWrite,
+				glyphNameToFileNameFunc=glyphNameToFileNameFunc,
+				expectContentsFile=expectContentsFile
+			)
+		elif self._formatVersion.major == UFOFormatVersion.FORMAT_3_0.major:
+			return self._getGlyphSetFormatVersion3(
+				validateRead,
+				validateWrite,
+				layerName=layerName,
+				defaultLayer=defaultLayer,
+				glyphNameToFileNameFunc=glyphNameToFileNameFunc,
+				expectContentsFile=expectContentsFile,
+			)
 		else:
-			raise AssertionError(self.formatVersion)
+			raise NotImplementedError(self._formatVersion)
 
-	def _getGlyphSetFormatVersion1(self, validateRead, validateWrite, glyphNameToFileNameFunc=None):
+	def _getDefaultGlyphSet(
+		self,
+		validateRead,
+		validateWrite,
+		glyphNameToFileNameFunc=None,
+		expectContentsFile=False,
+	):
 		from fontTools.ufoLib.glifLib import GlyphSet
 
 		glyphSubFS = self.fs.makedir(DEFAULT_GLYPHS_DIRNAME, recreate=True)
 		return GlyphSet(
 			glyphSubFS,
 			glyphNameToFileNameFunc=glyphNameToFileNameFunc,
-			ufoFormatVersion=1,
+			ufoFormatVersion=self._formatVersion,
 			validateRead=validateRead,
 			validateWrite=validateWrite,
+			expectContentsFile=expectContentsFile,
 		)
 
-	def _getGlyphSetFormatVersion2(self, validateRead, validateWrite, glyphNameToFileNameFunc=None):
-		from fontTools.ufoLib.glifLib import GlyphSet
-
-		glyphSubFS = self.fs.makedir(DEFAULT_GLYPHS_DIRNAME, recreate=True)
-		return GlyphSet(
-			glyphSubFS,
-			glyphNameToFileNameFunc=glyphNameToFileNameFunc,
-			ufoFormatVersion=2,
-			validateRead=validateRead,
-			validateWrite=validateWrite,
-		)
-
-	def _getGlyphSetFormatVersion3(self, validateRead, validateWrite, layerName=None, defaultLayer=True, glyphNameToFileNameFunc=None):
+	def _getGlyphSetFormatVersion3(
+		self,
+		validateRead,
+		validateWrite,
+		layerName=None,
+		defaultLayer=True,
+		glyphNameToFileNameFunc=None,
+		expectContentsFile=False,
+	):
 		from fontTools.ufoLib.glifLib import GlyphSet
 
 		# if the default flag is on, make sure that the default in the file
@@ -1439,11 +1544,6 @@ class UFOWriter(UFOReader):
 				# not caching this could be slightly expensive,
 				# but caching it will be cumbersome
 				existing = {d.lower() for d in self.layerContents.values()}
-				if not isinstance(layerName, unicode):
-					try:
-						layerName = unicode(layerName)
-					except UnicodeDecodeError:
-						raise UFOLibError("The specified layer name is not a Unicode string.")
 				directory = userNameToFileName(layerName, existing=existing, prefix="glyphs.")
 		# make the directory
 		glyphSubFS = self.fs.makedir(directory, recreate=True)
@@ -1453,9 +1553,10 @@ class UFOWriter(UFOReader):
 		return GlyphSet(
 			glyphSubFS,
 			glyphNameToFileNameFunc=glyphNameToFileNameFunc,
-			ufoFormatVersion=3,
+			ufoFormatVersion=self._formatVersion,
 			validateRead=validateRead,
 			validateWrite=validateWrite,
+			expectContentsFile=expectContentsFile,
 		)
 
 	def renameGlyphSet(self, layerName, newLayerName, defaultLayer=False):
@@ -1466,7 +1567,7 @@ class UFOWriter(UFOReader):
 		layerName, it is up to the caller to inform that object that
 		the directory it represents has changed.
 		"""
-		if self._formatVersion < 3:
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
 			# ignore renaming glyph sets for UFO1 UFO2
 			# just write the data from the default layer
 			return
@@ -1505,7 +1606,7 @@ class UFOWriter(UFOReader):
 		"""
 		Remove the glyph set matching layerName.
 		"""
-		if self._formatVersion < 3:
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
 			# ignore deleting glyph sets for UFO1 UFO2 as there are no layers
 			# just write the data from the default layer
 			return
@@ -1518,13 +1619,13 @@ class UFOWriter(UFOReader):
 		Write data to fileName in the 'data' directory.
 		The data must be a bytes string.
 		"""
-		self.writeBytesToPath("%s/%s" % (DATA_DIRNAME, fsdecode(fileName)), data)
+		self.writeBytesToPath(f"{DATA_DIRNAME}/{fsdecode(fileName)}", data)
 
 	def removeData(self, fileName):
 		"""
 		Remove the file named fileName from the data directory.
 		"""
-		self.removePath("%s/%s" % (DATA_DIRNAME, fsdecode(fileName)))
+		self.removePath(f"{DATA_DIRNAME}/{fsdecode(fileName)}")
 
 	# /images
 
@@ -1535,23 +1636,27 @@ class UFOWriter(UFOReader):
 		"""
 		if validate is None:
 			validate = self._validate
-		if self._formatVersion < 3:
-			raise UFOLibError("Images are not allowed in UFO %d." % self._formatVersion)
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
+			raise UFOLibError(
+				f"Images are not allowed in UFO {self._formatVersion.major}."
+			)
 		fileName = fsdecode(fileName)
 		if validate:
 			valid, error = pngValidator(data=data)
 			if not valid:
 				raise UFOLibError(error)
-		self.writeBytesToPath("%s/%s" % (IMAGES_DIRNAME, fileName), data)
+		self.writeBytesToPath(f"{IMAGES_DIRNAME}/{fileName}", data)
 
 	def removeImage(self, fileName, validate=None):  # XXX remove unused 'validate'?
 		"""
 		Remove the file named fileName from the
 		images directory.
 		"""
-		if self._formatVersion < 3:
-			raise UFOLibError("Images are not allowed in UFO %d." % self._formatVersion)
-		self.removePath("%s/%s" % (IMAGES_DIRNAME, fsdecode(fileName)))
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
+			raise UFOLibError(
+				f"Images are not allowed in UFO {self._formatVersion.major}."
+			)
+		self.removePath(f"{IMAGES_DIRNAME}/{fsdecode(fileName)}")
 
 	def copyImageFromReader(self, reader, sourceFileName, destFileName, validate=None):
 		"""
@@ -1561,10 +1666,12 @@ class UFOWriter(UFOReader):
 		"""
 		if validate is None:
 			validate = self._validate
-		if self._formatVersion < 3:
-			raise UFOLibError("Images are not allowed in UFO %d." % self._formatVersion)
-		sourcePath = "%s/%s" % (IMAGES_DIRNAME, fsdecode(sourceFileName))
-		destPath = "%s/%s" % (IMAGES_DIRNAME, fsdecode(destFileName))
+		if self._formatVersion < UFOFormatVersion.FORMAT_3_0:
+			raise UFOLibError(
+				f"Images are not allowed in UFO {self._formatVersion.major}."
+			)
+		sourcePath = f"{IMAGES_DIRNAME}/{fsdecode(sourceFileName)}"
+		destPath = f"{IMAGES_DIRNAME}/{fsdecode(destFileName)}"
 		self.copyFromReader(reader, sourcePath, destPath)
 
 	def close(self):
@@ -1574,7 +1681,7 @@ class UFOWriter(UFOReader):
 			rootDir = os.path.splitext(os.path.basename(self._path))[0] + ".ufo"
 			with fs.zipfs.ZipFS(self._path, write=True, encoding="utf-8") as destFS:
 				fs.copy.copy_fs(self.fs, destFS.makedir(rootDir))
-		super(UFOWriter, self).close()
+		super().close()
 
 
 # just an alias, makes it more explicit
@@ -1587,7 +1694,7 @@ UFOReaderWriter = UFOWriter
 
 
 def _sniffFileStructure(ufo_path):
-	"""Return UFOFileStructure.ZIP if the UFO at path 'ufo_path' (basestring)
+	"""Return UFOFileStructure.ZIP if the UFO at path 'ufo_path' (str)
 	is a zip file, else return UFOFileStructure.PACKAGE if 'ufo_path' is a
 	directory.
 	Raise UFOLibError if it is a file with unknown structure, or if the path
@@ -1669,7 +1776,7 @@ def validateInfoVersion2Data(infoData):
 	for attr, value in list(infoData.items()):
 		isValidValue = validateFontInfoVersion2ValueForAttribute(attr, value)
 		if not isValidValue:
-			raise UFOLibError("Invalid value for attribute %s (%s)." % (attr, repr(value)))
+			raise UFOLibError(f"Invalid value for attribute {attr} ({value!r}).")
 		else:
 			validInfoData[attr] = value
 	return validInfoData
@@ -1713,7 +1820,7 @@ def validateInfoVersion3Data(infoData):
 	for attr, value in list(infoData.items()):
 		isValidValue = validateFontInfoVersion3ValueForAttribute(attr, value)
 		if not isValidValue:
-			raise UFOLibError("Invalid value for attribute %s (%s)." % (attr, repr(value)))
+			raise UFOLibError(f"Invalid value for attribute {attr} ({value!r}).")
 		else:
 			validInfoData[attr] = value
 	return validInfoData
@@ -1731,7 +1838,7 @@ fontInfoOpenTypeOS2TypeOptions = [0, 1, 2, 3, 8, 9]
 # cases the possible values, that can exist is
 # fontinfo.plist.
 
-fontInfoAttributesVersion1 = set([
+fontInfoAttributesVersion1 = {
 	"familyName",
 	"styleName",
 	"fullName",
@@ -1772,26 +1879,26 @@ fontInfoAttributesVersion1 = set([
 	"ttVendor",
 	"ttUniqueID",
 	"ttVersion",
-])
+}
 
 fontInfoAttributesVersion2ValueData = {
-	"familyName"							: dict(type=basestring),
-	"styleName"								: dict(type=basestring),
-	"styleMapFamilyName"					: dict(type=basestring),
-	"styleMapStyleName"						: dict(type=basestring, valueValidator=fontInfoStyleMapStyleNameValidator),
+	"familyName"							: dict(type=str),
+	"styleName"								: dict(type=str),
+	"styleMapFamilyName"					: dict(type=str),
+	"styleMapStyleName"						: dict(type=str, valueValidator=fontInfoStyleMapStyleNameValidator),
 	"versionMajor"							: dict(type=int),
 	"versionMinor"							: dict(type=int),
 	"year"									: dict(type=int),
-	"copyright"								: dict(type=basestring),
-	"trademark"								: dict(type=basestring),
+	"copyright"								: dict(type=str),
+	"trademark"								: dict(type=str),
 	"unitsPerEm"							: dict(type=(int, float)),
 	"descender"								: dict(type=(int, float)),
 	"xHeight"								: dict(type=(int, float)),
 	"capHeight"								: dict(type=(int, float)),
 	"ascender"								: dict(type=(int, float)),
 	"italicAngle"							: dict(type=(float, int)),
-	"note"									: dict(type=basestring),
-	"openTypeHeadCreated"					: dict(type=basestring, valueValidator=fontInfoOpenTypeHeadCreatedValidator),
+	"note"									: dict(type=str),
+	"openTypeHeadCreated"					: dict(type=str, valueValidator=fontInfoOpenTypeHeadCreatedValidator),
 	"openTypeHeadLowestRecPPEM"				: dict(type=(int, float)),
 	"openTypeHeadFlags"						: dict(type="integerList", valueValidator=genericIntListValidator, valueOptions=fontInfoOpenTypeHeadFlagsOptions),
 	"openTypeHheaAscender"					: dict(type=(int, float)),
@@ -1800,25 +1907,25 @@ fontInfoAttributesVersion2ValueData = {
 	"openTypeHheaCaretSlopeRise"			: dict(type=int),
 	"openTypeHheaCaretSlopeRun"				: dict(type=int),
 	"openTypeHheaCaretOffset"				: dict(type=(int, float)),
-	"openTypeNameDesigner"					: dict(type=basestring),
-	"openTypeNameDesignerURL"				: dict(type=basestring),
-	"openTypeNameManufacturer"				: dict(type=basestring),
-	"openTypeNameManufacturerURL"			: dict(type=basestring),
-	"openTypeNameLicense"					: dict(type=basestring),
-	"openTypeNameLicenseURL"				: dict(type=basestring),
-	"openTypeNameVersion"					: dict(type=basestring),
-	"openTypeNameUniqueID"					: dict(type=basestring),
-	"openTypeNameDescription"				: dict(type=basestring),
-	"openTypeNamePreferredFamilyName"		: dict(type=basestring),
-	"openTypeNamePreferredSubfamilyName"	: dict(type=basestring),
-	"openTypeNameCompatibleFullName"		: dict(type=basestring),
-	"openTypeNameSampleText"				: dict(type=basestring),
-	"openTypeNameWWSFamilyName"				: dict(type=basestring),
-	"openTypeNameWWSSubfamilyName"			: dict(type=basestring),
+	"openTypeNameDesigner"					: dict(type=str),
+	"openTypeNameDesignerURL"				: dict(type=str),
+	"openTypeNameManufacturer"				: dict(type=str),
+	"openTypeNameManufacturerURL"			: dict(type=str),
+	"openTypeNameLicense"					: dict(type=str),
+	"openTypeNameLicenseURL"				: dict(type=str),
+	"openTypeNameVersion"					: dict(type=str),
+	"openTypeNameUniqueID"					: dict(type=str),
+	"openTypeNameDescription"				: dict(type=str),
+	"openTypeNamePreferredFamilyName"		: dict(type=str),
+	"openTypeNamePreferredSubfamilyName"	: dict(type=str),
+	"openTypeNameCompatibleFullName"		: dict(type=str),
+	"openTypeNameSampleText"				: dict(type=str),
+	"openTypeNameWWSFamilyName"				: dict(type=str),
+	"openTypeNameWWSSubfamilyName"			: dict(type=str),
 	"openTypeOS2WidthClass"					: dict(type=int, valueValidator=fontInfoOpenTypeOS2WidthClassValidator),
 	"openTypeOS2WeightClass"				: dict(type=int, valueValidator=fontInfoOpenTypeOS2WeightClassValidator),
 	"openTypeOS2Selection"					: dict(type="integerList", valueValidator=genericIntListValidator, valueOptions=fontInfoOpenTypeOS2SelectionOptions),
-	"openTypeOS2VendorID"					: dict(type=basestring),
+	"openTypeOS2VendorID"					: dict(type=str),
 	"openTypeOS2Panose"						: dict(type="integerList", valueValidator=fontInfoVersion2OpenTypeOS2PanoseValidator),
 	"openTypeOS2FamilyClass"				: dict(type="integerList", valueValidator=fontInfoOpenTypeOS2FamilyClassValidator),
 	"openTypeOS2UnicodeRanges"				: dict(type="integerList", valueValidator=genericIntListValidator, valueOptions=fontInfoOpenTypeOS2UnicodeRangesOptions),
@@ -1845,8 +1952,8 @@ fontInfoAttributesVersion2ValueData = {
 	"openTypeVheaCaretSlopeRise"			: dict(type=int),
 	"openTypeVheaCaretSlopeRun"				: dict(type=int),
 	"openTypeVheaCaretOffset"				: dict(type=(int, float)),
-	"postscriptFontName"					: dict(type=basestring),
-	"postscriptFullName"					: dict(type=basestring),
+	"postscriptFontName"					: dict(type=str),
+	"postscriptFullName"					: dict(type=str),
 	"postscriptSlantAngle"					: dict(type=(float, int)),
 	"postscriptUniqueID"					: dict(type=int),
 	"postscriptUnderlineThickness"			: dict(type=(int, float)),
@@ -1864,11 +1971,11 @@ fontInfoAttributesVersion2ValueData = {
 	"postscriptForceBold"					: dict(type=bool),
 	"postscriptDefaultWidthX"				: dict(type=(int, float)),
 	"postscriptNominalWidthX"				: dict(type=(int, float)),
-	"postscriptWeightName"					: dict(type=basestring),
-	"postscriptDefaultCharacter"			: dict(type=basestring),
+	"postscriptWeightName"					: dict(type=str),
+	"postscriptDefaultCharacter"			: dict(type=str),
 	"postscriptWindowsCharacterSet"			: dict(type=int, valueValidator=fontInfoPostscriptWindowsCharacterSetValidator),
 	"macintoshFONDFamilyID"					: dict(type=int),
-	"macintoshFONDName"						: dict(type=basestring),
+	"macintoshFONDName"						: dict(type=str),
 }
 fontInfoAttributesVersion2 = set(fontInfoAttributesVersion2ValueData.keys())
 
@@ -2043,17 +2150,17 @@ def convertFontInfoValueForAttributeFromVersion1ToVersion2(attr, value):
 		if attr == "fontStyle":
 			v = _fontStyle1To2.get(value)
 			if v is None:
-				raise UFOLibError("Cannot convert value (%s) for attribute %s." % (repr(value), attr))
+				raise UFOLibError(f"Cannot convert value ({value!r}) for attribute {attr}.")
 			value = v
 		elif attr == "widthName":
 			v = _widthName1To2.get(value)
 			if v is None:
-				raise UFOLibError("Cannot convert value (%s) for attribute %s." % (repr(value), attr))
+				raise UFOLibError(f"Cannot convert value ({value!r}) for attribute {attr}.")
 			value = v
 		elif attr == "msCharSet":
 			v = _msCharSet1To2.get(value)
 			if v is None:
-				raise UFOLibError("Cannot convert value (%s) for attribute %s." % (repr(value), attr))
+				raise UFOLibError(f"Cannot convert value ({value!r}) for attribute {attr}.")
 			value = v
 	attr = fontInfoAttributesVersion1To2.get(attr, attr)
 	return attr, value
@@ -2088,7 +2195,7 @@ def _convertFontInfoDataVersion1ToVersion2(data):
 			continue
 		# catch values that can't be converted
 		if value is None:
-			raise UFOLibError("Cannot convert value (%s) for attribute %s." % (repr(value), newAttr))
+			raise UFOLibError(f"Cannot convert value ({value!r}) for attribute {newAttr}.")
 		# store
 		converted[newAttr] = newValue
 	return converted
@@ -2102,23 +2209,23 @@ def _convertFontInfoDataVersion2ToVersion1(data):
 			continue
 		# catch values that can't be converted
 		if value is None:
-			raise UFOLibError("Cannot convert value (%s) for attribute %s." % (repr(value), newAttr))
+			raise UFOLibError(f"Cannot convert value ({value!r}) for attribute {newAttr}.")
 		# store
 		converted[newAttr] = newValue
 	return converted
 
 # 2 <-> 3
 
-_ufo2To3NonNegativeInt = set((
+_ufo2To3NonNegativeInt = {
 	"versionMinor",
 	"openTypeHeadLowestRecPPEM",
 	"openTypeOS2WinAscent",
 	"openTypeOS2WinDescent"
-))
-_ufo2To3NonNegativeIntOrFloat = set((
-	"unitsPerEm"
-))
-_ufo2To3FloatToInt = set(((
+}
+_ufo2To3NonNegativeIntOrFloat = {
+	"unitsPerEm",
+}
+_ufo2To3FloatToInt = {
 	"openTypeHeadLowestRecPPEM",
 	"openTypeHheaAscender",
 	"openTypeHheaDescender",
@@ -2143,7 +2250,7 @@ _ufo2To3FloatToInt = set(((
 	"openTypeVheaVertTypoDescender",
 	"openTypeVheaVertTypoLineGap",
 	"openTypeVheaCaretOffset"
-)))
+}
 
 def convertFontInfoValueForAttributeFromVersion2ToVersion3(attr, value):
 	"""
@@ -2153,18 +2260,14 @@ def convertFontInfoValueForAttributeFromVersion2ToVersion3(attr, value):
 	"""
 	if attr in _ufo2To3FloatToInt:
 		try:
-			v = int(round(value))
+			value = round(value)
 		except (ValueError, TypeError):
 			raise UFOLibError("Could not convert value for %s." % attr)
-		if v != value:
-			value = v
 	if attr in _ufo2To3NonNegativeInt:
 		try:
-			v = int(abs(value))
+			value = int(abs(value))
 		except (ValueError, TypeError):
 			raise UFOLibError("Could not convert value for %s." % attr)
-		if v != value:
-			value = v
 	elif attr in _ufo2To3NonNegativeIntOrFloat:
 		try:
 			v = float(abs(value))

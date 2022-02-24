@@ -11,9 +11,11 @@ steps through all the points in a call from glyph.drawPoints().
 This allows the caller to provide more data for each point.
 For instance, whether or not a point is smooth, and its name.
 """
-from __future__ import absolute_import, unicode_literals
-from fontTools.pens.basePen import AbstractPen
+
 import math
+from typing import Any, Optional, Tuple
+
+from fontTools.pens.basePen import AbstractPen, PenError
 
 __all__ = [
 	"AbstractPointPen",
@@ -25,26 +27,36 @@ __all__ = [
 ]
 
 
-class AbstractPointPen(object):
-	"""
-	Baseclass for all PointPens.
-	"""
+class AbstractPointPen:
+	"""Baseclass for all PointPens."""
 
-	def beginPath(self, identifier=None, **kwargs):
+	def beginPath(self, identifier: Optional[str] = None, **kwargs: Any) -> None:
 		"""Start a new sub path."""
 		raise NotImplementedError
 
-	def endPath(self):
+	def endPath(self) -> None:
 		"""End the current sub path."""
 		raise NotImplementedError
 
-	def addPoint(self, pt, segmentType=None, smooth=False, name=None,
-				 identifier=None, **kwargs):
+	def addPoint(
+		self,
+		pt: Tuple[float, float],
+		segmentType: Optional[str] = None,
+		smooth: bool = False,
+		name: Optional[str] = None,
+		identifier: Optional[str] = None,
+		**kwargs: Any
+	) -> None:
 		"""Add a point to the current sub path."""
 		raise NotImplementedError
 
-	def addComponent(self, baseGlyphName, transformation, identifier=None,
-					 **kwargs):
+	def addComponent(
+		self,
+		baseGlyphName: str,
+		transformation: Tuple[float, float, float, float, float, float],
+		identifier: Optional[str] = None,
+		**kwargs: Any
+	) -> None:
 		"""Add a sub glyph."""
 		raise NotImplementedError
 
@@ -62,7 +74,8 @@ class BasePointToSegmentPen(AbstractPointPen):
 		self.currentPath = None
 
 	def beginPath(self, identifier=None, **kwargs):
-		assert self.currentPath is None
+		if self.currentPath is not None:
+			raise PenError("Path already begun.")
 		self.currentPath = []
 
 	def _flushContour(self, segments):
@@ -94,7 +107,8 @@ class BasePointToSegmentPen(AbstractPointPen):
 		raise NotImplementedError
 
 	def endPath(self):
-		assert self.currentPath is not None
+		if self.currentPath is None:
+			raise PenError("Path not begun.")
 		points = self.currentPath
 		self.currentPath = None
 		if not points:
@@ -142,6 +156,8 @@ class BasePointToSegmentPen(AbstractPointPen):
 
 	def addPoint(self, pt, segmentType=None, smooth=False, name=None,
 				 identifier=None, **kwargs):
+		if self.currentPath is None:
+			raise PenError("Path not begun")
 		self.currentPath.append((pt, segmentType, smooth, name, kwargs))
 
 
@@ -149,6 +165,9 @@ class PointToSegmentPen(BasePointToSegmentPen):
 	"""
 	Adapter class that converts the PointPen protocol to the
 	(Segment)Pen protocol.
+
+	NOTE: The segment pen does not support and will drop point names, identifiers
+	and kwargs.
 	"""
 
 	def __init__(self, segmentPen, outputImpliedClosingLine=False):
@@ -157,21 +176,23 @@ class PointToSegmentPen(BasePointToSegmentPen):
 		self.outputImpliedClosingLine = outputImpliedClosingLine
 
 	def _flushContour(self, segments):
-		assert len(segments) >= 1
+		if not segments:
+			raise PenError("Must have at least one segment.")
 		pen = self.pen
 		if segments[0][0] == "move":
 			# It's an open path.
 			closed = False
 			points = segments[0][1]
-			assert len(points) == 1, "illegal move segment point count: %d" % len(points)
-			movePt, smooth, name, kwargs = points[0]
+			if len(points) != 1:
+				raise PenError(f"Illegal move segment point count: {len(points)}")
+			movePt, _, _ , _ = points[0]
 			del segments[0]
 		else:
 			# It's a closed path, do a moveTo to the last
 			# point of the last segment.
 			closed = True
 			segmentType, points = segments[-1]
-			movePt, smooth, name, kwargs = points[-1]
+			movePt, _, _ , _ = points[-1]
 		if movePt is None:
 			# quad special case: a contour with no on-curve points contains
 			# one "qcurve" segment that ends with a point that's None. We
@@ -181,20 +202,39 @@ class PointToSegmentPen(BasePointToSegmentPen):
 			pen.moveTo(movePt)
 		outputImpliedClosingLine = self.outputImpliedClosingLine
 		nSegments = len(segments)
+		lastPt = movePt
 		for i in range(nSegments):
 			segmentType, points = segments[i]
-			points = [pt for pt, smooth, name, kwargs in points]
+			points = [pt for pt, _, _ , _ in points]
 			if segmentType == "line":
-				assert len(points) == 1, "illegal line segment point count: %d" % len(points)
+				if len(points) != 1:
+					raise PenError(f"Illegal line segment point count: {len(points)}")
 				pt = points[0]
-				if i + 1 != nSegments or outputImpliedClosingLine or not closed:
+				# For closed contours, a 'lineTo' is always implied from the last oncurve
+				# point to the starting point, thus we can omit it when the last and
+				# starting point don't overlap.
+				# However, when the last oncurve point is a "line" segment and has same
+				# coordinates as the starting point of a closed contour, we need to output
+				# the closing 'lineTo' explicitly (regardless of the value of the
+				# 'outputImpliedClosingLine' option) in order to disambiguate this case from
+				# the implied closing 'lineTo', otherwise the duplicate point would be lost.
+				# See https://github.com/googlefonts/fontmake/issues/572.
+				if (
+					i + 1 != nSegments
+					or outputImpliedClosingLine
+					or not closed
+					or pt == lastPt
+				):
 					pen.lineTo(pt)
+					lastPt = pt
 			elif segmentType == "curve":
 				pen.curveTo(*points)
+				lastPt = points[-1]
 			elif segmentType == "qcurve":
 				pen.qCurveTo(*points)
+				lastPt = points[-1]
 			else:
-				assert 0, "illegal segmentType: %s" % segmentType
+				raise PenError(f"Illegal segmentType: {segmentType}")
 		if closed:
 			pen.closePath()
 		else:
@@ -202,6 +242,7 @@ class PointToSegmentPen(BasePointToSegmentPen):
 
 	def addComponent(self, glyphName, transform, identifier=None, **kwargs):
 		del identifier  # unused
+		del kwargs  # unused
 		self.pen.addComponent(glyphName, transform)
 
 
@@ -230,22 +271,35 @@ class SegmentToPointPen(AbstractPen):
 		self.contour.append((pt, "move"))
 
 	def lineTo(self, pt):
+		if self.contour is None:
+			raise PenError("Contour missing required initial moveTo")
 		self.contour.append((pt, "line"))
 
 	def curveTo(self, *pts):
+		if not pts:
+			raise TypeError("Must pass in at least one point")
+		if self.contour is None:
+			raise PenError("Contour missing required initial moveTo")
 		for pt in pts[:-1]:
 			self.contour.append((pt, None))
 		self.contour.append((pts[-1], "curve"))
 
 	def qCurveTo(self, *pts):
+		if not pts:
+			raise TypeError("Must pass in at least one point")
 		if pts[-1] is None:
 			self.contour = []
+		else:
+			if self.contour is None:
+				raise PenError("Contour missing required initial moveTo")
 		for pt in pts[:-1]:
 			self.contour.append((pt, None))
 		if pts[-1] is not None:
 			self.contour.append((pts[-1], "qcurve"))
 
 	def closePath(self):
+		if self.contour is None:
+			raise PenError("Contour missing required initial moveTo")
 		if len(self.contour) > 1 and self.contour[0][0] == self.contour[-1][0]:
 			self.contour[0] = self.contour[-1]
 			del self.contour[-1]
@@ -259,11 +313,14 @@ class SegmentToPointPen(AbstractPen):
 		self.contour = None
 
 	def endPath(self):
+		if self.contour is None:
+			raise PenError("Contour missing required initial moveTo")
 		self._flushContour()
 		self.contour = None
 
 	def addComponent(self, glyphName, transform):
-		assert self.contour is None
+		if self.contour is not None:
+			raise PenError("Components must be added before or after contours")
 		self.pen.addComponent(glyphName, transform)
 
 
@@ -273,11 +330,14 @@ class GuessSmoothPointPen(AbstractPointPen):
 	should be "smooth", ie. that it's a "tangent" point or a "curve" point.
 	"""
 
-	def __init__(self, outPen):
+	def __init__(self, outPen, error=0.05):
 		self._outPen = outPen
+		self._error = error
 		self._points = None
 
 	def _flushContour(self):
+		if self._points is None:
+			raise PenError("Path not begun")
 		points = self._points
 		nPoints = len(points)
 		if not nPoints:
@@ -293,7 +353,7 @@ class GuessSmoothPointPen(AbstractPointPen):
 			# closed path containing 1 point (!), ignore.
 			indices = []
 		for i in indices:
-			pt, segmentType, dummy, name, kwargs = points[i]
+			pt, segmentType, _, name, kwargs = points[i]
 			if segmentType is None:
 				continue
 			prev = i - 1
@@ -307,16 +367,17 @@ class GuessSmoothPointPen(AbstractPointPen):
 			if pt != prevPt and pt != nextPt:
 				dx1, dy1 = pt[0] - prevPt[0], pt[1] - prevPt[1]
 				dx2, dy2 = nextPt[0] - pt[0], nextPt[1] - pt[1]
-				a1 = math.atan2(dx1, dy1)
-				a2 = math.atan2(dx2, dy2)
-				if abs(a1 - a2) < 0.05:
+				a1 = math.atan2(dy1, dx1)
+				a2 = math.atan2(dy2, dx2)
+				if abs(a1 - a2) < self._error:
 					points[i] = pt, segmentType, True, name, kwargs
 
 		for pt, segmentType, smooth, name, kwargs in points:
 			self._outPen.addPoint(pt, segmentType, smooth, name, **kwargs)
 
 	def beginPath(self, identifier=None, **kwargs):
-		assert self._points is None
+		if self._points is not None:
+			raise PenError("Path already begun")
 		self._points = []
 		if identifier is not None:
 			kwargs["identifier"] = identifier
@@ -329,12 +390,15 @@ class GuessSmoothPointPen(AbstractPointPen):
 
 	def addPoint(self, pt, segmentType=None, smooth=False, name=None,
 				 identifier=None, **kwargs):
+		if self._points is None:
+			raise PenError("Path not begun")
 		if identifier is not None:
 			kwargs["identifier"] = identifier
 		self._points.append((pt, segmentType, False, name, kwargs))
 
 	def addComponent(self, glyphName, transformation, identifier=None, **kwargs):
-		assert self._points is None
+		if self._points is not None:
+			raise PenError("Components must be added before or after contours")
 		if identifier is not None:
 			kwargs["identifier"] = identifier
 		self._outPen.addComponent(glyphName, transformation, **kwargs)
@@ -404,19 +468,26 @@ class ReverseContourPointPen(AbstractPointPen):
 		pen.endPath()
 
 	def beginPath(self, identifier=None, **kwargs):
-		assert self.currentContour is None
+		if self.currentContour is not None:
+			raise PenError("Path already begun")
 		self.currentContour = []
 		self.currentContourIdentifier = identifier
 		self.onCurve = []
 
 	def endPath(self):
-		assert self.currentContour is not None
+		if self.currentContour is None:
+			raise PenError("Path not begun")
 		self._flushContour()
 		self.currentContour = None
 
-	def addPoint(self, pt, segmentType=None, smooth=False, name=None, **kwargs):
+	def addPoint(self, pt, segmentType=None, smooth=False, name=None, identifier=None, **kwargs):
+		if self.currentContour is None:
+			raise PenError("Path not begun")
+		if identifier is not None:
+			kwargs["identifier"] = identifier
 		self.currentContour.append((pt, segmentType, smooth, name, kwargs))
 
 	def addComponent(self, glyphName, transform, identifier=None, **kwargs):
-		assert self.currentContour is None
+		if self.currentContour is not None:
+			raise PenError("Components must be added before or after contours")
 		self.pen.addComponent(glyphName, transform, identifier=identifier, **kwargs)

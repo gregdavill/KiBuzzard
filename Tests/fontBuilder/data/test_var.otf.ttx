@@ -19,10 +19,10 @@
     <unitsPerEm value="1000"/>
     <created value="Wed Mar 27 00:23:21 2019"/>
     <modified value="Wed Mar 27 00:23:21 2019"/>
-    <xMin value="0"/>
-    <yMin value="0"/>
-    <xMax value="0"/>
-    <yMax value="0"/>
+    <xMin value="100"/>
+    <yMin value="100"/>
+    <xMax value="600"/>
+    <yMax value="1000"/>
     <macStyle value="00000000 00000000"/>
     <lowestRecPPEM value="3"/>
     <fontDirectionHint value="2"/>
@@ -35,10 +35,10 @@
     <ascent value="824"/>
     <descent value="200"/>
     <lineGap value="0"/>
-    <advanceWidthMax value="0"/>
+    <advanceWidthMax value="600"/>
     <minLeftSideBearing value="0"/>
-    <minRightSideBearing value="0"/>
-    <xMaxExtent value="0"/>
+    <minRightSideBearing value="200"/>
+    <xMaxExtent value="400"/>
     <caretSlopeRise value="1"/>
     <caretSlopeRun value="0"/>
     <caretOffset value="0"/>
@@ -141,9 +141,6 @@
       Test Axis
     </namerecord>
     <namerecord nameID="257" platformID="1" platEncID="0" langID="0x0" unicode="True">
-      TotallyNormal
-    </namerecord>
-    <namerecord nameID="258" platformID="1" platEncID="0" langID="0x0" unicode="True">
       TotallyTested
     </namerecord>
     <namerecord nameID="1" platformID="1" platEncID="0" langID="0x4" unicode="True">
@@ -165,9 +162,6 @@
       Test Axis
     </namerecord>
     <namerecord nameID="257" platformID="3" platEncID="1" langID="0x409">
-      TotallyNormal
-    </namerecord>
-    <namerecord nameID="258" platformID="3" platEncID="1" langID="0x409">
       TotallyTested
     </namerecord>
     <namerecord nameID="1" platformID="3" platEncID="1" langID="0x413">
@@ -213,6 +207,8 @@
             <BlueScale value="0.039625"/>
             <BlueShift value="7"/>
             <BlueFuzz value="1"/>
+            <LanguageGroup value="0"/>
+            <ExpansionFactor value="0.06"/>
           </Private>
         </FontDict>
       </FDArray>
@@ -290,12 +286,12 @@
     </Axis>
 
     <!-- TotallyNormal -->
-    <NamedInstance flags="0x0" subfamilyNameID="257">
+    <NamedInstance flags="0x0" subfamilyNameID="2">
       <coord axis="TEST" value="0.0"/>
     </NamedInstance>
 
     <!-- TotallyTested -->
-    <NamedInstance flags="0x0" subfamilyNameID="258">
+    <NamedInstance flags="0x0" subfamilyNameID="257">
       <coord axis="TEST" value="100.0"/>
     </NamedInstance>
   </fvar>

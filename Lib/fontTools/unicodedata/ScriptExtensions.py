@@ -4,9 +4,9 @@
 # Source: https://unicode.org/Public/UNIDATA/ScriptExtensions.txt
 # License: http://unicode.org/copyright.html#License
 #
-# ScriptExtensions-12.1.0.txt
-# Date: 2019-04-01, 09:10:42 GMT
-# © 2019 Unicode®, Inc.
+# ScriptExtensions-14.0.0.txt
+# Date: 2021-06-04, 02:19:38 GMT
+# © 2021 Unicode®, Inc.
 # Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
 # For terms of use, see http://www.unicode.org/terms_of_use.html
 #
@@ -17,10 +17,10 @@
 # with more than one script, but with a limited number of scripts.
 # For each code point, there is one or more property values.  Each such value is a Script property value.
 # For more information, see:
-#   UAX #24, Unicode Script Property: http://www.unicode.org/reports/tr24/
+#   UAX #24, Unicode Script Property: https://www.unicode.org/reports/tr24/
 #     Especially the sections:
-#       http://www.unicode.org/reports/tr24/#Assignment_Script_Values
-#       http://www.unicode.org/reports/tr24/#Assignment_ScriptX_Values
+#       https://www.unicode.org/reports/tr24/#Assignment_Script_Values
+#       https://www.unicode.org/reports/tr24/#Assignment_ScriptX_Values
 #
 # Each Script_Extensions value in this file consists of a set
 # of one or more abbreviated Script property values. The ordering of the
@@ -52,21 +52,19 @@ RANGES = [
     0x0484,  # .. 0x0484 ; {'Cyrl', 'Glag'}
     0x0485,  # .. 0x0486 ; {'Cyrl', 'Latn'}
     0x0487,  # .. 0x0487 ; {'Cyrl', 'Glag'}
-    0x0488,  # .. 0x0588 ; None
-    0x0589,  # .. 0x0589 ; {'Armn', 'Geor'}
-    0x058A,  # .. 0x060B ; None
-    0x060C,  # .. 0x060C ; {'Arab', 'Rohg', 'Syrc', 'Thaa'}
+    0x0488,  # .. 0x060B ; None
+    0x060C,  # .. 0x060C ; {'Arab', 'Nkoo', 'Rohg', 'Syrc', 'Thaa', 'Yezi'}
     0x060D,  # .. 0x061A ; None
-    0x061B,  # .. 0x061B ; {'Arab', 'Rohg', 'Syrc', 'Thaa'}
+    0x061B,  # .. 0x061B ; {'Arab', 'Nkoo', 'Rohg', 'Syrc', 'Thaa', 'Yezi'}
     0x061C,  # .. 0x061C ; {'Arab', 'Syrc', 'Thaa'}
     0x061D,  # .. 0x061E ; None
-    0x061F,  # .. 0x061F ; {'Arab', 'Rohg', 'Syrc', 'Thaa'}
+    0x061F,  # .. 0x061F ; {'Adlm', 'Arab', 'Nkoo', 'Rohg', 'Syrc', 'Thaa', 'Yezi'}
     0x0620,  # .. 0x063F ; None
-    0x0640,  # .. 0x0640 ; {'Adlm', 'Arab', 'Mand', 'Mani', 'Phlp', 'Rohg', 'Sogd', 'Syrc'}
+    0x0640,  # .. 0x0640 ; {'Adlm', 'Arab', 'Mand', 'Mani', 'Ougr', 'Phlp', 'Rohg', 'Sogd', 'Syrc'}
     0x0641,  # .. 0x064A ; None
     0x064B,  # .. 0x0655 ; {'Arab', 'Syrc'}
     0x0656,  # .. 0x065F ; None
-    0x0660,  # .. 0x0669 ; {'Arab', 'Thaa'}
+    0x0660,  # .. 0x0669 ; {'Arab', 'Thaa', 'Yezi'}
     0x066A,  # .. 0x066F ; None
     0x0670,  # .. 0x0670 ; {'Arab', 'Syrc'}
     0x0671,  # .. 0x06D3 ; None
@@ -129,7 +127,11 @@ RANGES = [
     0x1CFA,  # .. 0x1CFA ; {'Nand'}
     0x1CFB,  # .. 0x1DBF ; None
     0x1DC0,  # .. 0x1DC1 ; {'Grek'}
-    0x1DC2,  # .. 0x202E ; None
+    0x1DC2,  # .. 0x1DF7 ; None
+    0x1DF8,  # .. 0x1DF8 ; {'Cyrl', 'Syrc'}
+    0x1DF9,  # .. 0x1DF9 ; None
+    0x1DFA,  # .. 0x1DFA ; {'Syrc'}
+    0x1DFB,  # .. 0x202E ; None
     0x202F,  # .. 0x202F ; {'Latn', 'Mong'}
     0x2030,  # .. 0x20EF ; None
     0x20F0,  # .. 0x20F0 ; {'Deva', 'Gran', 'Latn'}
@@ -183,7 +185,9 @@ RANGES = [
     0x33E0,  # .. 0x33FE ; {'Hani'}
     0x33FF,  # .. 0xA66E ; None
     0xA66F,  # .. 0xA66F ; {'Cyrl', 'Glag'}
-    0xA670,  # .. 0xA82F ; None
+    0xA670,  # .. 0xA6FF ; None
+    0xA700,  # .. 0xA707 ; {'Hani', 'Latn'}
+    0xA708,  # .. 0xA82F ; None
     0xA830,  # .. 0xA832 ; {'Deva', 'Dogr', 'Gujr', 'Guru', 'Khoj', 'Knda', 'Kthi', 'Mahj', 'Mlym', 'Modi', 'Nand', 'Sind', 'Takr', 'Tirh'}
     0xA833,  # .. 0xA835 ; {'Deva', 'Dogr', 'Gujr', 'Guru', 'Khoj', 'Knda', 'Kthi', 'Mahj', 'Modi', 'Nand', 'Sind', 'Takr', 'Tirh'}
     0xA836,  # .. 0xA839 ; {'Deva', 'Dogr', 'Gujr', 'Guru', 'Khoj', 'Kthi', 'Mahj', 'Modi', 'Sind', 'Takr', 'Tirh'}
@@ -195,7 +199,9 @@ RANGES = [
     0xA92E,  # .. 0xA92E ; {'Kali', 'Latn', 'Mymr'}
     0xA92F,  # .. 0xA9CE ; None
     0xA9CF,  # .. 0xA9CF ; {'Bugi', 'Java'}
-    0xA9D0,  # .. 0xFDF1 ; None
+    0xA9D0,  # .. 0xFD3D ; None
+    0xFD3E,  # .. 0xFD3F ; {'Arab', 'Nkoo'}
+    0xFD40,  # .. 0xFDF1 ; None
     0xFDF2,  # .. 0xFDF2 ; {'Arab', 'Thaa'}
     0xFDF3,  # .. 0xFDFC ; None
     0xFDFD,  # .. 0xFDFD ; {'Arab', 'Thaa'}
@@ -208,14 +214,17 @@ RANGES = [
     0xFF71,  # .. 0xFF9D ; None
     0xFF9E,  # .. 0xFF9F ; {'Hira', 'Kana'}
     0xFFA0,  # .. 0x100FF ; None
-    0x10100,  # .. 0x10102 ; {'Cprt', 'Linb'}
+    0x10100,  # .. 0x10101 ; {'Cpmn', 'Cprt', 'Linb'}
+    0x10102,  # .. 0x10102 ; {'Cprt', 'Linb'}
     0x10103,  # .. 0x10106 ; None
     0x10107,  # .. 0x10133 ; {'Cprt', 'Lina', 'Linb'}
     0x10134,  # .. 0x10136 ; None
     0x10137,  # .. 0x1013F ; {'Cprt', 'Linb'}
     0x10140,  # .. 0x102DF ; None
     0x102E0,  # .. 0x102FB ; {'Arab', 'Copt'}
-    0x102FC,  # .. 0x11300 ; None
+    0x102FC,  # .. 0x10AF1 ; None
+    0x10AF2,  # .. 0x10AF2 ; {'Mani', 'Ougr'}
+    0x10AF3,  # .. 0x11300 ; None
     0x11301,  # .. 0x11301 ; {'Gran', 'Taml'}
     0x11302,  # .. 0x11302 ; None
     0x11303,  # .. 0x11303 ; {'Gran', 'Taml'}
@@ -246,21 +255,19 @@ VALUES = [
     {'Cyrl', 'Glag'},                                          # 0484..0484
     {'Cyrl', 'Latn'},                                          # 0485..0486
     {'Cyrl', 'Glag'},                                          # 0487..0487
-    None,                                                      # 0488..0588
-    {'Armn', 'Geor'},                                          # 0589..0589
-    None,                                                      # 058A..060B
-    {'Arab', 'Rohg', 'Syrc', 'Thaa'},                          # 060C..060C
+    None,                                                      # 0488..060B
+    {'Arab', 'Nkoo', 'Rohg', 'Syrc', 'Thaa', 'Yezi'},          # 060C..060C
     None,                                                      # 060D..061A
-    {'Arab', 'Rohg', 'Syrc', 'Thaa'},                          # 061B..061B
+    {'Arab', 'Nkoo', 'Rohg', 'Syrc', 'Thaa', 'Yezi'},          # 061B..061B
     {'Arab', 'Syrc', 'Thaa'},                                  # 061C..061C
     None,                                                      # 061D..061E
-    {'Arab', 'Rohg', 'Syrc', 'Thaa'},                          # 061F..061F
+    {'Adlm', 'Arab', 'Nkoo', 'Rohg', 'Syrc', 'Thaa', 'Yezi'},  # 061F..061F
     None,                                                      # 0620..063F
-    {'Adlm', 'Arab', 'Mand', 'Mani', 'Phlp', 'Rohg', 'Sogd', 'Syrc'},  # 0640..0640
+    {'Adlm', 'Arab', 'Mand', 'Mani', 'Ougr', 'Phlp', 'Rohg', 'Sogd', 'Syrc'},  # 0640..0640
     None,                                                      # 0641..064A
     {'Arab', 'Syrc'},                                          # 064B..0655
     None,                                                      # 0656..065F
-    {'Arab', 'Thaa'},                                          # 0660..0669
+    {'Arab', 'Thaa', 'Yezi'},                                  # 0660..0669
     None,                                                      # 066A..066F
     {'Arab', 'Syrc'},                                          # 0670..0670
     None,                                                      # 0671..06D3
@@ -323,7 +330,11 @@ VALUES = [
     {'Nand'},                                                  # 1CFA..1CFA
     None,                                                      # 1CFB..1DBF
     {'Grek'},                                                  # 1DC0..1DC1
-    None,                                                      # 1DC2..202E
+    None,                                                      # 1DC2..1DF7
+    {'Cyrl', 'Syrc'},                                          # 1DF8..1DF8
+    None,                                                      # 1DF9..1DF9
+    {'Syrc'},                                                  # 1DFA..1DFA
+    None,                                                      # 1DFB..202E
     {'Latn', 'Mong'},                                          # 202F..202F
     None,                                                      # 2030..20EF
     {'Deva', 'Gran', 'Latn'},                                  # 20F0..20F0
@@ -377,7 +388,9 @@ VALUES = [
     {'Hani'},                                                  # 33E0..33FE
     None,                                                      # 33FF..A66E
     {'Cyrl', 'Glag'},                                          # A66F..A66F
-    None,                                                      # A670..A82F
+    None,                                                      # A670..A6FF
+    {'Hani', 'Latn'},                                          # A700..A707
+    None,                                                      # A708..A82F
     {'Deva', 'Dogr', 'Gujr', 'Guru', 'Khoj', 'Knda', 'Kthi', 'Mahj', 'Mlym', 'Modi', 'Nand', 'Sind', 'Takr', 'Tirh'},  # A830..A832
     {'Deva', 'Dogr', 'Gujr', 'Guru', 'Khoj', 'Knda', 'Kthi', 'Mahj', 'Modi', 'Nand', 'Sind', 'Takr', 'Tirh'},  # A833..A835
     {'Deva', 'Dogr', 'Gujr', 'Guru', 'Khoj', 'Kthi', 'Mahj', 'Modi', 'Sind', 'Takr', 'Tirh'},  # A836..A839
@@ -389,7 +402,9 @@ VALUES = [
     {'Kali', 'Latn', 'Mymr'},                                  # A92E..A92E
     None,                                                      # A92F..A9CE
     {'Bugi', 'Java'},                                          # A9CF..A9CF
-    None,                                                      # A9D0..FDF1
+    None,                                                      # A9D0..FD3D
+    {'Arab', 'Nkoo'},                                          # FD3E..FD3F
+    None,                                                      # FD40..FDF1
     {'Arab', 'Thaa'},                                          # FDF2..FDF2
     None,                                                      # FDF3..FDFC
     {'Arab', 'Thaa'},                                          # FDFD..FDFD
@@ -402,14 +417,17 @@ VALUES = [
     None,                                                      # FF71..FF9D
     {'Hira', 'Kana'},                                          # FF9E..FF9F
     None,                                                      # FFA0..100FF
-    {'Cprt', 'Linb'},                                          # 10100..10102
+    {'Cpmn', 'Cprt', 'Linb'},                                  # 10100..10101
+    {'Cprt', 'Linb'},                                          # 10102..10102
     None,                                                      # 10103..10106
     {'Cprt', 'Lina', 'Linb'},                                  # 10107..10133
     None,                                                      # 10134..10136
     {'Cprt', 'Linb'},                                          # 10137..1013F
     None,                                                      # 10140..102DF
     {'Arab', 'Copt'},                                          # 102E0..102FB
-    None,                                                      # 102FC..11300
+    None,                                                      # 102FC..10AF1
+    {'Mani', 'Ougr'},                                          # 10AF2..10AF2
+    None,                                                      # 10AF3..11300
     {'Gran', 'Taml'},                                          # 11301..11301
     None,                                                      # 11302..11302
     {'Gran', 'Taml'},                                          # 11303..11303

@@ -1,17 +1,17 @@
 """_g_l_y_f.py -- Converter classes for the 'glyf' table."""
 
-from __future__ import print_function, division, absolute_import
 from collections import namedtuple
-from fontTools.misc.py23 import *
 from fontTools.misc import sstruct
 from fontTools import ttLib
 from fontTools import version
-from fontTools.misc.textTools import safeEval, pad
-from fontTools.misc.arrayTools import calcBounds, calcIntBounds, pointInRect
+from fontTools.misc.textTools import tostr, safeEval, pad
+from fontTools.misc.arrayTools import calcIntBounds, pointInRect
 from fontTools.misc.bezierTools import calcQuadraticBounds
 from fontTools.misc.fixedTools import (
 	fixedToFloat as fi2fl,
 	floatToFixed as fl2fi,
+	floatToFixedToStr as fl2str,
+	strToFixedToFloat as str2fl,
 	otRound,
 )
 from numbers import Number
@@ -24,6 +24,7 @@ import logging
 import os
 from fontTools.misc import xmlWriter
 from fontTools.misc.filenames import userNameToFileName
+from fontTools.misc.loggingTools import deprecateFunction
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +47,35 @@ SCALE_COMPONENT_OFFSET_DEFAULT = 0   # 0 == MS, 1 == Apple
 
 
 class table__g_l_y_f(DefaultTable.DefaultTable):
+	"""Glyph Data Table
+
+	This class represents the `glyf <https://docs.microsoft.com/en-us/typography/opentype/spec/glyf>`_
+ 	table, which contains outlines for glyphs in TrueType format. In many cases,
+ 	it is easier to access and manipulate glyph outlines through the ``GlyphSet``
+ 	object returned from :py:meth:`fontTools.ttLib.ttFont.getGlyphSet`::
+
+ 			>> from fontTools.pens.boundsPen import BoundsPen
+ 			>> glyphset = font.getGlyphSet()
+			>> bp = BoundsPen(glyphset)
+			>> glyphset["A"].draw(bp)
+			>> bp.bounds
+			(19, 0, 633, 716)
+
+	However, this class can be used for low-level access to the ``glyf`` table data.
+	Objects of this class support dictionary-like access, mapping glyph names to
+	:py:class:`Glyph` objects::
+
+			>> glyf = font["glyf"]
+			>> len(glyf["Aacute"].components)
+			2
+
+	Note that when adding glyphs to the font via low-level access to the ``glyf``
+	table, the new glyphs must also be added to the ``hmtx``/``vmtx`` table::
+
+			>> font["glyf"]["divisionslash"] = Glyph()
+			>> font["hmtx"]["divisionslash"] = (640, 0)
+
+	"""
 
 	# this attribute controls the amount of padding applied to glyph data upon compile.
 	# Glyph lenghts are aligned to multiples of the specified value. 
@@ -55,7 +85,8 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 
 	def decompile(self, data, ttFont):
 		loca = ttFont['loca']
-		last = int(loca[0])
+		pos = int(loca[0])
+		nextPos = 0
 		noname = 0
 		self.glyphs = {}
 		self.glyphOrder = glyphOrder = ttFont.getGlyphOrder()
@@ -65,17 +96,17 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 			except IndexError:
 				noname = noname + 1
 				glyphName = 'ttxautoglyph%s' % i
-			next = int(loca[i+1])
-			glyphdata = data[last:next]
-			if len(glyphdata) != (next - last):
+			nextPos = int(loca[i+1])
+			glyphdata = data[pos:nextPos]
+			if len(glyphdata) != (nextPos - pos):
 				raise ttLib.TTLibError("not enough 'glyf' table data")
 			glyph = Glyph(glyphdata)
 			self.glyphs[glyphName] = glyph
-			last = next
-		if len(data) - next >= 4:
+			pos = nextPos
+		if len(data) - nextPos >= 4:
 			log.warning(
 				"too much 'glyf' table data: expected %d, received %d bytes",
-				next, len(data))
+				nextPos, len(data))
 		if noname:
 			log.warning('%s glyphs have no name', noname)
 		if ttFont.lazy is False: # Be lazy for None and True
@@ -115,11 +146,17 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 					currentLocation += len(glyphData)
 				locations[len(dataList)] = currentLocation
 
-		data = bytesjoin(dataList)
+		data = b''.join(dataList)
 		if 'loca' in ttFont:
 			ttFont['loca'].set(locations)
 		if 'maxp' in ttFont:
 			ttFont['maxp'].numGlyphs = len(self.glyphs)
+		if not data:
+		# As a special case when all glyph in the font are empty, add a zero byte
+		# to the table, so that OTS doesn’t reject it, and to make the table work
+		# on Windows as well.
+		# See https://github.com/khaledhosny/ots/issues/52
+			data = b"\0"
 		return data
 
 	def toXML(self, writer, ttFont, splitGlyphs=False):
@@ -137,11 +174,14 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 			path, ext = os.path.splitext(writer.file.name)
 			existingGlyphFiles = set()
 		for glyphName in glyphNames:
-			glyph = self[glyphName]
+			glyph = self.get(glyphName)
+			if glyph is None:
+				log.warning("glyph '%s' does not exist in glyf table", glyphName)
+				continue
 			if glyph.numberOfContours:
 				if splitGlyphs:
 					glyphPath = userNameToFileName(
-						tounicode(glyphName, 'utf-8'),
+						tostr(glyphName, 'utf-8'),
 						existingGlyphFiles,
 						prefix=path + ".",
 						suffix=ext)
@@ -204,16 +244,33 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 			glyph.compact(self, 0)
 
 	def setGlyphOrder(self, glyphOrder):
+		"""Sets the glyph order
+
+		Args:
+			glyphOrder ([str]): List of glyph names in order.
+		"""
 		self.glyphOrder = glyphOrder
 
 	def getGlyphName(self, glyphID):
+		"""Returns the name for the glyph with the given ID.
+
+		Raises a ``KeyError`` if the glyph name is not found in the font.
+		"""
 		return self.glyphOrder[glyphID]
 
 	def getGlyphID(self, glyphName):
+		"""Returns the ID of the glyph with the given name.
+
+		Raises a ``ValueError`` if the glyph is not found in the font.
+		"""
 		# XXX optimize with reverse dict!!!
 		return self.glyphOrder.index(glyphName)
 
 	def removeHinting(self):
+		"""Removes TrueType hints from all glyphs in the glyphset.
+
+		See :py:meth:`Glyph.removeHinting`.
+		"""
 		for glyph in self.glyphs.values():
 			glyph.removeHinting()
 
@@ -224,6 +281,12 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 		return glyphName in self.glyphs
 
 	__contains__ = has_key
+
+	def get(self, glyphName, default=None):
+		glyph = self.glyphs.get(glyphName, default)
+		if glyph is not None:
+			glyph.expand(self)
+		return glyph
 
 	def __getitem__(self, glyphName):
 		glyph = self.glyphs[glyphName]
@@ -243,49 +306,33 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 		assert len(self.glyphOrder) == len(self.glyphs)
 		return len(self.glyphs)
 
-	def getPhantomPoints(self, glyphName, ttFont, defaultVerticalOrigin=None):
+	def _getPhantomPoints(self, glyphName, hMetrics, vMetrics=None):
 		"""Compute the four "phantom points" for the given glyph from its bounding box
 		and the horizontal and vertical advance widths and sidebearings stored in the
 		ttFont's "hmtx" and "vmtx" tables.
 
-		If the ttFont doesn't contain a "vmtx" table, the hhea.ascent is used as the
-		vertical origin, and the head.unitsPerEm as the vertical advance.
+		'hMetrics' should be ttFont['hmtx'].metrics.
 
-		The "defaultVerticalOrigin" (Optional[int]) is needed when the ttFont contains
-		neither a "vmtx" nor an "hhea" table, as may happen with 'sparse' masters.
-		The value should be the hhea.ascent of the default master.
+		'vMetrics' should be ttFont['vmtx'].metrics if there is "vmtx" or None otherwise.
+		If there is no vMetrics passed in, vertical phantom points are set to the zero coordinate.
 
 		https://docs.microsoft.com/en-us/typography/opentype/spec/tt_instructing_glyphs#phantoms
 		"""
 		glyph = self[glyphName]
-		assert glyphName in ttFont["hmtx"].metrics, ttFont["hmtx"].metrics
-		horizontalAdvanceWidth, leftSideBearing = ttFont["hmtx"].metrics[glyphName]
 		if not hasattr(glyph, 'xMin'):
 			glyph.recalcBounds(self)
+
+		horizontalAdvanceWidth, leftSideBearing = hMetrics[glyphName]
 		leftSideX = glyph.xMin - leftSideBearing
 		rightSideX = leftSideX + horizontalAdvanceWidth
-		if "vmtx" in ttFont:
-			verticalAdvanceWidth, topSideBearing = ttFont["vmtx"].metrics[glyphName]
+
+		if vMetrics:
+			verticalAdvanceWidth, topSideBearing = vMetrics[glyphName]
 			topSideY = topSideBearing + glyph.yMax
+			bottomSideY = topSideY - verticalAdvanceWidth
 		else:
-			# without vmtx, use ascent as vertical origin and UPEM as vertical advance
-			# like HarfBuzz does
-			verticalAdvanceWidth = ttFont["head"].unitsPerEm
-			if "hhea" in ttFont:
-				topSideY = ttFont["hhea"].ascent
-			else:
-				# sparse masters may not contain an hhea table; use the ascent
-				# of the default master as the vertical origin
-				if defaultVerticalOrigin is not None:
-					topSideY = defaultVerticalOrigin
-				else:
-					log.warning(
-						"font is missing both 'vmtx' and 'hhea' tables, "
-						"and no 'defaultVerticalOrigin' was provided; "
-						"the vertical phantom points may be incorrect."
-					)
-					topSideY = verticalAdvanceWidth
-		bottomSideY = topSideY - verticalAdvanceWidth
+			bottomSideY = topSideY = 0
+
 		return [
 			(leftSideX, 0),
 			(rightSideX, 0),
@@ -293,7 +340,7 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 			(0, bottomSideY),
 		]
 
-	def getCoordinatesAndControls(self, glyphName, ttFont, defaultVerticalOrigin=None):
+	def _getCoordinatesAndControls(self, glyphName, hMetrics, vMetrics=None):
 		"""Return glyph coordinates and controls as expected by "gvar" table.
 
 		The coordinates includes four "phantom points" for the glyph metrics,
@@ -309,14 +356,14 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 			- components: list of base glyph names (str) for each component in
 			composite glyphs (None for simple glyphs).
 
-		The "ttFont" and "defaultVerticalOrigin" args are used to compute the
-		"phantom points" (see "getPhantomPoints" method).
+		The "hMetrics" and vMetrics are used to compute the "phantom points" (see
+		the "_getPhantomPoints" method).
 
 		Return None if the requested glyphName is not present.
 		"""
-		if glyphName not in self.glyphs:
+		glyph = self.get(glyphName)
+		if glyph is None:
 			return None
-		glyph = self[glyphName]
 		if glyph.isComposite():
 			coords = GlyphCoordinates(
 				[(getattr(c, 'x', 0), getattr(c, 'y', 0)) for c in glyph.components]
@@ -337,13 +384,11 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 				components=None,
 			)
 		# Add phantom points for (left, right, top, bottom) positions.
-		phantomPoints = self.getPhantomPoints(
-			glyphName, ttFont, defaultVerticalOrigin=defaultVerticalOrigin
-		)
+		phantomPoints = self._getPhantomPoints(glyphName, hMetrics, vMetrics)
 		coords.extend(phantomPoints)
 		return coords, controls
 
-	def setCoordinates(self, glyphName, coord, ttFont):
+	def _setCoordinates(self, glyphName, coord, hMetrics, vMetrics=None):
 		"""Set coordinates and metrics for the given glyph.
 
 		"coord" is an array of GlyphCoordinates which must include the "phantom
@@ -352,9 +397,11 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 		Both the horizontal/vertical advances and left/top sidebearings in "hmtx"
 		and "vmtx" tables (if any) are updated from four phantom points and
 		the glyph's bounding boxes.
+
+		The "hMetrics" and vMetrics are used to propagate "phantom points"
+		into "hmtx" and "vmtx" tables if desired.  (see the "_getPhantomPoints"
+		method).
 		"""
-		# TODO: Create new glyph if not already present
-		assert glyphName in self.glyphs
 		glyph = self[glyphName]
 
 		# Handle phantom points for (left, right, top, bottom) positions.
@@ -385,14 +432,61 @@ class table__g_l_y_f(DefaultTable.DefaultTable):
 			# https://github.com/fonttools/fonttools/pull/1198
 			horizontalAdvanceWidth = 0
 		leftSideBearing = otRound(glyph.xMin - leftSideX)
-		ttFont["hmtx"].metrics[glyphName] = horizontalAdvanceWidth, leftSideBearing
+		hMetrics[glyphName] = horizontalAdvanceWidth, leftSideBearing
 
-		if "vmtx" in ttFont:
+		if vMetrics is not None:
 			verticalAdvanceWidth = otRound(topSideY - bottomSideY)
 			if verticalAdvanceWidth < 0:  # unlikely but do the same as horizontal
 				verticalAdvanceWidth = 0
 			topSideBearing = otRound(topSideY - glyph.yMax)
-			ttFont["vmtx"].metrics[glyphName] = verticalAdvanceWidth, topSideBearing
+			vMetrics[glyphName] = verticalAdvanceWidth, topSideBearing
+
+
+	# Deprecated
+
+	def _synthesizeVMetrics(self, glyphName, ttFont, defaultVerticalOrigin):
+		"""This method is wrong and deprecated.
+		For rationale see:
+		https://github.com/fonttools/fonttools/pull/2266/files#r613569473
+		"""
+		vMetrics = getattr(ttFont.get('vmtx'), 'metrics', None)
+		if vMetrics is None:
+			verticalAdvanceWidth = ttFont["head"].unitsPerEm
+			topSideY = getattr(ttFont.get('hhea'), 'ascent', None)
+			if topSideY is None:
+				if defaultVerticalOrigin is not None:
+					topSideY = defaultVerticalOrigin
+				else:
+					topSideY = verticalAdvanceWidth
+			glyph = self[glyphName]
+			glyph.recalcBounds(self)
+			topSideBearing = otRound(topSideY - glyph.yMax)
+			vMetrics = {glyphName: (verticalAdvanceWidth, topSideBearing)}
+		return vMetrics
+
+	@deprecateFunction("use '_getPhantomPoints' instead", category=DeprecationWarning)
+	def getPhantomPoints(self, glyphName, ttFont, defaultVerticalOrigin=None):
+		"""Old public name for self._getPhantomPoints().
+		See: https://github.com/fonttools/fonttools/pull/2266"""
+		hMetrics = ttFont['hmtx'].metrics
+		vMetrics = self._synthesizeVMetrics(glyphName, ttFont, defaultVerticalOrigin)
+		return self._getPhantomPoints(glyphName, hMetrics, vMetrics)
+
+	@deprecateFunction("use '_getCoordinatesAndControls' instead", category=DeprecationWarning)
+	def getCoordinatesAndControls(self, glyphName, ttFont, defaultVerticalOrigin=None):
+		"""Old public name for self._getCoordinatesAndControls().
+		See: https://github.com/fonttools/fonttools/pull/2266"""
+		hMetrics = ttFont['hmtx'].metrics
+		vMetrics = self._synthesizeVMetrics(glyphName, ttFont, defaultVerticalOrigin)
+		return self._getCoordinatesAndControls(glyphName, hMetrics, vMetrics)
+
+	@deprecateFunction("use '_setCoordinates' instead", category=DeprecationWarning)
+	def setCoordinates(self, glyphName, ttFont):
+		"""Old public name for self._setCoordinates().
+		See: https://github.com/fonttools/fonttools/pull/2266"""
+		hMetrics = ttFont['hmtx'].metrics
+		vMetrics = getattr(ttFont.get('vmtx'), 'metrics', None)
+		self._setCoordinates(glyphName, hMetrics, vMetrics)
 
 
 _GlyphControls = namedtuple(
@@ -477,8 +571,7 @@ def flagEncodeCoord(flag, mask, coord, coordBytes):
 	elif byteCount == -1:
 		coordBytes.append(-coord)
 	elif byteCount == 2:
-		coordBytes.append((coord >> 8) & 0xFF)
-		coordBytes.append(coord & 0xFF)
+		coordBytes.extend(struct.pack('>h', coord))
 
 def flagEncodeCoords(flag, x, y, xBytes, yBytes):
 	flagEncodeCoord(flag, flagXsame|flagXShort, x, xBytes)
@@ -504,8 +597,29 @@ CompositeMaxpValues = namedtuple('CompositeMaxpValues', ['nPoints', 'nContours',
 
 
 class Glyph(object):
+	"""This class represents an individual TrueType glyph.
 
-	def __init__(self, data=""):
+	TrueType glyph objects come in two flavours: simple and composite. Simple
+	glyph objects contain contours, represented via the ``.coordinates``,
+	``.flags``, ``.numberOfContours``, and ``.endPtsOfContours`` attributes;
+	composite glyphs contain components, available through the ``.components``
+	attributes.
+
+	Because the ``.coordinates`` attribute (and other simple glyph attributes mentioned
+	above) is only set on simple glyphs and the ``.components`` attribute is only
+	set on composite glyphs, it is necessary to use the :py:meth:`isComposite`
+	method to test whether a glyph is simple or composite before attempting to
+	access its data.
+
+	For a composite glyph, the components can also be accessed via array-like access::
+
+		>> assert(font["glyf"]["Aacute"].isComposite())
+		>> font["glyf"]["Aacute"][0]
+		<fontTools.ttLib.tables._g_l_y_f.GlyphComponent at 0x1027b2ee0>
+
+	"""
+
+	def __init__(self, data=b""):
 		if not data:
 			# empty char
 			self.numberOfContours = 0
@@ -546,7 +660,7 @@ class Glyph(object):
 			else:
 				return self.data
 		if self.numberOfContours == 0:
-			return ""
+			return b''
 		if recalcBBoxes:
 			self.recalcBounds(glyfTable)
 		data = sstruct.pack(glyphHeaderFormat, self)
@@ -597,7 +711,7 @@ class Glyph(object):
 				raise ttLib.TTLibError("can't mix composites and contours in glyph")
 			self.numberOfContours = self.numberOfContours + 1
 			coordinates = GlyphCoordinates()
-			flags = []
+			flags = bytearray()
 			for element in content:
 				if not isinstance(element, tuple):
 					continue
@@ -605,11 +719,10 @@ class Glyph(object):
 				if name != "pt":
 					continue  # ignore anything but "pt"
 				coordinates.append((safeEval(attrs["x"]), safeEval(attrs["y"])))
-				flag = not not safeEval(attrs["on"])
+				flag = bool(safeEval(attrs["on"]))
 				if "overlap" in attrs and bool(safeEval(attrs["overlap"])):
 					flag |= flagOverlapSimple
 				flags.append(flag)
-			flags = array.array("B", flags)
 			if not hasattr(self, "coordinates"):
 				self.coordinates = coordinates
 				self.flags = flags
@@ -639,6 +752,7 @@ class Glyph(object):
 		assert self.isComposite()
 		nContours = 0
 		nPoints = 0
+		initialMaxComponentDepth = maxComponentDepth
 		for compo in self.components:
 			baseGlyph = glyfTable[compo.glyphName]
 			if baseGlyph.numberOfContours == 0:
@@ -646,8 +760,9 @@ class Glyph(object):
 			elif baseGlyph.numberOfContours > 0:
 				nP, nC = baseGlyph.getMaxpValues()
 			else:
-				nP, nC, maxComponentDepth = baseGlyph.getCompositeMaxpValues(
-						glyfTable, maxComponentDepth + 1)
+				nP, nC, componentDepth = baseGlyph.getCompositeMaxpValues(
+						glyfTable, initialMaxComponentDepth + 1)
+				maxComponentDepth = max(maxComponentDepth, componentDepth)
 			nPoints = nPoints + nP
 			nContours = nContours + nC
 		return CompositeMaxpValues(nPoints, nContours, maxComponentDepth)
@@ -678,23 +793,18 @@ class Glyph(object):
 
 	def decompileCoordinates(self, data):
 		endPtsOfContours = array.array("h")
-		try:
-			endPtsOfContours.fromstring(data[:2*self.numberOfContours])
-		except AttributeError:
-			endPtsOfContours.frombytes(data[:2*self.numberOfContours])
+		endPtsOfContours.frombytes(data[:2*self.numberOfContours])
 		if sys.byteorder != "big": endPtsOfContours.byteswap()
 		self.endPtsOfContours = endPtsOfContours.tolist()
 
-		data = data[2*self.numberOfContours:]
-
-		instructionLength, = struct.unpack(">h", data[:2])
-		data = data[2:]
+		pos = 2*self.numberOfContours
+		instructionLength, = struct.unpack(">h", data[pos:pos+2])
 		self.program = ttProgram.Program()
-		self.program.fromBytecode(data[:instructionLength])
-		data = data[instructionLength:]
+		self.program.fromBytecode(data[pos+2:pos+2+instructionLength])
+		pos += 2 + instructionLength
 		nCoordinates = self.endPtsOfContours[-1] + 1
 		flags, xCoordinates, yCoordinates = \
-				self.decompileCoordinatesRaw(nCoordinates, data)
+				self.decompileCoordinatesRaw(nCoordinates, data, pos)
 
 		# fill in repetitions and apply signs
 		self.coordinates = coordinates = GlyphCoordinates.zeros(nCoordinates)
@@ -731,24 +841,26 @@ class Glyph(object):
 		assert yIndex == len(yCoordinates)
 		coordinates.relativeToAbsolute()
 		# discard all flags except "keepFlags"
-		self.flags = array.array("B", (f & keepFlags for f in flags))
+		for i in range(len(flags)):
+			flags[i] &= keepFlags
+		self.flags = flags
 
-	def decompileCoordinatesRaw(self, nCoordinates, data):
+	def decompileCoordinatesRaw(self, nCoordinates, data, pos=0):
 		# unpack flags and prepare unpacking of coordinates
-		flags = array.array("B", [0] * nCoordinates)
+		flags = bytearray(nCoordinates)
 		# Warning: deep Python trickery going on. We use the struct module to unpack
 		# the coordinates. We build a format string based on the flags, so we can
 		# unpack the coordinates in one struct.unpack() call.
 		xFormat = ">" # big endian
 		yFormat = ">" # big endian
-		i = j = 0
+		j = 0
 		while True:
-			flag = byteord(data[i])
-			i = i + 1
+			flag = data[pos]
+			pos += 1
 			repeat = 1
 			if flag & flagRepeat:
-				repeat = byteord(data[i]) + 1
-				i = i + 1
+				repeat = data[pos] + 1
+				pos += 1
 			for k in range(repeat):
 				if flag & flagXShort:
 					xFormat = xFormat + 'B'
@@ -763,15 +875,14 @@ class Glyph(object):
 			if j >= nCoordinates:
 				break
 		assert j == nCoordinates, "bad glyph flags"
-		data = data[i:]
 		# unpack raw coordinates, krrrrrr-tching!
 		xDataLen = struct.calcsize(xFormat)
 		yDataLen = struct.calcsize(yFormat)
-		if len(data) - (xDataLen + yDataLen) >= 4:
+		if len(data) - pos - (xDataLen + yDataLen) >= 4:
 			log.warning(
-				"too much glyph data: %d excess bytes", len(data) - (xDataLen + yDataLen))
-		xCoordinates = struct.unpack(xFormat, data[:xDataLen])
-		yCoordinates = struct.unpack(yFormat, data[xDataLen:xDataLen+yDataLen])
+				"too much glyph data: %d excess bytes", len(data) - pos - (xDataLen + yDataLen))
+		xCoordinates = struct.unpack(xFormat, data[pos:pos+xDataLen])
+		yCoordinates = struct.unpack(yFormat, data[pos+xDataLen:pos+xDataLen+yDataLen])
 		return flags, xCoordinates, yCoordinates
 
 	def compileComponents(self, glyfTable):
@@ -795,15 +906,13 @@ class Glyph(object):
 		data = []
 		endPtsOfContours = array.array("h", self.endPtsOfContours)
 		if sys.byteorder != "big": endPtsOfContours.byteswap()
-		data.append(endPtsOfContours.tostring())
+		data.append(endPtsOfContours.tobytes())
 		instructions = self.program.getBytecode()
 		data.append(struct.pack(">h", len(instructions)))
 		data.append(instructions)
 
 		deltas = self.coordinates.copy()
-		if deltas.isFloat():
-			# Warn?
-			deltas.toInt()
+		deltas.toInt()
 		deltas.absoluteToRelative()
 
 		# TODO(behdad): Add a configuration option for this?
@@ -811,14 +920,14 @@ class Glyph(object):
 		#deltas = self.compileDeltasOptimal(self.flags, deltas)
 
 		data.extend(deltas)
-		return bytesjoin(data)
+		return b''.join(data)
 
 	def compileDeltasGreedy(self, flags, deltas):
 		# Implements greedy algorithm for packing coordinate deltas:
 		# uses shortest representation one coordinate at a time.
-		compressedflags = []
-		xPoints = []
-		yPoints = []
+		compressedFlags = bytearray()
+		compressedXs = bytearray()
+		compressedYs = bytearray()
 		lastflag = None
 		repeat = 0
 		for flag,(x,y) in zip(flags, deltas):
@@ -832,9 +941,9 @@ class Glyph(object):
 					flag = flag | flagXsame
 				else:
 					x = -x
-				xPoints.append(bytechr(x))
+				compressedXs.append(x)
 			else:
-				xPoints.append(struct.pack(">h", x))
+				compressedXs.extend(struct.pack('>h', x))
 			# do y
 			if y == 0:
 				flag = flag | flagYsame
@@ -844,24 +953,21 @@ class Glyph(object):
 					flag = flag | flagYsame
 				else:
 					y = -y
-				yPoints.append(bytechr(y))
+				compressedYs.append(y)
 			else:
-				yPoints.append(struct.pack(">h", y))
+				compressedYs.extend(struct.pack('>h', y))
 			# handle repeating flags
 			if flag == lastflag and repeat != 255:
 				repeat = repeat + 1
 				if repeat == 1:
-					compressedflags.append(flag)
+					compressedFlags.append(flag)
 				else:
-					compressedflags[-2] = flag | flagRepeat
-					compressedflags[-1] = repeat
+					compressedFlags[-2] = flag | flagRepeat
+					compressedFlags[-1] = repeat
 			else:
 				repeat = 0
-				compressedflags.append(flag)
+				compressedFlags.append(flag)
 			lastflag = flag
-		compressedFlags = array.array("B", compressedflags).tostring()
-		compressedXs = bytesjoin(xPoints)
-		compressedYs = bytesjoin(yPoints)
 		return (compressedFlags, compressedXs, compressedYs)
 
 	def compileDeltasOptimal(self, flags, deltas):
@@ -892,9 +998,9 @@ class Glyph(object):
 			flags.append(flag)
 		flags.reverse()
 
-		compressedFlags = array.array("B")
-		compressedXs = array.array("B")
-		compressedYs = array.array("B")
+		compressedFlags = bytearray()
+		compressedXs = bytearray()
+		compressedYs = bytearray()
 		coords = iter(deltas)
 		ff = []
 		for flag in flags:
@@ -914,72 +1020,22 @@ class Glyph(object):
 			raise Exception("internal error")
 		except StopIteration:
 			pass
-		compressedFlags = compressedFlags.tostring()
-		compressedXs = compressedXs.tostring()
-		compressedYs = compressedYs.tostring()
 
 		return (compressedFlags, compressedXs, compressedYs)
 
 	def recalcBounds(self, glyfTable):
+		"""Recalculates the bounds of the glyph.
+
+		Each glyph object stores its bounding box in the
+		``xMin``/``yMin``/``xMax``/``yMax`` attributes. These bounds must be
+		recomputed when the ``coordinates`` change. The ``table__g_l_y_f`` bounds
+		must be provided to resolve component bounds.
+		"""
 		coords, endPts, flags = self.getCoordinates(glyfTable)
-		if len(coords) > 0:
-			if 0:
-				# This branch calculates exact glyph outline bounds
-				# analytically, handling cases without on-curve
-				# extremas, etc.  However, the glyf table header
-				# simply says that the bounds should be min/max x/y
-				# "for coordinate data", so I suppose that means no
-				# fancy thing here, just get extremas of all coord
-				# points (on and off).  As such, this branch is
-				# disabled.
-
-				# Collect on-curve points
-				onCurveCoords = [coords[j] for j in range(len(coords))
-								if flags[j] & flagOnCurve]
-				# Add implicit on-curve points
-				start = 0
-				for end in endPts:
-					last = end
-					for j in range(start, end + 1):
-						if not ((flags[j] | flags[last]) & flagOnCurve):
-							x = (coords[last][0] + coords[j][0]) / 2
-							y = (coords[last][1] + coords[j][1]) / 2
-							onCurveCoords.append((x,y))
-						last = j
-					start = end + 1
-				# Add bounds for curves without an explicit extrema
-				start = 0
-				for end in endPts:
-					last = end
-					for j in range(start, end + 1):
-						if not (flags[j] & flagOnCurve):
-							next = j + 1 if j < end else start
-							bbox = calcBounds([coords[last], coords[next]])
-							if not pointInRect(coords[j], bbox):
-								# Ouch!
-								log.warning("Outline has curve with implicit extrema.")
-								# Ouch!  Find analytical curve bounds.
-								pthis = coords[j]
-								plast = coords[last]
-								if not (flags[last] & flagOnCurve):
-									plast = ((pthis[0]+plast[0])/2, (pthis[1]+plast[1])/2)
-								pnext = coords[next]
-								if not (flags[next] & flagOnCurve):
-									pnext = ((pthis[0]+pnext[0])/2, (pthis[1]+pnext[1])/2)
-								bbox = calcQuadraticBounds(plast, pthis, pnext)
-								onCurveCoords.append((bbox[0],bbox[1]))
-								onCurveCoords.append((bbox[2],bbox[3]))
-						last = j
-					start = end + 1
-
-				self.xMin, self.yMin, self.xMax, self.yMax = calcIntBounds(onCurveCoords)
-			else:
-				self.xMin, self.yMin, self.xMax, self.yMax = calcIntBounds(coords)
-		else:
-			self.xMin, self.yMin, self.xMax, self.yMax = (0, 0, 0, 0)
+		self.xMin, self.yMin, self.xMax, self.yMax = calcIntBounds(coords)
 
 	def isComposite(self):
-		"""Can be called on compact or expanded glyph."""
+		"""Test whether a glyph has components"""
 		if hasattr(self, "data") and self.data:
 			return struct.unpack(">h", self.data[:2])[0] == -1
 		else:
@@ -991,12 +1047,27 @@ class Glyph(object):
 		return self.components[componentIndex]
 
 	def getCoordinates(self, glyfTable):
+		"""Return the coordinates, end points and flags
+
+		This method returns three values: A :py:class:`GlyphCoordinates` object,
+		a list of the indexes of the final points of each contour (allowing you
+		to split up the coordinates list into contours) and a list of flags.
+
+		On simple glyphs, this method returns information from the glyph's own
+		contours; on composite glyphs, it "flattens" all components recursively
+		to return a list of coordinates representing all the components involved
+		in the glyph.
+
+		To interpret the flags for each point, see the "Simple Glyph Flags"
+		section of the `glyf table specification <https://docs.microsoft.com/en-us/typography/opentype/spec/glyf#simple-glyph-description>`.
+		"""
+
 		if self.numberOfContours > 0:
 			return self.coordinates, self.endPtsOfContours, self.flags
 		elif self.isComposite():
 			# it's a composite
 			allCoords = GlyphCoordinates()
-			allFlags = array.array("B")
+			allFlags = bytearray()
 			allEndPts = []
 			for compo in self.components:
 				g = glyfTable[compo.glyphName]
@@ -1004,42 +1075,51 @@ class Glyph(object):
 					coordinates, endPts, flags = g.getCoordinates(glyfTable)
 				except RecursionError:
 					raise ttLib.TTLibError("glyph '%s' contains a recursive component reference" % compo.glyphName)
+				coordinates = GlyphCoordinates(coordinates)
 				if hasattr(compo, "firstPt"):
-					# move according to two reference points
+					# component uses two reference points: we apply the transform _before_
+					# computing the offset between the points
+					if hasattr(compo, "transform"):
+						coordinates.transform(compo.transform)
 					x1,y1 = allCoords[compo.firstPt]
 					x2,y2 = coordinates[compo.secondPt]
 					move = x1-x2, y1-y2
-				else:
-					move = compo.x, compo.y
-
-				coordinates = GlyphCoordinates(coordinates)
-				if not hasattr(compo, "transform"):
 					coordinates.translate(move)
 				else:
-					apple_way = compo.flags & SCALED_COMPONENT_OFFSET
-					ms_way = compo.flags & UNSCALED_COMPONENT_OFFSET
-					assert not (apple_way and ms_way)
-					if not (apple_way or ms_way):
-						scale_component_offset = SCALE_COMPONENT_OFFSET_DEFAULT  # see top of this file
-					else:
-						scale_component_offset = apple_way
-					if scale_component_offset:
-						# the Apple way: first move, then scale (ie. scale the component offset)
+					# component uses XY offsets
+					move = compo.x, compo.y
+					if not hasattr(compo, "transform"):
 						coordinates.translate(move)
-						coordinates.transform(compo.transform)
 					else:
-						# the MS way: first scale, then move
-						coordinates.transform(compo.transform)
-						coordinates.translate(move)
+						apple_way = compo.flags & SCALED_COMPONENT_OFFSET
+						ms_way = compo.flags & UNSCALED_COMPONENT_OFFSET
+						assert not (apple_way and ms_way)
+						if not (apple_way or ms_way):
+							scale_component_offset = SCALE_COMPONENT_OFFSET_DEFAULT  # see top of this file
+						else:
+							scale_component_offset = apple_way
+						if scale_component_offset:
+							# the Apple way: first move, then scale (ie. scale the component offset)
+							coordinates.translate(move)
+							coordinates.transform(compo.transform)
+						else:
+							# the MS way: first scale, then move
+							coordinates.transform(compo.transform)
+							coordinates.translate(move)
 				offset = len(allCoords)
 				allEndPts.extend(e + offset for e in endPts)
 				allCoords.extend(coordinates)
 				allFlags.extend(flags)
 			return allCoords, allEndPts, allFlags
 		else:
-			return GlyphCoordinates(), [], array.array("B")
+			return GlyphCoordinates(), [], bytearray()
 
 	def getComponentNames(self, glyfTable):
+		"""Returns a list of names of component glyphs used in this glyph
+
+		This method can be used on simple glyphs (in which case it returns an
+		empty list) or composite glyphs.
+		"""
 		if not hasattr(self, "data"):
 			if self.isComposite():
 				return [c.glyphName for c in self.components]
@@ -1087,7 +1167,7 @@ class Glyph(object):
 		if not self.data:
 			return
 		numContours = struct.unpack(">h", self.data[:2])[0]
-		data = array.array("B", self.data)
+		data = bytearray(self.data)
 		i = 10
 		if numContours >= 0:
 			i += 2 * numContours # endPtsOfContours
@@ -1156,12 +1236,21 @@ class Glyph(object):
 			# Remove padding
 			data = data[:i]
 
-		self.data = data.tostring()
+		self.data = data
 
 	def removeHinting(self):
+		"""Removes TrueType hinting instructions from the glyph."""
 		self.trim (remove_hinting=True)
 
 	def draw(self, pen, glyfTable, offset=0):
+		"""Draws the glyph using the supplied pen object.
+
+		Arguments:
+			pen: An object conforming to the pen protocol.
+			glyfTable: A :py:class:`table__g_l_y_f` object, to resolve components.
+			offset (int): A horizontal offset. If provided, all coordinates are
+				translated by this offset.
+		"""
 
 		if self.isComposite():
 			for component in self.components:
@@ -1177,7 +1266,7 @@ class Glyph(object):
 		for end in endPts:
 			end = end + 1
 			contour = coordinates[start:end]
-			cFlags = flags[start:end]
+			cFlags = [flagOnCurve & f for f in flags[start:end]]
 			start = end
 			if 1 not in cFlags:
 				# There is not a single on-curve point on the curve,
@@ -1196,7 +1285,10 @@ class Glyph(object):
 				while contour:
 					nextOnCurve = cFlags.index(1) + 1
 					if nextOnCurve == 1:
-						pen.lineTo(contour[0])
+						# Skip a final lineTo(), as it is implied by
+						# pen.closePath()
+						if len(contour) > 1:
+							pen.lineTo(contour[0])
 					else:
 						pen.qCurveTo(*contour[:nextOnCurve])
 					contour = contour[nextOnCurve:]
@@ -1204,7 +1296,7 @@ class Glyph(object):
 			pen.closePath()
 
 	def drawPoints(self, pen, glyfTable, offset=0):
-		"""Draw the glyph using the supplied pointPen. Opposed to Glyph.draw(),
+		"""Draw the glyph using the supplied pointPen. As opposed to Glyph.draw(),
 		this will not change the point indices.
 		"""
 
@@ -1228,7 +1320,7 @@ class Glyph(object):
 			# Start with the appropriate segment type based on the final segment
 			segmentType = "line" if cFlags[-1] == 1 else "qcurve"
 			for i, pt in enumerate(contour):
-				if cFlags[i] == 1:
+				if cFlags[i] & flagOnCurve == 1:
 					pen.addPoint(pt, segmentType=segmentType)
 					segmentType = "line"
 				else:
@@ -1246,12 +1338,29 @@ class Glyph(object):
 		return result if result is NotImplemented else not result
 
 class GlyphComponent(object):
+	"""Represents a component within a composite glyph.
+
+	The component is represented internally with four attributes: ``glyphName``,
+	``x``, ``y`` and ``transform``. If there is no "two-by-two" matrix (i.e
+	no scaling, reflection, or rotation; only translation), the ``transform``
+	attribute is not present.
+	"""
+	# The above documentation is not *completely* true, but is *true enough* because
+	# the rare firstPt/lastPt attributes are not totally supported and nobody seems to
+	# mind - see below.
 
 	def __init__(self):
 		pass
 
 	def getComponentInfo(self):
-		"""Return the base glyph name and a transform."""
+		"""Return information about the component
+
+		This method returns a tuple of two values: the glyph name of the component's
+		base glyph, and a transformation matrix. As opposed to accessing the attributes
+		directly, ``getComponentInfo`` always returns a six-element tuple of the
+		component's transformation matrix, even when the two-by-two ``.transform``
+		matrix is not present.
+		"""
 		# XXX Ignoring self.firstPt & self.lastpt for now: I need to implement
 		# something equivalent in fontTools.objects.glyph (I'd rather not
 		# convert it to an absolute offset, since it is valuable information).
@@ -1365,15 +1474,18 @@ class GlyphComponent(object):
 			transform = self.transform
 			if transform[0][1] or transform[1][0]:
 				attrs = attrs + [
-						("scalex", transform[0][0]), ("scale01", transform[0][1]),
-						("scale10", transform[1][0]), ("scaley", transform[1][1]),
-						]
+					("scalex", fl2str(transform[0][0], 14)),
+					("scale01", fl2str(transform[0][1], 14)),
+					("scale10", fl2str(transform[1][0], 14)),
+					("scaley", fl2str(transform[1][1], 14)),
+				]
 			elif transform[0][0] != transform[1][1]:
 				attrs = attrs + [
-						("scalex", transform[0][0]), ("scaley", transform[1][1]),
-						]
+					("scalex", fl2str(transform[0][0], 14)),
+					("scaley", fl2str(transform[1][1], 14)),
+				]
 			else:
-				attrs = attrs + [("scale", transform[0][0])]
+				attrs = attrs + [("scale", fl2str(transform[0][0], 14))]
 		attrs = attrs + [("flags", hex(self.flags))]
 		writer.simpletag("component", attrs)
 		writer.newline()
@@ -1387,17 +1499,17 @@ class GlyphComponent(object):
 			self.x = safeEval(attrs["x"])
 			self.y = safeEval(attrs["y"])
 		if "scale01" in attrs:
-			scalex = safeEval(attrs["scalex"])
-			scale01 = safeEval(attrs["scale01"])
-			scale10 = safeEval(attrs["scale10"])
-			scaley = safeEval(attrs["scaley"])
+			scalex = str2fl(attrs["scalex"], 14)
+			scale01 = str2fl(attrs["scale01"], 14)
+			scale10 = str2fl(attrs["scale10"], 14)
+			scaley = str2fl(attrs["scaley"], 14)
 			self.transform = [[scalex, scale01], [scale10, scaley]]
 		elif "scalex" in attrs:
-			scalex = safeEval(attrs["scalex"])
-			scaley = safeEval(attrs["scaley"])
+			scalex = str2fl(attrs["scalex"], 14)
+			scaley = str2fl(attrs["scaley"], 14)
 			self.transform = [[scalex, 0], [0, scaley]]
 		elif "scale" in attrs:
-			scale = safeEval(attrs["scale"])
+			scale = str2fl(attrs["scale"], 14)
 			self.transform = [[scale, 0], [0, scale]]
 		self.flags = safeEval(attrs["flags"])
 
@@ -1411,65 +1523,60 @@ class GlyphComponent(object):
 		return result if result is NotImplemented else not result
 
 class GlyphCoordinates(object):
+	"""A list of glyph coordinates.
 
-	def __init__(self, iterable=[], typecode="h"):
-		self._a = array.array(typecode)
+	Unlike an ordinary list, this is a numpy-like matrix object which supports
+	matrix addition, scalar multiplication and other operations described below.
+	"""
+	def __init__(self, iterable=[]):
+		self._a = array.array('d')
 		self.extend(iterable)
 
 	@property
 	def array(self):
+		"""Returns the underlying array of coordinates"""
 		return self._a
-
-	def isFloat(self):
-		return self._a.typecode == 'd'
-
-	def _ensureFloat(self):
-		if self.isFloat():
-			return
-		# The conversion to list() is to work around Jython bug
-		self._a = array.array("d", list(self._a))
-
-	def _checkFloat(self, p):
-		if self.isFloat():
-			return p
-		if any(v > 0x7FFF or v < -0x8000 for v in p):
-			self._ensureFloat()
-			return p
-		if any(isinstance(v, float) for v in p):
-			p = [int(v) if int(v) == v else v for v in p]
-			if any(isinstance(v, float) for v in p):
-				self._ensureFloat()
-		return p
 
 	@staticmethod
 	def zeros(count):
-		return GlyphCoordinates([(0,0)] * count)
+		"""Creates a new ``GlyphCoordinates`` object with all coordinates set to (0,0)"""
+		g = GlyphCoordinates()
+		g._a.frombytes(bytes(count * 2 * g._a.itemsize))
+		return g
 
 	def copy(self):
-		c = GlyphCoordinates(typecode=self._a.typecode)
+		"""Creates a new ``GlyphCoordinates`` object which is a copy of the current one."""
+		c = GlyphCoordinates()
 		c._a.extend(self._a)
 		return c
 
 	def __len__(self):
+		"""Returns the number of coordinates in the array."""
 		return len(self._a) // 2
 
 	def __getitem__(self, k):
+		"""Returns a two element tuple (x,y)"""
 		if isinstance(k, slice):
 			indices = range(*k.indices(len(self)))
 			return [self[i] for i in indices]
-		return self._a[2*k],self._a[2*k+1]
+		a = self._a
+		x = a[2*k]
+		y = a[2*k+1]
+		return (int(x) if x.is_integer() else x,
+			int(y) if y.is_integer() else y)
 
 	def __setitem__(self, k, v):
+		"""Sets a point's coordinates to a two element tuple (x,y)"""
 		if isinstance(k, slice):
 			indices = range(*k.indices(len(self)))
 			# XXX This only works if len(v) == len(indices)
 			for j,i in enumerate(indices):
 				self[i] = v[j]
 			return
-		v = self._checkFloat(v)
 		self._a[2*k],self._a[2*k+1] = v
 
 	def __delitem__(self, i):
+		"""Removes a point from the list"""
 		i = (2*i) % len(self._a)
 		del self._a[i]
 		del self._a[i]
@@ -1478,69 +1585,71 @@ class GlyphCoordinates(object):
 		return 'GlyphCoordinates(['+','.join(str(c) for c in self)+'])'
 
 	def append(self, p):
-		p = self._checkFloat(p)
 		self._a.extend(tuple(p))
 
 	def extend(self, iterable):
 		for p in iterable:
-			p = self._checkFloat(p)
 			self._a.extend(p)
 
-	def toInt(self):
-		if not self.isFloat():
-			return
-		a = array.array("h")
-		for n in self._a:
-			a.append(otRound(n))
-		self._a = a
+	def toInt(self, *, round=otRound):
+		a = self._a
+		for i in range(len(a)):
+			a[i] = round(a[i])
 
 	def relativeToAbsolute(self):
 		a = self._a
 		x,y = 0,0
-		for i in range(len(a) // 2):
-			x = a[2*i  ] + x
-			y = a[2*i+1] + y
-			self[i] = (x, y)
+		for i in range(0, len(a), 2):
+			a[i  ] = x = a[i  ] + x
+			a[i+1] = y = a[i+1] + y
 
 	def absoluteToRelative(self):
 		a = self._a
 		x,y = 0,0
-		for i in range(len(a) // 2):
-			dx = a[2*i  ] - x
-			dy = a[2*i+1] - y
-			x = a[2*i  ]
-			y = a[2*i+1]
-			self[i] = (dx, dy)
+		for i in range(0, len(a), 2):
+			nx = a[i  ]
+			ny = a[i+1]
+			a[i]   = nx - x
+			a[i+1] = ny - y
+			x = nx
+			y = ny
 
 	def translate(self, p):
 		"""
 		>>> GlyphCoordinates([(1,2)]).translate((.5,0))
 		"""
-		(x,y) = self._checkFloat(p)
+		x,y = p
+		if x == 0 and y == 0:
+			return
 		a = self._a
-		for i in range(len(a) // 2):
-			self[i] = (a[2*i] + x, a[2*i+1] + y)
+		for i in range(0, len(a), 2):
+			a[i]   += x
+			a[i+1] += y
 
 	def scale(self, p):
 		"""
 		>>> GlyphCoordinates([(1,2)]).scale((.5,0))
 		"""
-		(x,y) = self._checkFloat(p)
+		x,y = p
+		if x == 1 and y == 1:
+			return
 		a = self._a
-		for i in range(len(a) // 2):
-			self[i] = (a[2*i] * x, a[2*i+1] * y)
+		for i in range(0, len(a), 2):
+			a[i]   *= x
+			a[i+1] *= y
 
 	def transform(self, t):
 		"""
 		>>> GlyphCoordinates([(1,2)]).transform(((.5,0),(.2,.5)))
 		"""
 		a = self._a
-		for i in range(len(a) // 2):
-			x = a[2*i  ]
-			y = a[2*i+1]
+		for i in range(0, len(a), 2):
+			x = a[i  ]
+			y = a[i+1]
 			px = x * t[0][0] + y * t[1][0]
 			py = x * t[0][1] + y * t[1][1]
-			self[i] = (px, py)
+			a[i]   = px
+			a[i+1] = py
 
 	def __eq__(self, other):
 		"""
@@ -1606,13 +1715,9 @@ class GlyphCoordinates(object):
 		for i in range(len(a)):
 			a[i] = -a[i]
 		return r
-	def __round__(self):
-		"""
-		Note: This is Python 3 only.  Python 2 does not call __round__.
-		As such, we cannot test this method either. :(
-		"""
+	def __round__(self, *, round=otRound):
 		r = self.copy()
-		r.toInt()
+		r.toInt(round=round)
 		return r
 
 	def __add__(self, other): return self.copy().__iadd__(other)
@@ -1629,23 +1734,22 @@ class GlyphCoordinates(object):
 		>>> g = GlyphCoordinates([(1,2)])
 		>>> g += (.5,0)
 		>>> g
-		GlyphCoordinates([(1.5, 2.0)])
+		GlyphCoordinates([(1.5, 2)])
 		>>> g2 = GlyphCoordinates([(3,4)])
 		>>> g += g2
 		>>> g
-		GlyphCoordinates([(4.5, 6.0)])
+		GlyphCoordinates([(4.5, 6)])
 		"""
 		if isinstance(other, tuple):
 			assert len(other) ==  2
 			self.translate(other)
 			return self
 		if isinstance(other, GlyphCoordinates):
-			if other.isFloat(): self._ensureFloat()
 			other = other._a
 			a = self._a
 			assert len(a) == len(other)
-			for i in range(len(a) // 2):
-				self[i] = (a[2*i] + other[2*i], a[2*i+1] + other[2*i+1])
+			for i in range(len(a)):
+				a[i] += other[i]
 			return self
 		return NotImplemented
 
@@ -1654,23 +1758,22 @@ class GlyphCoordinates(object):
 		>>> g = GlyphCoordinates([(1,2)])
 		>>> g -= (.5,0)
 		>>> g
-		GlyphCoordinates([(0.5, 2.0)])
+		GlyphCoordinates([(0.5, 2)])
 		>>> g2 = GlyphCoordinates([(3,4)])
 		>>> g -= g2
 		>>> g
-		GlyphCoordinates([(-2.5, -2.0)])
+		GlyphCoordinates([(-2.5, -2)])
 		"""
 		if isinstance(other, tuple):
 			assert len(other) ==  2
 			self.translate((-other[0],-other[1]))
 			return self
 		if isinstance(other, GlyphCoordinates):
-			if other.isFloat(): self._ensureFloat()
 			other = other._a
 			a = self._a
 			assert len(a) == len(other)
-			for i in range(len(a) // 2):
-				self[i] = (a[2*i] - other[2*i], a[2*i+1] - other[2*i+1])
+			for i in range(len(a)):
+				a[i] -= other[i]
 			return self
 		return NotImplemented
 
@@ -1680,19 +1783,22 @@ class GlyphCoordinates(object):
 		>>> g *= (2,.5)
 		>>> g *= 2
 		>>> g
-		GlyphCoordinates([(4.0, 2.0)])
+		GlyphCoordinates([(4, 2)])
 		>>> g = GlyphCoordinates([(1,2)])
 		>>> g *= 2
 		>>> g
 		GlyphCoordinates([(2, 4)])
 		"""
-		if isinstance(other, Number):
-			other = (other, other)
 		if isinstance(other, tuple):
-			if other == (1,1):
-				return self
 			assert len(other) ==  2
 			self.scale(other)
+			return self
+		if isinstance(other, Number):
+			if other == 1:
+				return self
+			a = self._a
+			for i in range(len(a)):
+				a[i] *= other
 			return self
 		return NotImplemented
 
@@ -1702,7 +1808,7 @@ class GlyphCoordinates(object):
 		>>> g /= (.5,1.5)
 		>>> g /= 2
 		>>> g
-		GlyphCoordinates([(1.0, 1.0)])
+		GlyphCoordinates([(1, 1)])
 		"""
 		if isinstance(other, Number):
 			other = (other, other)
@@ -1732,20 +1838,6 @@ class GlyphCoordinates(object):
 		return bool(self._a)
 
 	__nonzero__ = __bool__
-
-
-def reprflag(flag):
-	bin = ""
-	if isinstance(flag, str):
-		flag = byteord(flag)
-	while flag:
-		if flag & 0x01:
-			bin = "1" + bin
-		else:
-			bin = "0" + bin
-		flag = flag >> 1
-	bin = (14 - len(bin)) * "0" + bin
-	return bin
 
 
 if __name__ == "__main__":

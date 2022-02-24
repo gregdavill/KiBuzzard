@@ -5,10 +5,17 @@ OpenType subtables.
 Most are constructed upon import from data in otData.py, all are populated with
 converter objects from otConverters.py.
 """
-from __future__ import print_function, division, absolute_import, unicode_literals
-from fontTools.misc.py23 import *
-from fontTools.misc.textTools import pad, safeEval
-from .otBase import BaseTable, FormatSwitchingBaseTable, ValueRecord
+import copy
+from enum import IntEnum
+import itertools
+from collections import defaultdict, namedtuple
+from fontTools.misc.roundTools import otRound
+from fontTools.misc.textTools import bytesjoin, pad, safeEval
+from .otBase import (
+	BaseTable, FormatSwitchingBaseTable, ValueRecord, CountReference,
+	getFormatSwitchingBaseTableClass,
+)
+from fontTools.feaLib.lookupDebugInfo import LookupDebugInfo, LOOKUP_DEBUG_INFO_KEY
 import logging
 import struct
 
@@ -418,8 +425,7 @@ class InsertionMorphAction(AATAction):
 			return []
 		reader = actionReader.getSubReader(
 			actionReader.pos + index * 2)
-		return [font.getGlyphName(glyphID)
-		        for glyphID in reader.readUShortArray(count)]
+		return font.getGlyphNameMany(reader.readUShortArray(count))
 
 	def toXML(self, xmlWriter, font, attrs, name):
 		xmlWriter.begintag(name, **attrs)
@@ -514,12 +520,10 @@ class Coverage(FormatSwitchingBaseTable):
 
 	def postRead(self, rawTable, font):
 		if self.Format == 1:
-			# TODO only allow glyphs that are valid?
 			self.glyphs = rawTable["GlyphArray"]
 		elif self.Format == 2:
 			glyphs = self.glyphs = []
 			ranges = rawTable["RangeRecord"]
-			glyphOrder = font.getGlyphOrder()
 			# Some SIL fonts have coverage entries that don't have sorted
 			# StartCoverageIndex.  If it is so, fixup and warn.  We undo
 			# this when writing font out.
@@ -529,28 +533,15 @@ class Coverage(FormatSwitchingBaseTable):
 				ranges = sorted_ranges
 			del sorted_ranges
 			for r in ranges:
-				assert r.StartCoverageIndex == len(glyphs), \
-					(r.StartCoverageIndex, len(glyphs))
 				start = r.Start
 				end = r.End
-				try:
-					startID = font.getGlyphID(start, requireReal=True)
-				except KeyError:
-					log.warning("Coverage table has start glyph ID out of range: %s.", start)
-					continue
-				try:
-					endID = font.getGlyphID(end, requireReal=True) + 1
-				except KeyError:
-					# Apparently some tools use 65535 to "match all" the range
-					if end != 'glyph65535':
-						log.warning("Coverage table has end glyph ID out of range: %s.", end)
-					# NOTE: We clobber out-of-range things here.  There are legit uses for those,
-					# but none that we have seen in the wild.
-					endID = len(glyphOrder)
-				glyphs.extend(glyphOrder[glyphID] for glyphID in range(startID, endID))
+				startID = font.getGlyphID(start)
+				endID = font.getGlyphID(end) + 1
+				glyphs.extend(font.getGlyphNameMany(range(startID, endID)))
 		else:
 			self.glyphs = []
 			log.warning("Unknown Coverage format: %s", self.Format)
+		del self.Format # Don't need this anymore
 
 	def preWrite(self, font):
 		glyphs = getattr(self, "glyphs", None)
@@ -558,10 +549,9 @@ class Coverage(FormatSwitchingBaseTable):
 			glyphs = self.glyphs = []
 		format = 1
 		rawTable = {"GlyphArray": glyphs}
-		getGlyphID = font.getGlyphID
 		if glyphs:
 			# find out whether Format 2 is more compact or not
-			glyphIDs = [getGlyphID(glyphName) for glyphName in glyphs ]
+			glyphIDs = font.getGlyphIDMany(glyphs)
 			brokenOrder = sorted(glyphIDs) != glyphIDs
 
 			last = glyphIDs[0]
@@ -610,6 +600,73 @@ class Coverage(FormatSwitchingBaseTable):
 		glyphs.append(attrs["value"])
 
 
+class DeltaSetIndexMap(getFormatSwitchingBaseTableClass("uint8")):
+
+	def populateDefaults(self, propagator=None):
+		if not hasattr(self, 'mapping'):
+			self.mapping = []
+
+	def postRead(self, rawTable, font):
+		assert (rawTable['EntryFormat'] & 0xFFC0) == 0
+		self.mapping = rawTable['mapping']
+
+	@staticmethod
+	def getEntryFormat(mapping):
+		ored = 0
+		for idx in mapping:
+			ored |= idx
+
+		inner = ored & 0xFFFF
+		innerBits = 0
+		while inner:
+			innerBits += 1
+			inner >>= 1
+		innerBits = max(innerBits, 1)
+		assert innerBits <= 16
+
+		ored = (ored >> (16-innerBits)) | (ored & ((1<<innerBits)-1))
+		if   ored <= 0x000000FF:
+			entrySize = 1
+		elif ored <= 0x0000FFFF:
+			entrySize = 2
+		elif ored <= 0x00FFFFFF:
+			entrySize = 3
+		else:
+			entrySize = 4
+
+		return ((entrySize - 1) << 4) | (innerBits - 1)
+
+	def preWrite(self, font):
+		mapping = getattr(self, "mapping", None)
+		if mapping is None:
+			mapping = self.mapping = []
+		self.Format = 1 if len(mapping) > 0xFFFF else 0
+		rawTable = self.__dict__.copy()
+		rawTable['MappingCount'] = len(mapping)
+		rawTable['EntryFormat'] = self.getEntryFormat(mapping)
+		return rawTable
+
+	def toXML2(self, xmlWriter, font):
+		for i, value in enumerate(getattr(self, "mapping", [])):
+			attrs = (
+				('index', i),
+				('outer', value >> 16),
+				('inner', value & 0xFFFF),
+			)
+			xmlWriter.simpletag("Map", attrs)
+			xmlWriter.newline()
+
+	def fromXML(self, name, attrs, content, font):
+		mapping = getattr(self, "mapping", None)
+		if mapping is None:
+			self.mapping = mapping = []
+		index = safeEval(attrs['index'])
+		outer = safeEval(attrs['outer'])
+		inner = safeEval(attrs['inner'])
+		assert inner <= 0xFFFF
+		mapping.insert(index, (outer << 16) | inner)
+
+
 class VarIdxMap(BaseTable):
 
 	def populateDefaults(self, propagator=None):
@@ -633,34 +690,9 @@ class VarIdxMap(BaseTable):
 		while len(mapping) > 1 and mapping[-2] == mapping[-1]:
 			del mapping[-1]
 
-		rawTable = { 'mapping': mapping }
+		rawTable = {'mapping': mapping}
 		rawTable['MappingCount'] = len(mapping)
-
-		ored = 0
-		for idx in mapping:
-			ored |= idx
-
-		inner = ored & 0xFFFF
-		innerBits = 0
-		while inner:
-			innerBits += 1
-			inner >>= 1
-		innerBits = max(innerBits, 1)
-		assert innerBits <= 16
-
-		ored = (ored >> (16-innerBits)) | (ored & ((1<<innerBits)-1))
-		if   ored <= 0x000000FF:
-			entrySize = 1
-		elif ored <= 0x0000FFFF:
-			entrySize = 2
-		elif ored <= 0x00FFFFFF:
-			entrySize = 3
-		else:
-			entrySize = 4
-
-		entryFormat = ((entrySize - 1) << 4) | (innerBits - 1)
-
-		rawTable['EntryFormat'] = entryFormat
+		rawTable['EntryFormat'] = DeltaSetIndexMap.getEntryFormat(mapping)
 		return rawTable
 
 	def toXML2(self, xmlWriter, font):
@@ -688,6 +720,25 @@ class VarIdxMap(BaseTable):
 		mapping[glyph] = (outer << 16) | inner
 
 
+class VarRegionList(BaseTable):
+
+	def preWrite(self, font):
+		# The OT spec says VarStore.VarRegionList.RegionAxisCount should always
+		# be equal to the fvar.axisCount, and OTS < v8.0.0 enforces this rule
+		# even when the VarRegionList is empty. We can't treat RegionAxisCount
+		# like a normal propagated count (== len(Region[i].VarRegionAxis)),
+		# otherwise it would default to 0 if VarRegionList is empty.
+		# Thus, we force it to always be equal to fvar.axisCount.
+		# https://github.com/khaledhosny/ots/pull/192
+		fvarTable = font.get("fvar")
+		if fvarTable:
+			self.RegionAxisCount = len(fvarTable.axes)
+		return {
+			**self.__dict__,
+			"RegionAxisCount": CountReference(self.__dict__, "RegionAxisCount")
+		}
+
+
 class SingleSubst(FormatSwitchingBaseTable):
 
 	def populateDefaults(self, propagator=None):
@@ -699,9 +750,9 @@ class SingleSubst(FormatSwitchingBaseTable):
 		input = _getGlyphsFromCoverageTable(rawTable["Coverage"])
 		if self.Format == 1:
 			delta = rawTable["DeltaGlyphID"]
-			inputGIDS =  [ font.getGlyphID(name) for name in input ]
+			inputGIDS = font.getGlyphIDMany(input)
 			outGIDS = [ (glyphID + delta) % 65536 for glyphID in inputGIDS ]
-			outNames = [ font.getGlyphName(glyphID) for glyphID in outGIDS ]
+			outNames = font.getGlyphNameMany(outGIDS)
 			for inp, out in zip(input, outNames):
 				mapping[inp] = out
 		elif self.Format == 2:
@@ -713,6 +764,7 @@ class SingleSubst(FormatSwitchingBaseTable):
 		else:
 			assert 0, "unknown format: %s" % self.Format
 		self.mapping = mapping
+		del self.Format # Don't need this anymore
 
 	def preWrite(self, font):
 		mapping = getattr(self, "mapping", None)
@@ -783,6 +835,7 @@ class MultipleSubst(FormatSwitchingBaseTable):
 		else:
 			assert 0, "unknown format: %s" % self.Format
 		self.mapping = mapping
+		del self.Format # Don't need this anymore
 
 	def preWrite(self, font):
 		mapping = getattr(self, "mapping", None)
@@ -853,54 +906,34 @@ class ClassDef(FormatSwitchingBaseTable):
 
 	def postRead(self, rawTable, font):
 		classDefs = {}
-		glyphOrder = font.getGlyphOrder()
 
 		if self.Format == 1:
 			start = rawTable["StartGlyph"]
 			classList = rawTable["ClassValueArray"]
-			try:
-				startID = font.getGlyphID(start, requireReal=True)
-			except KeyError:
-				log.warning("ClassDef table has start glyph ID out of range: %s.", start)
-				startID = len(glyphOrder)
+			startID = font.getGlyphID(start)
 			endID = startID + len(classList)
-			if endID > len(glyphOrder):
-				log.warning("ClassDef table has entries for out of range glyph IDs: %s,%s.",
-					start, len(classList))
-				# NOTE: We clobber out-of-range things here.  There are legit uses for those,
-				# but none that we have seen in the wild.
-				endID = len(glyphOrder)
-
-			for glyphID, cls in zip(range(startID, endID), classList):
+			glyphNames = font.getGlyphNameMany(range(startID, endID))
+			for glyphName, cls in zip(glyphNames, classList):
 				if cls:
-					classDefs[glyphOrder[glyphID]] = cls
+					classDefs[glyphName] = cls
 
 		elif self.Format == 2:
 			records = rawTable["ClassRangeRecord"]
 			for rec in records:
+				cls = rec.Class
+				if not cls:
+					continue
 				start = rec.Start
 				end = rec.End
-				cls = rec.Class
-				try:
-					startID = font.getGlyphID(start, requireReal=True)
-				except KeyError:
-					log.warning("ClassDef table has start glyph ID out of range: %s.", start)
-					continue
-				try:
-					endID = font.getGlyphID(end, requireReal=True) + 1
-				except KeyError:
-					# Apparently some tools use 65535 to "match all" the range
-					if end != 'glyph65535':
-						log.warning("ClassDef table has end glyph ID out of range: %s.", end)
-					# NOTE: We clobber out-of-range things here.  There are legit uses for those,
-					# but none that we have seen in the wild.
-					endID = len(glyphOrder)
-				for glyphID in range(startID, endID):
-					if cls:
-						classDefs[glyphOrder[glyphID]] = cls
+				startID = font.getGlyphID(start)
+				endID = font.getGlyphID(end) + 1
+				glyphNames = font.getGlyphNameMany(range(startID, endID))
+				for glyphName in glyphNames:
+					classDefs[glyphName] = cls
 		else:
 			log.warning("Unknown ClassDef format: %s", self.Format)
 		self.classDefs = classDefs
+		del self.Format # Don't need this anymore
 
 	def _getClassRanges(self, font):
 		classDefs = getattr(self, "classDefs", None)
@@ -989,6 +1022,7 @@ class AlternateSubst(FormatSwitchingBaseTable):
 		else:
 			assert 0, "unknown format: %s" % self.Format
 		self.alternates = alternates
+		del self.Format # Don't need this anymore
 
 	def preWrite(self, font):
 		self.Format = 1
@@ -1059,6 +1093,7 @@ class LigatureSubst(FormatSwitchingBaseTable):
 		else:
 			assert 0, "unknown format: %s" % self.Format
 		self.ligatures = ligatures
+		del self.Format # Don't need this anymore
 
 	def preWrite(self, font):
 		self.Format = 1
@@ -1132,6 +1167,389 @@ class LigatureSubst(FormatSwitchingBaseTable):
 			lig.Component = components.split(",") if components else []
 			lig.CompCount = len(lig.Component)
 			ligs.append(lig)
+
+
+class COLR(BaseTable):
+
+	def decompile(self, reader, font):
+		# COLRv0 is exceptional in that LayerRecordCount appears *after* the
+		# LayerRecordArray it counts, but the parser logic expects Count fields
+		# to always precede the arrays. Here we work around this by parsing the
+		# LayerRecordCount before the rest of the table, and storing it in
+		# the reader's local state.
+		subReader = reader.getSubReader(offset=0)
+		for conv in self.getConverters():
+			if conv.name != "LayerRecordCount":
+				subReader.advance(conv.staticSize)
+				continue
+			reader[conv.name] = conv.read(subReader, font, tableDict={})
+			break
+		else:
+			raise AssertionError("LayerRecordCount converter not found")
+		return BaseTable.decompile(self, reader, font)
+
+	def preWrite(self, font):
+		# The writer similarly assumes Count values precede the things counted,
+		# thus here we pre-initialize a CountReference; the actual count value
+		# will be set to the lenght of the array by the time this is assembled.
+		self.LayerRecordCount = None
+		return {
+			**self.__dict__,
+			"LayerRecordCount": CountReference(self.__dict__, "LayerRecordCount")
+		}
+
+
+class LookupList(BaseTable):
+	@property
+	def table(self):
+		for l in self.Lookup:
+			for st in l.SubTable:
+				if type(st).__name__.endswith("Subst"):
+					return "GSUB"
+				if type(st).__name__.endswith("Pos"):
+					return "GPOS"
+		raise ValueError
+
+	def toXML2(self, xmlWriter, font):
+		if not font or "Debg" not in font or LOOKUP_DEBUG_INFO_KEY not in font["Debg"].data:
+			return super().toXML2(xmlWriter, font)
+		debugData = font["Debg"].data[LOOKUP_DEBUG_INFO_KEY][self.table]
+		for conv in self.getConverters():
+			if conv.repeat:
+				value = getattr(self, conv.name, [])
+				for lookupIndex, item in enumerate(value):
+					if str(lookupIndex) in debugData:
+						info = LookupDebugInfo(*debugData[str(lookupIndex)])
+						tag = info.location
+						if info.name:
+							tag = f'{info.name}: {tag}'
+						if info.feature:
+							script,language,feature = info.feature
+							tag = f'{tag} in {feature} ({script}/{language})'
+						xmlWriter.comment(tag)
+						xmlWriter.newline()
+
+					conv.xmlWrite(xmlWriter, font, item, conv.name,
+							[("index", lookupIndex)])
+			else:
+				if conv.aux and not eval(conv.aux, None, vars(self)):
+					continue
+				value = getattr(self, conv.name, None) # TODO Handle defaults instead of defaulting to None!
+				conv.xmlWrite(xmlWriter, font, value, conv.name, [])
+
+class BaseGlyphRecordArray(BaseTable):
+
+	def preWrite(self, font):
+		self.BaseGlyphRecord = sorted(
+			self.BaseGlyphRecord,
+			key=lambda rec: font.getGlyphID(rec.BaseGlyph)
+		)
+		return self.__dict__.copy()
+
+
+class BaseGlyphList(BaseTable):
+
+	def preWrite(self, font):
+		self.BaseGlyphPaintRecord = sorted(
+			self.BaseGlyphPaintRecord,
+			key=lambda rec: font.getGlyphID(rec.BaseGlyph)
+		)
+		return self.__dict__.copy()
+
+
+class ClipBox(getFormatSwitchingBaseTableClass("uint8")):
+
+	def as_tuple(self):
+		return tuple(getattr(self, conv.name) for conv in self.getConverters())
+
+	def __repr__(self):
+		return f"{self.__class__.__name__}{self.as_tuple()}"
+
+
+class ClipList(getFormatSwitchingBaseTableClass("uint8")):
+
+	def populateDefaults(self, propagator=None):
+		if not hasattr(self, "clips"):
+			self.clips = {}
+
+	def postRead(self, rawTable, font):
+		clips = {}
+		glyphOrder = font.getGlyphOrder()
+		for i, rec in enumerate(rawTable["ClipRecord"]):
+			if rec.StartGlyphID > rec.EndGlyphID:
+				log.warning(
+					"invalid ClipRecord[%i].StartGlyphID (%i) > "
+					"EndGlyphID (%i); skipped",
+					i,
+					rec.StartGlyphID,
+					rec.EndGlyphID,
+				)
+				continue
+			redefinedGlyphs = []
+			missingGlyphs = []
+			for glyphID in range(rec.StartGlyphID, rec.EndGlyphID + 1):
+				try:
+					glyph = glyphOrder[glyphID]
+				except IndexError:
+					missingGlyphs.append(glyphID)
+					continue
+				if glyph not in clips:
+					clips[glyph] = copy.copy(rec.ClipBox)
+				else:
+					redefinedGlyphs.append(glyphID)
+			if redefinedGlyphs:
+				log.warning(
+					"ClipRecord[%i] overlaps previous records; "
+					"ignoring redefined clip boxes for the "
+					"following glyph ID range: [%i-%i]",
+					i,
+					min(redefinedGlyphs),
+					max(redefinedGlyphs),
+				)
+			if missingGlyphs:
+				log.warning(
+					"ClipRecord[%i] range references missing "
+					"glyph IDs: [%i-%i]",
+					i,
+					min(missingGlyphs),
+					max(missingGlyphs),
+				)
+		self.clips = clips
+
+	def groups(self):
+		glyphsByClip = defaultdict(list)
+		uniqueClips = {}
+		for glyphName, clipBox in self.clips.items():
+			key = clipBox.as_tuple()
+			glyphsByClip[key].append(glyphName)
+			if key not in uniqueClips:
+				uniqueClips[key] = clipBox
+		return {
+			frozenset(glyphs): uniqueClips[key]
+			for key, glyphs in glyphsByClip.items()
+		}
+
+	def preWrite(self, font):
+		if not hasattr(self, "clips"):
+			self.clips = {}
+		clipBoxRanges = {}
+		glyphMap = font.getReverseGlyphMap()
+		for glyphs, clipBox in self.groups().items():
+			glyphIDs = sorted(
+				glyphMap[glyphName] for glyphName in glyphs
+				if glyphName in glyphMap
+			)
+			if not glyphIDs:
+				continue
+			last = glyphIDs[0]
+			ranges = [[last]]
+			for glyphID in glyphIDs[1:]:
+				if glyphID != last + 1:
+					ranges[-1].append(last)
+					ranges.append([glyphID])
+				last = glyphID
+			ranges[-1].append(last)
+			for start, end in ranges:
+				assert (start, end) not in clipBoxRanges
+				clipBoxRanges[(start, end)] = clipBox
+
+		clipRecords = []
+		for (start, end), clipBox in sorted(clipBoxRanges.items()):
+			record = ClipRecord()
+			record.StartGlyphID = start
+			record.EndGlyphID = end
+			record.ClipBox = clipBox
+			clipRecords.append(record)
+		rawTable = {
+			"ClipCount": len(clipRecords),
+			"ClipRecord": clipRecords,
+		}
+		return rawTable
+
+	def toXML(self, xmlWriter, font, attrs=None, name=None):
+		tableName = name if name else self.__class__.__name__
+		if attrs is None:
+			attrs = []
+		if hasattr(self, "Format"):
+			attrs.append(("Format", self.Format))
+		xmlWriter.begintag(tableName, attrs)
+		xmlWriter.newline()
+		# sort clips alphabetically to ensure deterministic XML dump
+		for glyphs, clipBox in sorted(
+			self.groups().items(), key=lambda item: min(item[0])
+		):
+			xmlWriter.begintag("Clip")
+			xmlWriter.newline()
+			for glyphName in sorted(glyphs):
+				xmlWriter.simpletag("Glyph", value=glyphName)
+				xmlWriter.newline()
+			xmlWriter.begintag("ClipBox", [("Format", clipBox.Format)])
+			xmlWriter.newline()
+			clipBox.toXML2(xmlWriter, font)
+			xmlWriter.endtag("ClipBox")
+			xmlWriter.newline()
+			xmlWriter.endtag("Clip")
+			xmlWriter.newline()
+		xmlWriter.endtag(tableName)
+		xmlWriter.newline()
+
+	def fromXML(self, name, attrs, content, font):
+		clips = getattr(self, "clips", None)
+		if clips is None:
+			self.clips = clips = {}
+		assert name == "Clip"
+		glyphs = []
+		clipBox = None
+		for elem in content:
+			if not isinstance(elem, tuple):
+				continue
+			name, attrs, content = elem
+			if name == "Glyph":
+				glyphs.append(attrs["value"])
+			elif name == "ClipBox":
+				clipBox = ClipBox()
+				clipBox.Format = safeEval(attrs["Format"])
+				for elem in content:
+					if not isinstance(elem, tuple):
+						continue
+					name, attrs, content = elem
+					clipBox.fromXML(name, attrs, content, font)
+		if clipBox:
+			for glyphName in glyphs:
+				clips[glyphName] = clipBox
+
+
+class ExtendMode(IntEnum):
+	PAD = 0
+	REPEAT = 1
+	REFLECT = 2
+
+
+# Porter-Duff modes for COLRv1 PaintComposite:
+# https://github.com/googlefonts/colr-gradients-spec/tree/off_sub_1#compositemode-enumeration
+class CompositeMode(IntEnum):
+	CLEAR = 0
+	SRC = 1
+	DEST = 2
+	SRC_OVER = 3
+	DEST_OVER = 4
+	SRC_IN = 5
+	DEST_IN = 6
+	SRC_OUT = 7
+	DEST_OUT = 8
+	SRC_ATOP = 9
+	DEST_ATOP = 10
+	XOR = 11
+	PLUS = 12
+	SCREEN = 13
+	OVERLAY = 14
+	DARKEN = 15
+	LIGHTEN = 16
+	COLOR_DODGE = 17
+	COLOR_BURN = 18
+	HARD_LIGHT = 19
+	SOFT_LIGHT = 20
+	DIFFERENCE = 21
+	EXCLUSION = 22
+	MULTIPLY = 23
+	HSL_HUE = 24
+	HSL_SATURATION = 25
+	HSL_COLOR = 26
+	HSL_LUMINOSITY = 27
+
+
+class PaintFormat(IntEnum):
+	PaintColrLayers = 1
+	PaintSolid = 2
+	PaintVarSolid = 3,
+	PaintLinearGradient = 4
+	PaintVarLinearGradient = 5
+	PaintRadialGradient = 6
+	PaintVarRadialGradient = 7
+	PaintSweepGradient = 8
+	PaintVarSweepGradient = 9
+	PaintGlyph = 10
+	PaintColrGlyph = 11
+	PaintTransform = 12
+	PaintVarTransform = 13
+	PaintTranslate = 14
+	PaintVarTranslate = 15
+	PaintScale = 16
+	PaintVarScale = 17
+	PaintScaleAroundCenter = 18
+	PaintVarScaleAroundCenter = 19
+	PaintScaleUniform = 20
+	PaintVarScaleUniform = 21
+	PaintScaleUniformAroundCenter = 22
+	PaintVarScaleUniformAroundCenter = 23
+	PaintRotate = 24
+	PaintVarRotate = 25
+	PaintRotateAroundCenter = 26
+	PaintVarRotateAroundCenter = 27
+	PaintSkew = 28
+	PaintVarSkew = 29
+	PaintSkewAroundCenter = 30
+	PaintVarSkewAroundCenter = 31
+	PaintComposite = 32
+
+
+class Paint(getFormatSwitchingBaseTableClass("uint8")):
+
+	def getFormatName(self):
+		try:
+			return PaintFormat(self.Format).name
+		except ValueError:
+			raise NotImplementedError(f"Unknown Paint format: {self.Format}")
+
+	def toXML(self, xmlWriter, font, attrs=None, name=None):
+		tableName = name if name else self.__class__.__name__
+		if attrs is None:
+			attrs = []
+		attrs.append(("Format", self.Format))
+		xmlWriter.begintag(tableName, attrs)
+		xmlWriter.comment(self.getFormatName())
+		xmlWriter.newline()
+		self.toXML2(xmlWriter, font)
+		xmlWriter.endtag(tableName)
+		xmlWriter.newline()
+
+	def getChildren(self, colr):
+		if self.Format == PaintFormat.PaintColrLayers:
+			# https://github.com/fonttools/fonttools/issues/2438: don't die when no LayerList exists
+			layers = []
+			if colr.LayerList is not None:
+				layers = colr.LayerList.Paint
+			return layers[
+				self.FirstLayerIndex : self.FirstLayerIndex + self.NumLayers
+			]
+
+		if self.Format == PaintFormat.PaintColrGlyph:
+			for record in colr.BaseGlyphList.BaseGlyphPaintRecord:
+				if record.BaseGlyph == self.Glyph:
+					return [record.Paint]
+			else:
+				raise KeyError(f"{self.Glyph!r} not in colr.BaseGlyphList")
+
+		children = []
+		for conv in self.getConverters():
+			if conv.tableClass is not None and issubclass(conv.tableClass, type(self)):
+				children.append(getattr(self, conv.name))
+
+		return children
+
+	def traverse(self, colr: COLR, callback):
+		"""Depth-first traversal of graph rooted at self, callback on each node."""
+		if not callable(callback):
+			raise TypeError("callback must be callable")
+		stack = [self]
+		visited = set()
+		while stack:
+			current = stack.pop()
+			if id(current) in visited:
+				continue
+			callback(current)
+			visited.add(id(current))
+			stack.extend(reversed(current.getChildren(colr)))
 
 
 # For each subtable format there is a class. However, we don't really distinguish
@@ -1216,20 +1634,47 @@ def fixLookupOverFlows(ttf, overflowRecord):
 			return ok
 		lookup = lookups[lookupIndex]
 
-	lookup.LookupType = extType
-	for si in range(len(lookup.SubTable)):
-		subTable = lookup.SubTable[si]
-		extSubTableClass = lookupTypes[overflowRecord.tableType][extType]
-		extSubTable = extSubTableClass()
-		extSubTable.Format = 1
-		extSubTable.ExtSubTable = subTable
-		lookup.SubTable[si] = extSubTable
+	for lookupIndex in range(lookupIndex, len(lookups)):
+		lookup = lookups[lookupIndex]
+		if lookup.LookupType != extType:
+			lookup.LookupType = extType
+			for si in range(len(lookup.SubTable)):
+				subTable = lookup.SubTable[si]
+				extSubTableClass = lookupTypes[overflowRecord.tableType][extType]
+				extSubTable = extSubTableClass()
+				extSubTable.Format = 1
+				extSubTable.ExtSubTable = subTable
+				lookup.SubTable[si] = extSubTable
 	ok = 1
+	return ok
+
+def splitMultipleSubst(oldSubTable, newSubTable, overflowRecord):
+	ok = 1
+	oldMapping = sorted(oldSubTable.mapping.items())
+	oldLen = len(oldMapping)
+
+	if overflowRecord.itemName in ['Coverage', 'RangeRecord']:
+		# Coverage table is written last. Overflow is to or within the
+		# the coverage table. We will just cut the subtable in half.
+		newLen = oldLen // 2
+
+	elif overflowRecord.itemName == 'Sequence':
+		# We just need to back up by two items from the overflowed
+		# Sequence index to make sure the offset to the Coverage table
+		# doesn't overflow.
+		newLen = overflowRecord.itemIndex - 1
+
+	newSubTable.mapping = {}
+	for i in range(newLen, oldLen):
+		item = oldMapping[i]
+		key = item[0]
+		newSubTable.mapping[key] = item[1]
+		del oldSubTable.mapping[key]
+
 	return ok
 
 def splitAlternateSubst(oldSubTable, newSubTable, overflowRecord):
 	ok = 1
-	newSubTable.Format = oldSubTable.Format
 	if hasattr(oldSubTable, 'sortCoverageLast'):
 		newSubTable.sortCoverageLast = oldSubTable.sortCoverageLast
 
@@ -1259,7 +1704,6 @@ def splitAlternateSubst(oldSubTable, newSubTable, overflowRecord):
 
 def splitLigatureSubst(oldSubTable, newSubTable, overflowRecord):
 	ok = 1
-	newSubTable.Format = oldSubTable.Format
 	oldLigs = sorted(oldSubTable.ligatures.items())
 	oldLen = len(oldLigs)
 
@@ -1371,6 +1815,7 @@ def splitMarkBasePos(oldSubTable, newSubTable, overflowRecord):
 			oldMarkCoverage.append(glyphName)
 			oldMarkRecords.append(markRecord)
 		else:
+			markRecord.Class -= oldClassCount
 			newMarkCoverage.append(glyphName)
 			newMarkRecords.append(markRecord)
 
@@ -1386,7 +1831,6 @@ def splitMarkBasePos(oldSubTable, newSubTable, overflowRecord):
 
 	oldSubTable.MarkCoverage.glyphs = oldMarkCoverage
 	newSubTable.MarkCoverage = oldSubTable.MarkCoverage.__class__()
-	newSubTable.MarkCoverage.Format = oldSubTable.MarkCoverage.Format
 	newSubTable.MarkCoverage.glyphs = newMarkCoverage
 
 	# share the same BaseCoverage in both halves
@@ -1414,7 +1858,7 @@ def splitMarkBasePos(oldSubTable, newSubTable, overflowRecord):
 
 splitTable = {	'GSUB': {
 #					1: splitSingleSubst,
-#					2: splitMultipleSubst,
+					2: splitMultipleSubst,
 					3: splitAlternateSubst,
 					4: splitLigatureSubst,
 #					5: splitContextSubst,
@@ -1506,7 +1950,11 @@ def _buildClasses():
 		if m:
 			# XxxFormatN subtable, we only add the "base" table
 			name = m.group(1)
-			baseClass = FormatSwitchingBaseTable
+			# the first row of a format-switching otData table describes the Format;
+			# the first column defines the type of the Format field.
+			# Currently this can be either 'uint16' or 'uint8'.
+			formatType = table[0][0]
+			baseClass = getFormatSwitchingBaseTableClass(formatType)
 		if name not in namespace:
 			# the class doesn't exist yet, so the base implementation is used.
 			cls = type(name, (baseClass,), {})

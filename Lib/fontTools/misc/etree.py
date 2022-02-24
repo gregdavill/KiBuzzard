@@ -11,8 +11,7 @@ or subclasses built-in ElementTree classes to add features that are
 only availble in lxml, like OrderedDict for attributes, pretty_print and
 iterwalk.
 """
-from __future__ import absolute_import, unicode_literals
-from fontTools.misc.py23 import basestring, unicode, tounicode, open
+from fontTools.misc.textTools import tostr
 
 
 XML_DECLARATION = """<?xml version='1.0' encoding='%s'?>"""
@@ -151,9 +150,7 @@ except ImportError:
                 )
                 return
 
-            if encoding is unicode or (
-                encoding is not None and encoding.lower() == "unicode"
-            ):
+            if encoding is not None and encoding.lower() == "unicode":
                 if xml_declaration:
                     raise ValueError(
                         "Serialisation to unicode must not request an XML declaration"
@@ -243,7 +240,7 @@ except ImportError:
         Reject all bytes input that contains non-ASCII characters.
         """
         try:
-            s = tounicode(s, encoding="ascii", errors="strict")
+            s = tostr(s, encoding="ascii", errors="strict")
         except UnicodeDecodeError:
             raise ValueError(
                 "Bytes strings can only contain ASCII characters. "
@@ -357,7 +354,7 @@ except ImportError:
             if isinstance(tag, QName):
                 if tag.text not in qnames:
                     add_qname(tag.text)
-            elif isinstance(tag, basestring):
+            elif isinstance(tag, str):
                 if tag not in qnames:
                     add_qname(tag)
             elif tag is not None and tag is not Comment and tag is not PI:

@@ -1,5 +1,3 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.misc.arrayTools import updateBounds, pointInRect, unionRect
 from fontTools.misc.bezierTools import calcCubicBounds, calcQuadraticBounds
 from fontTools.pens.basePen import BasePen
@@ -16,10 +14,11 @@ class ControlBoundsPen(BasePen):
 	on their extremes.
 
 	When the shape has been drawn, the bounds are available as the
-	'bounds' attribute of the pen object. It's a 4-tuple:
+	``bounds`` attribute of the pen object. It's a 4-tuple::
+
 		(xMin, yMin, xMax, yMax).
 
-	If 'ignoreSinglePoints' is True, single points are ignored.
+	If ``ignoreSinglePoints`` is True, single points are ignored.
 	"""
 
 	def __init__(self, glyphSet, ignoreSinglePoints=False):
@@ -75,7 +74,8 @@ class BoundsPen(ControlBoundsPen):
 	than the "control bounds".
 
 	When the shape has been drawn, the bounds are available as the
-	'bounds' attribute of the pen object. It's a 4-tuple:
+	``bounds`` attribute of the pen object. It's a 4-tuple::
+
 		(xMin, yMin, xMax, yMax)
 	"""
 

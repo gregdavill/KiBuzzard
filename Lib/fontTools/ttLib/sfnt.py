@@ -8,12 +8,13 @@ Defines two public classes:
 used automatically by ttLib.TTFont.)
 
 The reading and writing of sfnt files is separated in two distinct
-classes, since whenever to number of tables changes or whenever
-a table's length chages you need to rewrite the whole file anyway.
+classes, since whenever the number of tables changes or whenever
+a table's length changes you need to rewrite the whole file anyway.
 """
 
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
+from io import BytesIO
+from types import SimpleNamespace
+from fontTools.misc.textTools import Tag
 from fontTools.misc import sstruct
 from fontTools.ttLib import TTLibError
 import struct
@@ -42,7 +43,7 @@ class SFNTReader(object):
 		# return default object
 		return object.__new__(cls)
 
-	def __init__(self, file, checkChecksums=1, fontNumber=-1):
+	def __init__(self, file, checkChecksums=0, fontNumber=-1):
 		self.file = file
 		self.checkChecksums = checkChecksums
 
@@ -123,29 +124,29 @@ class SFNTReader(object):
 	def close(self):
 		self.file.close()
 
-	def __deepcopy__(self, memo):
-		"""Overrides the default deepcopy of SFNTReader object, to make it work
-		in the case when TTFont is loaded with lazy=True, and thus reader holds a
-		reference to a file object which is not pickleable.
-		We work around it by manually copying the data into a in-memory stream.
-		"""
-		from copy import deepcopy
+	# We define custom __getstate__ and __setstate__ to make SFNTReader pickle-able
+	# and deepcopy-able. When a TTFont is loaded as lazy=True, SFNTReader holds a
+	# reference to an external file object which is not pickleable. So in __getstate__
+	# we store the file name and current position, and in __setstate__ we reopen the
+	# same named file after unpickling.
 
-		cls = self.__class__
-		obj = cls.__new__(cls)
-		for k, v in self.__dict__.items():
-			if k == "file":
-				pos = v.tell()
-				v.seek(0)
-				buf = BytesIO(v.read())
-				v.seek(pos)
-				buf.seek(pos)
-				if hasattr(v, "name"):
-					buf.name = v.name
-				obj.file = buf
-			else:
-				obj.__dict__[k] = deepcopy(v, memo)
-		return obj
+	def __getstate__(self):
+		if isinstance(self.file, BytesIO):
+			# BytesIO is already pickleable, return the state unmodified
+			return self.__dict__
+
+		# remove unpickleable file attribute, and only store its name and pos
+		state = self.__dict__.copy()
+		del state["file"]
+		state["_filename"] = self.file.name
+		state["_filepos"] = self.file.tell()
+		return state
+
+	def __setstate__(self, state):
+		if "file" not in state:
+			self.file = open(state.pop("_filename"), "rb")
+			self.file.seek(state.pop("_filepos"))
+		self.__dict__.update(state)
 
 
 # default compression level for WOFF 1.0 tables and metadata
@@ -554,8 +555,7 @@ class WOFFFlavorData():
 				reader.file.seek(reader.metaOffset)
 				rawData = reader.file.read(reader.metaLength)
 				assert len(rawData) == reader.metaLength
-				import zlib
-				data = zlib.decompress(rawData)
+				data = self._decompress(rawData)
 				assert len(data) == reader.metaOrigLength
 				self.metaData = data
 			if reader.privLength:
@@ -564,12 +564,13 @@ class WOFFFlavorData():
 				assert len(data) == reader.privLength
 				self.privData = data
 
+	def _decompress(self, rawData):
+		import zlib
+		return zlib.decompress(rawData)
+
 
 def calcChecksum(data):
 	"""Calculate the checksum for an arbitrary block of data.
-	Optionally takes a 'start' argument, which allows you to
-	calculate a checksum in chunks by feeding it a previous
-	result.
 
 	If the data length is not a multiple of four, it assumes
 	it is to be padded with null byte.

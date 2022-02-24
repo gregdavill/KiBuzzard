@@ -1,7 +1,9 @@
-from __future__ import print_function, division, absolute_import
-from __future__ import unicode_literals
+import io
+import struct
+from fontTools.misc.fixedTools import floatToFixed, fixedToFloat
 from fontTools.misc.testTools import getXML
-from fontTools.otlLib import builder
+from fontTools.otlLib import builder, error
+from fontTools import ttLib
 from fontTools.ttLib.tables import otTables
 import pytest
 
@@ -202,7 +204,7 @@ class BuilderTest(object):
         assert builder.buildComponentRecord(None) is None
 
     def test_buildCoverage(self):
-        cov = builder.buildCoverage({"two", "four"}, {"two": 2, "four": 4})
+        cov = builder.buildCoverage(("two", "four", "two"), {"two": 2, "four": 4})
         assert getXML(cov.toXML) == [
             "<Coverage>",
             '  <Glyph value="two"/>',
@@ -472,7 +474,7 @@ class BuilderTest(object):
         assert getXML(lookup.toXML) == [
             "<Lookup>",
             '  <LookupType value="1"/>',
-            '  <LookupFlag value="7"/>',
+            '  <LookupFlag value="7"/><!-- rightToLeft ignoreBaseGlyphs ignoreLigatures -->',
             "  <!-- SubTableCount=2 -->",
             '  <SingleSubst index="0">',
             '    <Substitution in="one" out="two"/>',
@@ -493,14 +495,6 @@ class BuilderTest(object):
             ),
         ) as excinfo:
             builder.buildLookup([s], builder.LOOKUP_FLAG_USE_MARK_FILTERING_SET, None)
-        with pytest.raises(
-            AssertionError,
-            match=(
-                "if markFilterSet is not None, flags must set "
-                "LOOKUP_FLAG_USE_MARK_FILTERING_SET; flags=0x0004"
-            ),
-        ) as excinfo:
-            builder.buildLookup([s], builder.LOOKUP_FLAG_IGNORE_LIGATURES, 777)
 
     def test_buildLookup_conflictingSubtableTypes(self):
         s1 = builder.buildSingleSubstSubtable({"one": "two"})
@@ -526,7 +520,7 @@ class BuilderTest(object):
         assert getXML(lookup.toXML) == [
             "<Lookup>",
             '  <LookupType value="1"/>',
-            '  <LookupFlag value="17"/>',
+            '  <LookupFlag value="17"/><!-- rightToLeft useMarkFilteringSet -->',
             "  <!-- SubTableCount=1 -->",
             '  <SingleSubst index="0">',
             '    <Substitution in="one" out="two"/>',
@@ -845,8 +839,12 @@ class BuilderTest(object):
             "  <!-- Class2Count=3 -->",
             '  <Class1Record index="0">',
             '    <Class2Record index="0">',
+            '      <Value1 XPlacement="0" YPlacement="0"/>',
+            '      <Value2 XPlacement="0"/>',
             "    </Class2Record>",
             '    <Class2Record index="1">',
+            '      <Value1 XPlacement="0" YPlacement="0"/>',
+            '      <Value2 XPlacement="0"/>',
             "    </Class2Record>",
             '    <Class2Record index="2">',
             '      <Value1 XPlacement="-80" YPlacement="-20"/>',
@@ -855,12 +853,15 @@ class BuilderTest(object):
             "  </Class1Record>",
             '  <Class1Record index="1">',
             '    <Class2Record index="0">',
+            '      <Value1 XPlacement="0" YPlacement="0"/>',
+            '      <Value2 XPlacement="0"/>',
             "    </Class2Record>",
             '    <Class2Record index="1">',
+            '      <Value1 XPlacement="0" YPlacement="0"/>',
             '      <Value2 XPlacement="-20"/>',
             "    </Class2Record>",
             '    <Class2Record index="2">',
-            "      <Value1/>",
+            '      <Value1 XPlacement="0" YPlacement="0"/>',
             '      <Value2 XPlacement="-50"/>',
             "    </Class2Record>",
             "  </Class1Record>",
@@ -920,6 +921,7 @@ class BuilderTest(object):
             },
             self.GLYPHMAP,
         )
+
         assert getXML(subtable.toXML) == [
             '<PairPos Format="1">',
             "  <Coverage>",
@@ -933,10 +935,12 @@ class BuilderTest(object):
             "    <!-- PairValueCount=2 -->",
             '    <PairValueRecord index="0">',
             '      <SecondGlyph value="zero"/>',
+            '      <Value1 XPlacement="0" YPlacement="0"/>',
             '      <Value2 XPlacement="-50"/>',
             "    </PairValueRecord>",
             '    <PairValueRecord index="1">',
             '      <SecondGlyph value="one"/>',
+            '      <Value1 XPlacement="0" YPlacement="0"/>',
             '      <Value2 XPlacement="-20"/>',
             "    </PairValueRecord>",
             "  </PairSet>",
@@ -1037,8 +1041,8 @@ class BuilderTest(object):
             "  </Coverage>",
             '  <ValueFormat value="3"/>',
             "  <!-- ValueCount=2 -->",
-            '  <Value index="0" XPlacement="777"/>',
-            '  <Value index="1" YPlacement="-888"/>',
+            '  <Value index="0" XPlacement="777" YPlacement="0"/>',
+            '  <Value index="1" XPlacement="0" YPlacement="-888"/>',
             "</SinglePos>",
         ]
 
@@ -1106,6 +1110,494 @@ class ClassDefBuilderTest(object):
         assert not b.canAdd({"a", "b", "c", "d", "e", "f"})
         assert not b.canAdd({"d", "e", "f"})
         assert not b.canAdd({"f"})
+
+    def test_add_exception(self):
+        b = builder.ClassDefBuilder(useClass0=True)
+        b.add({"a", "b", "c"})
+        with pytest.raises(error.OpenTypeLibError):
+            b.add({"a", "d"})
+
+
+buildStatTable_test_data = [
+    (
+        [
+            dict(
+                tag="wght",
+                name="Weight",
+                values=[
+                    dict(value=100, name="Thin"),
+                    dict(value=400, name="Regular", flags=0x2),
+                    dict(value=900, name="Black"),
+                ],
+            )
+        ],
+        None,
+        "Regular",
+        [
+            "  <STAT>",
+            '    <Version value="0x00010001"/>',
+            '    <DesignAxisRecordSize value="8"/>',
+            "    <!-- DesignAxisCount=1 -->",
+            "    <DesignAxisRecord>",
+            '      <Axis index="0">',
+            '        <AxisTag value="wght"/>',
+            '        <AxisNameID value="257"/>  <!-- Weight -->',
+            '        <AxisOrdering value="0"/>',
+            "      </Axis>",
+            "    </DesignAxisRecord>",
+            "    <!-- AxisValueCount=3 -->",
+            "    <AxisValueArray>",
+            '      <AxisValue index="0" Format="1">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="0"/>',
+            '        <ValueNameID value="258"/>  <!-- Thin -->',
+            '        <Value value="100.0"/>',
+            "      </AxisValue>",
+            '      <AxisValue index="1" Format="1">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="2"/>  <!-- ElidableAxisValueName -->',
+            '        <ValueNameID value="256"/>  <!-- Regular -->',
+            '        <Value value="400.0"/>',
+            "      </AxisValue>",
+            '      <AxisValue index="2" Format="1">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="0"/>',
+            '        <ValueNameID value="259"/>  <!-- Black -->',
+            '        <Value value="900.0"/>',
+            "      </AxisValue>",
+            "    </AxisValueArray>",
+            '    <ElidedFallbackNameID value="256"/>  <!-- Regular -->',
+            "  </STAT>",
+        ],
+    ),
+    (
+        [
+            dict(
+                tag="wght",
+                name=dict(en="Weight", nl="Gewicht"),
+                values=[
+                    dict(value=100, name=dict(en="Thin", nl="Dun")),
+                    dict(value=400, name="Regular", flags=0x2),
+                    dict(value=900, name="Black"),
+                ],
+            ),
+            dict(
+                tag="wdth",
+                name="Width",
+                values=[
+                    dict(value=50, name="Condensed"),
+                    dict(value=100, name="Regular", flags=0x2),
+                    dict(value=200, name="Extended"),
+                ],
+            ),
+        ],
+        None,
+        2,
+        [
+            "  <STAT>",
+            '    <Version value="0x00010001"/>',
+            '    <DesignAxisRecordSize value="8"/>',
+            "    <!-- DesignAxisCount=2 -->",
+            "    <DesignAxisRecord>",
+            '      <Axis index="0">',
+            '        <AxisTag value="wght"/>',
+            '        <AxisNameID value="256"/>  <!-- Weight -->',
+            '        <AxisOrdering value="0"/>',
+            "      </Axis>",
+            '      <Axis index="1">',
+            '        <AxisTag value="wdth"/>',
+            '        <AxisNameID value="260"/>  <!-- Width -->',
+            '        <AxisOrdering value="1"/>',
+            "      </Axis>",
+            "    </DesignAxisRecord>",
+            "    <!-- AxisValueCount=6 -->",
+            "    <AxisValueArray>",
+            '      <AxisValue index="0" Format="1">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="0"/>',
+            '        <ValueNameID value="257"/>  <!-- Thin -->',
+            '        <Value value="100.0"/>',
+            "      </AxisValue>",
+            '      <AxisValue index="1" Format="1">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="2"/>  <!-- ElidableAxisValueName -->',
+            '        <ValueNameID value="258"/>  <!-- Regular -->',
+            '        <Value value="400.0"/>',
+            "      </AxisValue>",
+            '      <AxisValue index="2" Format="1">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="0"/>',
+            '        <ValueNameID value="259"/>  <!-- Black -->',
+            '        <Value value="900.0"/>',
+            "      </AxisValue>",
+            '      <AxisValue index="3" Format="1">',
+            '        <AxisIndex value="1"/>',
+            '        <Flags value="0"/>',
+            '        <ValueNameID value="261"/>  <!-- Condensed -->',
+            '        <Value value="50.0"/>',
+            "      </AxisValue>",
+            '      <AxisValue index="4" Format="1">',
+            '        <AxisIndex value="1"/>',
+            '        <Flags value="2"/>  <!-- ElidableAxisValueName -->',
+            '        <ValueNameID value="258"/>  <!-- Regular -->',
+            '        <Value value="100.0"/>',
+            "      </AxisValue>",
+            '      <AxisValue index="5" Format="1">',
+            '        <AxisIndex value="1"/>',
+            '        <Flags value="0"/>',
+            '        <ValueNameID value="262"/>  <!-- Extended -->',
+            '        <Value value="200.0"/>',
+            "      </AxisValue>",
+            "    </AxisValueArray>",
+            '    <ElidedFallbackNameID value="2"/>  <!-- missing from name table -->',
+            "  </STAT>",
+        ],
+    ),
+    (
+        [
+            dict(
+                tag="wght",
+                name="Weight",
+                values=[
+                    dict(value=400, name="Regular", flags=0x2),
+                    dict(value=600, linkedValue=650, name="Bold"),
+                ],
+            )
+        ],
+        None,
+        18,
+        [
+            "  <STAT>",
+            '    <Version value="0x00010001"/>',
+            '    <DesignAxisRecordSize value="8"/>',
+            "    <!-- DesignAxisCount=1 -->",
+            "    <DesignAxisRecord>",
+            '      <Axis index="0">',
+            '        <AxisTag value="wght"/>',
+            '        <AxisNameID value="256"/>  <!-- Weight -->',
+            '        <AxisOrdering value="0"/>',
+            "      </Axis>",
+            "    </DesignAxisRecord>",
+            "    <!-- AxisValueCount=2 -->",
+            "    <AxisValueArray>",
+            '      <AxisValue index="0" Format="1">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="2"/>  <!-- ElidableAxisValueName -->',
+            '        <ValueNameID value="257"/>  <!-- Regular -->',
+            '        <Value value="400.0"/>',
+            "      </AxisValue>",
+            '      <AxisValue index="1" Format="3">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="0"/>',
+            '        <ValueNameID value="258"/>  <!-- Bold -->',
+            '        <Value value="600.0"/>',
+            '        <LinkedValue value="650.0"/>',
+            "      </AxisValue>",
+            "    </AxisValueArray>",
+            '    <ElidedFallbackNameID value="18"/>  <!-- missing from name table -->',
+            "  </STAT>",
+        ],
+    ),
+    (
+        [
+            dict(
+                tag="opsz",
+                name="Optical Size",
+                values=[
+                    dict(nominalValue=6, rangeMaxValue=10, name="Small"),
+                    dict(
+                        rangeMinValue=10,
+                        nominalValue=14,
+                        rangeMaxValue=24,
+                        name="Text",
+                        flags=0x2,
+                    ),
+                    dict(rangeMinValue=24, nominalValue=600, name="Display"),
+                ],
+            )
+        ],
+        None,
+        2,
+        [
+            "  <STAT>",
+            '    <Version value="0x00010001"/>',
+            '    <DesignAxisRecordSize value="8"/>',
+            "    <!-- DesignAxisCount=1 -->",
+            "    <DesignAxisRecord>",
+            '      <Axis index="0">',
+            '        <AxisTag value="opsz"/>',
+            '        <AxisNameID value="256"/>  <!-- Optical Size -->',
+            '        <AxisOrdering value="0"/>',
+            "      </Axis>",
+            "    </DesignAxisRecord>",
+            "    <!-- AxisValueCount=3 -->",
+            "    <AxisValueArray>",
+            '      <AxisValue index="0" Format="2">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="0"/>',
+            '        <ValueNameID value="257"/>  <!-- Small -->',
+            '        <NominalValue value="6.0"/>',
+            '        <RangeMinValue value="-32768.0"/>',
+            '        <RangeMaxValue value="10.0"/>',
+            "      </AxisValue>",
+            '      <AxisValue index="1" Format="2">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="2"/>  <!-- ElidableAxisValueName -->',
+            '        <ValueNameID value="258"/>  <!-- Text -->',
+            '        <NominalValue value="14.0"/>',
+            '        <RangeMinValue value="10.0"/>',
+            '        <RangeMaxValue value="24.0"/>',
+            "      </AxisValue>",
+            '      <AxisValue index="2" Format="2">',
+            '        <AxisIndex value="0"/>',
+            '        <Flags value="0"/>',
+            '        <ValueNameID value="259"/>  <!-- Display -->',
+            '        <NominalValue value="600.0"/>',
+            '        <RangeMinValue value="24.0"/>',
+            '        <RangeMaxValue value="32767.99998"/>',
+            "      </AxisValue>",
+            "    </AxisValueArray>",
+            '    <ElidedFallbackNameID value="2"/>  <!-- missing from name table -->',
+            "  </STAT>",
+        ],
+    ),
+    (
+        [
+            dict(tag="wght", name="Weight", ordering=1, values=[]),
+            dict(
+                tag="ABCD",
+                name="ABCDTest",
+                ordering=0,
+                values=[dict(value=100, name="Regular", flags=0x2)],
+            ),
+        ],
+        [dict(location=dict(wght=300, ABCD=100), name="Regular ABCD")],
+        18,
+        [
+            "  <STAT>",
+            '    <Version value="0x00010002"/>',
+            '    <DesignAxisRecordSize value="8"/>',
+            "    <!-- DesignAxisCount=2 -->",
+            "    <DesignAxisRecord>",
+            '      <Axis index="0">',
+            '        <AxisTag value="wght"/>',
+            '        <AxisNameID value="256"/>  <!-- Weight -->',
+            '        <AxisOrdering value="1"/>',
+            "      </Axis>",
+            '      <Axis index="1">',
+            '        <AxisTag value="ABCD"/>',
+            '        <AxisNameID value="257"/>  <!-- ABCDTest -->',
+            '        <AxisOrdering value="0"/>',
+            "      </Axis>",
+            "    </DesignAxisRecord>",
+            "    <!-- AxisValueCount=2 -->",
+            "    <AxisValueArray>",
+            '      <AxisValue index="0" Format="4">',
+            "        <!-- AxisCount=2 -->",
+            '        <Flags value="0"/>',
+            '        <ValueNameID value="259"/>  <!-- Regular ABCD -->',
+            '        <AxisValueRecord index="0">',
+            '          <AxisIndex value="0"/>',
+            '          <Value value="300.0"/>',
+            "        </AxisValueRecord>",
+            '        <AxisValueRecord index="1">',
+            '          <AxisIndex value="1"/>',
+            '          <Value value="100.0"/>',
+            "        </AxisValueRecord>",
+            "      </AxisValue>",
+            '      <AxisValue index="1" Format="1">',
+            '        <AxisIndex value="1"/>',
+            '        <Flags value="2"/>  <!-- ElidableAxisValueName -->',
+            '        <ValueNameID value="258"/>  <!-- Regular -->',
+            '        <Value value="100.0"/>',
+            "      </AxisValue>",
+            "    </AxisValueArray>",
+            '    <ElidedFallbackNameID value="18"/>  <!-- missing from name table -->',
+            "  </STAT>",
+        ],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "axes, axisValues, elidedFallbackName, expected_ttx", buildStatTable_test_data
+)
+def test_buildStatTable(axes, axisValues, elidedFallbackName, expected_ttx):
+    font = ttLib.TTFont()
+    font["name"] = ttLib.newTable("name")
+    font["name"].names = []
+    # https://github.com/fonttools/fonttools/issues/1985
+    # Add nameID < 256 that matches a test axis name, to test whether
+    # the nameID is not reused: AxisNameIDs must be > 255 according
+    # to the spec.
+    font["name"].addMultilingualName(dict(en="ABCDTest"), nameID=6)
+    builder.buildStatTable(font, axes, axisValues, elidedFallbackName)
+    f = io.StringIO()
+    font.saveXML(f, tables=["STAT"])
+    ttx = f.getvalue().splitlines()
+    ttx = ttx[3:-2]  # strip XML header and <ttFont> element
+    assert expected_ttx == ttx
+    # Compile and round-trip
+    f = io.BytesIO()
+    font.save(f)
+    font = ttLib.TTFont(f)
+    f = io.StringIO()
+    font.saveXML(f, tables=["STAT"])
+    ttx = f.getvalue().splitlines()
+    ttx = ttx[3:-2]  # strip XML header and <ttFont> element
+    assert expected_ttx == ttx
+
+
+def test_buildStatTable_platform_specific_names():
+    # PR: https://github.com/fonttools/fonttools/pull/2528
+    # Introduce new 'platform' feature for creating a STAT table.
+    # Set windowsNames and or macNames to create name table entries
+    # in the specified platforms
+    font_obj = ttLib.TTFont()
+    font_obj["name"] = ttLib.newTable("name")
+    font_obj["name"].names = []
+
+    wght_values = [
+        dict(nominalValue=200, rangeMinValue=200, rangeMaxValue=250, name="ExtraLight"),
+        dict(nominalValue=300, rangeMinValue=250, rangeMaxValue=350, name="Light"),
+        dict(
+            nominalValue=400,
+            rangeMinValue=350,
+            rangeMaxValue=450,
+            name="Regular",
+            flags=0x2,
+        ),
+        dict(nominalValue=500, rangeMinValue=450, rangeMaxValue=650, name="Medium"),
+        dict(nominalValue=700, rangeMinValue=650, rangeMaxValue=750, name="Bold"),
+        dict(nominalValue=800, rangeMinValue=750, rangeMaxValue=850, name="ExtraBold"),
+        dict(nominalValue=900, rangeMinValue=850, rangeMaxValue=900, name="Black"),
+    ]
+
+    AXES = [
+        dict(
+            tag="wght",
+            name="Weight",
+            ordering=1,
+            values=wght_values,
+        ),
+    ]
+
+    font_obj["name"].setName("ExtraLight", 260, 3, 1, 0x409)
+    font_obj["name"].setName("Light", 261, 3, 1, 0x409)
+    font_obj["name"].setName("Regular", 262, 3, 1, 0x409)
+    font_obj["name"].setName("Medium", 263, 3, 1, 0x409)
+    font_obj["name"].setName("Bold", 264, 3, 1, 0x409)
+    font_obj["name"].setName("ExtraBold", 265, 3, 1, 0x409)
+    font_obj["name"].setName("Black", 266, 3, 1, 0x409)
+
+    font_obj["name"].setName("Weight", 270, 3, 1, 0x409)
+
+    expected_names = [x.string for x in font_obj["name"].names]
+
+    builder.buildStatTable(font_obj, AXES, windowsNames=True, macNames=False)
+    actual_names = [x.string for x in font_obj["name"].names]
+
+    # no new name records were added by buildStatTable
+    # because windows-only names with the same strings were already present
+    assert expected_names == actual_names
+
+    font_obj["name"].removeNames(nameID=270)
+    expected_names = [x.string for x in font_obj["name"].names] + ["Weight"]
+
+    builder.buildStatTable(font_obj, AXES, windowsNames=True, macNames=False)
+    actual_names = [x.string for x in font_obj["name"].names]
+    # One new name records 'Weight' were added by buildStatTable
+    assert expected_names == actual_names
+
+    builder.buildStatTable(font_obj, AXES, windowsNames=True, macNames=True)
+    actual_names = [x.string for x in font_obj["name"].names]
+    expected_names = [
+        "Weight",
+        "Weight",
+        "Weight",
+        "ExtraLight",
+        "ExtraLight",
+        "ExtraLight",
+        "Light",
+        "Light",
+        "Light",
+        "Regular",
+        "Regular",
+        "Regular",
+        "Medium",
+        "Medium",
+        "Medium",
+        "Bold",
+        "Bold",
+        "Bold",
+        "ExtraBold",
+        "ExtraBold",
+        "ExtraBold",
+        "Black",
+        "Black",
+        "Black",
+    ]
+    # Because there is an inconsistency in the names add new name IDs
+    # for each platform -> windowsNames=True, macNames=True
+    assert sorted(expected_names) == sorted(actual_names)
+
+
+def test_stat_infinities():
+    negInf = floatToFixed(builder.AXIS_VALUE_NEGATIVE_INFINITY, 16)
+    assert struct.pack(">l", negInf) == b"\x80\x00\x00\x00"
+    posInf = floatToFixed(builder.AXIS_VALUE_POSITIVE_INFINITY, 16)
+    assert struct.pack(">l", posInf) == b"\x7f\xff\xff\xff"
+
+
+class ChainContextualRulesetTest(object):
+    def test_makeRulesets(self):
+        font = ttLib.TTFont()
+        font.setGlyphOrder(["a", "b", "c", "d", "A", "B", "C", "D", "E"])
+        sb = builder.ChainContextSubstBuilder(font, None)
+        prefix, input_, suffix, lookups = [["a"], ["b"]], [["c"]], [], [None]
+        sb.rules.append(builder.ChainContextualRule(prefix, input_, suffix, lookups))
+
+        prefix, input_, suffix, lookups = [["a"], ["d"]], [["c"]], [], [None]
+        sb.rules.append(builder.ChainContextualRule(prefix, input_, suffix, lookups))
+
+        sb.add_subtable_break(None)
+
+        # Second subtable has some glyph classes
+        prefix, input_, suffix, lookups = [["A"]], [["E"]], [], [None]
+        sb.rules.append(builder.ChainContextualRule(prefix, input_, suffix, lookups))
+        prefix, input_, suffix, lookups = [["A"]], [["C", "D"]], [], [None]
+        sb.rules.append(builder.ChainContextualRule(prefix, input_, suffix, lookups))
+        prefix, input_, suffix, lookups = [["A", "B"]], [["E"]], [], [None]
+        sb.rules.append(builder.ChainContextualRule(prefix, input_, suffix, lookups))
+
+        sb.add_subtable_break(None)
+
+        # Third subtable has no pre/post context
+        prefix, input_, suffix, lookups = [], [["E"]], [], [None]
+        sb.rules.append(builder.ChainContextualRule(prefix, input_, suffix, lookups))
+        prefix, input_, suffix, lookups = [], [["C", "D"]], [], [None]
+        sb.rules.append(builder.ChainContextualRule(prefix, input_, suffix, lookups))
+
+        rulesets = sb.rulesets()
+        assert len(rulesets) == 3
+        assert rulesets[0].hasPrefixOrSuffix
+        assert not rulesets[0].hasAnyGlyphClasses
+        cd = rulesets[0].format2ClassDefs()
+        assert set(cd[0].classes()[1:]) == set([("d",), ("b",), ("a",)])
+        assert set(cd[1].classes()[1:]) == set([("c",)])
+        assert set(cd[2].classes()[1:]) == set()
+
+        assert rulesets[1].hasPrefixOrSuffix
+        assert rulesets[1].hasAnyGlyphClasses
+        assert not rulesets[1].format2ClassDefs()
+
+        assert not rulesets[2].hasPrefixOrSuffix
+        assert rulesets[2].hasAnyGlyphClasses
+        assert rulesets[2].format2ClassDefs()
+        cd = rulesets[2].format2ClassDefs()
+        assert set(cd[0].classes()[1:]) == set()
+        assert set(cd[1].classes()[1:]) == set([("C", "D"), ("E",)])
+        assert set(cd[2].classes()[1:]) == set()
 
 
 if __name__ == "__main__":

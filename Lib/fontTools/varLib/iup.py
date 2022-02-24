@@ -1,8 +1,3 @@
-from __future__ import print_function, division, absolute_import
-from __future__ import unicode_literals
-from fontTools.misc.py23 import *
-
-
 def iup_segment(coords, rc1, rd1, rc2, rd2):
 	# rc1 = reference coord 1
 	# rd1 = reference delta 1

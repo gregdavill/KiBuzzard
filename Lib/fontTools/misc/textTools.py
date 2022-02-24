@@ -1,8 +1,6 @@
 """fontTools.misc.textTools.py -- miscellaneous routines."""
 
 
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 import ast
 import string
 
@@ -11,9 +9,32 @@ import string
 safeEval = ast.literal_eval
 
 
+class Tag(str):
+    @staticmethod
+    def transcode(blob):
+        if isinstance(blob, bytes):
+            blob = blob.decode("latin-1")
+        return blob
+
+    def __new__(self, content):
+        return str.__new__(self, self.transcode(content))
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __eq__(self, other):
+        return str.__eq__(self, self.transcode(other))
+
+    def __hash__(self):
+        return str.__hash__(self)
+
+    def tobytes(self):
+        return self.encode("latin-1")
+
+
 def readHex(content):
 	"""Convert a list of hex strings to binary data."""
-	return deHexStr(strjoin(chunk for chunk in content if isinstance(chunk, basestring)))
+	return deHexStr(strjoin(chunk for chunk in content if isinstance(chunk, str)))
 
 
 def deHexStr(hexdata):
@@ -96,6 +117,36 @@ def pad(data, size):
 		if remainder:
 			data += b"\0" * (size - remainder)
 	return data
+
+
+def tostr(s, encoding="ascii", errors="strict"):
+    if not isinstance(s, str):
+        return s.decode(encoding, errors)
+    else:
+        return s
+
+
+def tobytes(s, encoding="ascii", errors="strict"):
+    if isinstance(s, str):
+        return s.encode(encoding, errors)
+    else:
+        return bytes(s)
+
+
+def bytechr(n):
+    return bytes([n])
+
+
+def byteord(c):
+    return c if isinstance(c, int) else ord(c)
+
+
+def strjoin(iterable, joiner=""):
+    return tostr(joiner).join(iterable)
+
+
+def bytesjoin(iterable, joiner=b""):
+    return tobytes(joiner).join(tobytes(item) for item in iterable)
 
 
 if __name__ == "__main__":

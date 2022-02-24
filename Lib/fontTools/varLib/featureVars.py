@@ -3,8 +3,6 @@ https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2#featurevariat
 
 NOTE: The API is experimental and subject to change.
 """
-from __future__ import print_function, absolute_import, division
-from fontTools.misc.py23 import *
 from fontTools.misc.dictTools import hashdict
 from fontTools.misc.intTools import popCount
 from fontTools.ttLib import newTable
@@ -12,8 +10,10 @@ from fontTools.ttLib.tables import otTables as ot
 from fontTools.otlLib.builder import buildLookup, buildSingleSubstSubtable
 from collections import OrderedDict
 
+from .errors import VarLibError, VarLibValidationError
 
-def addFeatureVariations(font, conditionalSubstitutions):
+
+def addFeatureVariations(font, conditionalSubstitutions, featureTag='rvrn'):
     """Add conditional substitutions to a Variable Font.
 
     The `conditionalSubstitutions` argument is a list of (Region, Substitutions)
@@ -44,8 +44,27 @@ def addFeatureVariations(font, conditionalSubstitutions):
     # >>> f.save(dstPath)
     """
 
-    addFeatureVariationsRaw(font,
-                            overlayFeatureVariations(conditionalSubstitutions))
+
+    substitutions = overlayFeatureVariations(conditionalSubstitutions)
+
+    # turn substitution dicts into tuples of tuples, so they are hashable
+    conditionalSubstitutions, allSubstitutions = makeSubstitutionsHashable(substitutions)
+    if "GSUB" not in font:
+        font["GSUB"] = buildGSUB()
+
+    # setup lookups
+    lookupMap = buildSubstitutionLookups(font["GSUB"].table, allSubstitutions)
+
+    # addFeatureVariationsRaw takes a list of
+    #  ( {condition}, [ lookup indices ] )
+    # so rearrange our lookups to match
+    conditionsAndLookups = []
+    for conditionSet, substitutions in conditionalSubstitutions:
+        conditionsAndLookups.append((conditionSet, [lookupMap[s] for s in substitutions]))
+
+    addFeatureVariationsRaw(font, font["GSUB"].table,
+                            conditionsAndLookups,
+                            featureTag)
 
 def overlayFeatureVariations(conditionalSubstitutions):
     """Compute overlaps between all conditional substitutions.
@@ -75,19 +94,22 @@ def overlayFeatureVariations(conditionalSubstitutions):
     substitution dictionaries.  These dictionaries are not merged to allow data
     sharing when they are converted into font tables.
 
-    Example:
-    >>> condSubst = [
-    ...     # A list of (Region, Substitution) tuples.
-    ...     ([{"wght": (0.5, 1.0)}], {"dollar": "dollar.rvrn"}),
-    ...     ([{"wght": (0.5, 1.0)}], {"dollar": "dollar.rvrn"}),
-    ...     ([{"wdth": (0.5, 1.0)}], {"cent": "cent.rvrn"}),
-    ... ]
-    >>> from pprint import pprint
-    >>> pprint(overlayFeatureVariations(condSubst))
-    [({'wdth': (0.5, 1.0), 'wght': (0.5, 1.0)},
-      [{'dollar': 'dollar.rvrn'}, {'cent': 'cent.rvrn'}]),
-     ({'wdth': (0.5, 1.0)}, [{'cent': 'cent.rvrn'}]),
-     ({'wght': (0.5, 1.0)}, [{'dollar': 'dollar.rvrn'}])]
+    Example::
+
+        >>> condSubst = [
+        ...     # A list of (Region, Substitution) tuples.
+        ...     ([{"wght": (0.5, 1.0)}], {"dollar": "dollar.rvrn"}),
+        ...     ([{"wght": (0.5, 1.0)}], {"dollar": "dollar.rvrn"}),
+        ...     ([{"wdth": (0.5, 1.0)}], {"cent": "cent.rvrn"}),
+        ...     ([{"wght": (0.5, 1.0), "wdth": (-1, 1.0)}], {"dollar": "dollar.rvrn"}),
+        ... ]
+        >>> from pprint import pprint
+        >>> pprint(overlayFeatureVariations(condSubst))
+        [({'wdth': (0.5, 1.0), 'wght': (0.5, 1.0)},
+          [{'dollar': 'dollar.rvrn'}, {'cent': 'cent.rvrn'}]),
+         ({'wdth': (0.5, 1.0)}, [{'cent': 'cent.rvrn'}]),
+         ({'wght': (0.5, 1.0)}, [{'dollar': 'dollar.rvrn'}])]
+
     """
 
     # Merge same-substitutions rules, as this creates fewer number oflookups.
@@ -135,12 +157,14 @@ def overlayFeatureVariations(conditionalSubstitutions):
                     remainder = hashdict(remainder)
                     newMap[remainder] = newMap.get(remainder, 0) | rank
         boxMap = newMap
-    del boxMap[hashdict()]
 
     # Generate output
     items = []
     for box,rank in sorted(boxMap.items(),
                            key=(lambda BoxAndRank: -popCount(BoxAndRank[1]))):
+        # Skip any box that doesn't have any substitution.
+        if rank == 0:
+            continue
         substsList = []
         i = 0
         while rank:
@@ -162,11 +186,12 @@ def overlayFeatureVariations(conditionalSubstitutions):
 #
 
 def overlayBox(top, bot):
-    """Overlays `top` box on top of `bot` box.
+    """Overlays ``top`` box on top of ``bot`` box.
 
     Returns two items:
-    - Box for intersection of `top` and `bot`, or None if they don't intersect.
-    - Box for remainder of `bot`.  Remainder box might not be exact (since the
+
+    * Box for intersection of ``top`` and ``bot``, or None if they don't intersect.
+    * Box for remainder of ``bot``.  Remainder box might not be exact (since the
       remainder might not be a simple box), but is inclusive of the exact
       remainder.
     """
@@ -257,66 +282,67 @@ def cleanupBox(box):
 # Low level implementation
 #
 
-def addFeatureVariationsRaw(font, conditionalSubstitutions):
+def addFeatureVariationsRaw(font, table, conditionalSubstitutions, featureTag='rvrn'):
     """Low level implementation of addFeatureVariations that directly
     models the possibilities of the FeatureVariations table."""
 
     #
-    # assert there is no 'rvrn' feature
-    # make dummy 'rvrn' feature with no lookups
-    # sort features, get 'rvrn' feature index
-    # add 'rvrn' feature to all scripts
+    # if there is no <featureTag> feature:
+    #     make empty <featureTag> feature
+    #     sort features, get <featureTag> feature index
+    #     add <featureTag> feature to all scripts
     # make lookups
     # add feature variations
     #
+    if table.Version < 0x00010001:
+        table.Version = 0x00010001  # allow table.FeatureVariations
 
-    if "GSUB" not in font:
-        font["GSUB"] = buildGSUB()
+    table.FeatureVariations = None  # delete any existing FeatureVariations
 
-    gsub = font["GSUB"].table
+    varFeatureIndices = []
+    for index, feature in enumerate(table.FeatureList.FeatureRecord):
+        if feature.FeatureTag == featureTag:
+            varFeatureIndices.append(index)
 
-    if gsub.Version < 0x00010001:
-        gsub.Version = 0x00010001  # allow gsub.FeatureVariations
+    if not varFeatureIndices:
+        varFeature = buildFeatureRecord(featureTag, [])
+        table.FeatureList.FeatureRecord.append(varFeature)
+        table.FeatureList.FeatureCount = len(table.FeatureList.FeatureRecord)
 
-    gsub.FeatureVariations = None  # delete any existing FeatureVariations
+        sortFeatureList(table)
+        varFeatureIndex = table.FeatureList.FeatureRecord.index(varFeature)
 
-    for feature in gsub.FeatureList.FeatureRecord:
-        assert feature.FeatureTag != 'rvrn'
+        for scriptRecord in table.ScriptList.ScriptRecord:
+            if scriptRecord.Script.DefaultLangSys is None:
+                raise VarLibError(
+                    "Feature variations require that the script "
+                    f"'{scriptRecord.ScriptTag}' defines a default language system."
+                )
+            langSystems = [lsr.LangSys for lsr in scriptRecord.Script.LangSysRecord]
+            for langSys in [scriptRecord.Script.DefaultLangSys] + langSystems:
+                langSys.FeatureIndex.append(varFeatureIndex)
 
-    rvrnFeature = buildFeatureRecord('rvrn', [])
-    gsub.FeatureList.FeatureRecord.append(rvrnFeature)
-    gsub.FeatureList.FeatureCount = len(gsub.FeatureList.FeatureRecord)
-
-    sortFeatureList(gsub)
-    rvrnFeatureIndex = gsub.FeatureList.FeatureRecord.index(rvrnFeature)
-
-    for scriptRecord in gsub.ScriptList.ScriptRecord:
-        langSystems = [lsr.LangSys for lsr in scriptRecord.Script.LangSysRecord]
-        for langSys in [scriptRecord.Script.DefaultLangSys] + langSystems:
-            langSys.FeatureIndex.append(rvrnFeatureIndex)
-
-    # setup lookups
-
-    # turn substitution dicts into tuples of tuples, so they are hashable
-    conditionalSubstitutions, allSubstitutions = makeSubstitutionsHashable(conditionalSubstitutions)
-
-    lookupMap = buildSubstitutionLookups(gsub, allSubstitutions)
+        varFeatureIndices = [varFeatureIndex]
 
     axisIndices = {axis.axisTag: axisIndex for axisIndex, axis in enumerate(font["fvar"].axes)}
 
     featureVariationRecords = []
-    for conditionSet, substitutions in conditionalSubstitutions:
+    for conditionSet, lookupIndices in conditionalSubstitutions:
         conditionTable = []
         for axisTag, (minValue, maxValue) in sorted(conditionSet.items()):
-            assert minValue < maxValue
+            if minValue > maxValue:
+                raise VarLibValidationError(
+                    "A condition set has a minimum value above the maximum value."
+                )
             ct = buildConditionTable(axisIndices[axisTag], minValue, maxValue)
             conditionTable.append(ct)
+        records = []
+        for varFeatureIndex in varFeatureIndices:
+            existingLookupIndices = table.FeatureList.FeatureRecord[varFeatureIndex].Feature.LookupListIndex
+            records.append(buildFeatureTableSubstitutionRecord(varFeatureIndex, existingLookupIndices + lookupIndices))
+        featureVariationRecords.append(buildFeatureVariationRecord(conditionTable, records))
 
-        lookupIndices = [lookupMap[subst] for subst in substitutions]
-        record = buildFeatureTableSubstitutionRecord(rvrnFeatureIndex, lookupIndices)
-        featureVariationRecords.append(buildFeatureVariationRecord(conditionTable, [record]))
-
-    gsub.FeatureVariations = buildFeatureVariations(featureVariationRecords)
+    table.FeatureVariations = buildFeatureVariations(featureVariationRecords)
 
 
 #
@@ -393,6 +419,7 @@ def buildFeatureVariations(featureVariationRecords):
     fv = ot.FeatureVariations()
     fv.Version = 0x00010000
     fv.FeatureVariationRecord = featureVariationRecords
+    fv.FeatureVariationCount = len(featureVariationRecords)
     return fv
 
 
@@ -411,9 +438,11 @@ def buildFeatureVariationRecord(conditionTable, substitutionRecords):
     fvr = ot.FeatureVariationRecord()
     fvr.ConditionSet = ot.ConditionSet()
     fvr.ConditionSet.ConditionTable = conditionTable
+    fvr.ConditionSet.ConditionCount = len(conditionTable)
     fvr.FeatureTableSubstitution = ot.FeatureTableSubstitution()
     fvr.FeatureTableSubstitution.Version = 0x00010000
     fvr.FeatureTableSubstitution.SubstitutionRecord = substitutionRecords
+    fvr.FeatureTableSubstitution.SubstitutionCount = len(substitutionRecords)
     return fvr
 
 
@@ -423,6 +452,7 @@ def buildFeatureTableSubstitutionRecord(featureIndex, lookupListIndices):
     ftsr.FeatureIndex = featureIndex
     ftsr.Feature = ot.Feature()
     ftsr.Feature.LookupListIndex = lookupListIndices
+    ftsr.Feature.LookupCount = len(lookupListIndices)
     return ftsr
 
 

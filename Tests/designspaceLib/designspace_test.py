@@ -1,14 +1,10 @@
 # coding=utf-8
 
-from __future__ import (print_function, division, absolute_import,
-                        unicode_literals)
-
 import os
 import sys
 import pytest
 import warnings
 
-from fontTools.misc.py23 import open
 from fontTools.misc import plistlib
 from fontTools.designspaceLib import (
     DesignSpaceDocument, SourceDescriptor, AxisDescriptor, RuleDescriptor,
@@ -52,6 +48,7 @@ def test_fill_document(tmpdir):
     instancePath1 = os.path.join(tmpdir, "instances", "instanceTest1.ufo")
     instancePath2 = os.path.join(tmpdir, "instances", "instanceTest2.ufo")
     doc = DesignSpaceDocument()
+    doc.rulesProcessingLast = True
 
     # write some axes
     a1 = AxisDescriptor()
@@ -701,6 +698,7 @@ def test_rulesDocument(tmpdir):
     testDocPath = os.path.join(tmpdir, "testRules.designspace")
     testDocPath2 = os.path.join(tmpdir, "testRules_roundtrip.designspace")
     doc = DesignSpaceDocument()
+    doc.rulesProcessingLast = True
     a1 = AxisDescriptor()
     a1.minimum = 0
     a1.maximum = 1000
@@ -744,6 +742,7 @@ def test_rulesDocument(tmpdir):
     _addUnwrappedCondition(testDocPath)
     doc2 = DesignSpaceDocument()
     doc2.read(testDocPath)
+    assert doc2.rulesProcessingLast
     assert len(doc2.axes) == 2
     assert len(doc2.rules) == 1
     assert len(doc2.rules[0].conditionSets) == 2
@@ -831,7 +830,6 @@ def test_updatePaths(tmpdir):
     assert s1.filename == name2
 
 
-@pytest.mark.skipif(sys.version_info[:2] < (3, 6), reason="pathlib is only tested on 3.6 and up")
 def test_read_with_path_object():
     import pathlib
     source = (pathlib.Path(__file__) / "../data/test.designspace").resolve()
@@ -840,7 +838,6 @@ def test_read_with_path_object():
     doc.read(source)
 
 
-@pytest.mark.skipif(sys.version_info[:2] < (3, 6), reason="pathlib is only tested on 3.6 and up")
 def test_with_with_path_object(tmpdir):
     import pathlib
     tmpdir = str(tmpdir)
@@ -949,3 +946,77 @@ def test_loadSourceFonts_no_required_path():
 
     with pytest.raises(DesignSpaceDocumentError, match="no 'path' attribute"):
         designspace.loadSourceFonts(lambda p: p)
+
+
+def test_addAxisDescriptor():
+    ds = DesignSpaceDocument()
+
+    axis = ds.addAxisDescriptor(
+      name="Weight", tag="wght", minimum=100, default=400, maximum=900
+    )
+
+    assert ds.axes[0] is axis
+    assert isinstance(axis, AxisDescriptor)
+    assert axis.name == "Weight"
+    assert axis.tag == "wght"
+    assert axis.minimum == 100
+    assert axis.default == 400
+    assert axis.maximum == 900
+
+
+def test_addSourceDescriptor():
+    ds = DesignSpaceDocument()
+
+    source = ds.addSourceDescriptor(name="TestSource", location={"Weight": 400})
+
+    assert ds.sources[0] is source
+    assert isinstance(source, SourceDescriptor)
+    assert source.name == "TestSource"
+    assert source.location == {"Weight": 400}
+
+
+def test_addInstanceDescriptor():
+    ds = DesignSpaceDocument()
+
+    instance = ds.addInstanceDescriptor(
+      name="TestInstance",
+      location={"Weight": 400},
+      styleName="Regular",
+      styleMapStyleName="regular",
+    )
+
+    assert ds.instances[0] is instance
+    assert isinstance(instance, InstanceDescriptor)
+    assert instance.name == "TestInstance"
+    assert instance.location == {"Weight": 400}
+    assert instance.styleName == "Regular"
+    assert instance.styleMapStyleName == "regular"
+
+
+def test_addRuleDescriptor(tmp_path):
+    ds = DesignSpaceDocument()
+
+    rule = ds.addRuleDescriptor(
+        name="TestRule",
+        conditionSets=[
+            [
+                dict(name="Weight", minimum=100, maximum=200),
+                dict(name="Weight", minimum=700, maximum=900),
+            ]
+        ],
+        subs=[("a", "a.alt")],
+    )
+
+    assert ds.rules[0] is rule
+    assert isinstance(rule, RuleDescriptor)
+    assert rule.name == "TestRule"
+    assert rule.conditionSets == [
+        [
+            dict(name="Weight", minimum=100, maximum=200),
+            dict(name="Weight", minimum=700, maximum=900),
+        ]
+    ]
+    assert rule.subs == [("a", "a.alt")]
+
+    # Test it doesn't crash.
+    ds.write(tmp_path / "test.designspace")

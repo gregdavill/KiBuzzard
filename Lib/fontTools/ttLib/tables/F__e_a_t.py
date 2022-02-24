@@ -1,8 +1,6 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.misc import sstruct
+from fontTools.misc.fixedTools import floatToFixedToStr
 from fontTools.misc.textTools import safeEval
-from .otBase import BaseTTXConverter
 from . import DefaultTable
 from . import grUtils
 import struct
@@ -13,6 +11,12 @@ Feat_hdr_format='''
 '''
 
 class table_F__e_a_t(DefaultTable.DefaultTable):
+    """The ``Feat`` table is used exclusively by the Graphite shaping engine
+    to store features and possible settings specified in GDL. Graphite features
+    determine what rules are applied to transform a glyph stream.
+
+    Not to be confused with ``feat``, or the OpenType Layout tables
+    ``GSUB``/``GPOS``."""
 
     def __init__(self, tag=None):
         DefaultTable.DefaultTable.__init__(self, tag)
@@ -20,6 +24,7 @@ class table_F__e_a_t(DefaultTable.DefaultTable):
 
     def decompile(self, data, ttFont):
         (_, data) = sstruct.unpack2(Feat_hdr_format, data, self)
+        self.version = float(floatToFixedToStr(self.version, precisionBits=16))
         numFeats, = struct.unpack('>H', data[:2])
         data = data[8:]
         allfeats = []

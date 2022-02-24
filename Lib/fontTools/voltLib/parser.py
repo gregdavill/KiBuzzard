@@ -1,6 +1,3 @@
-from __future__ import (
-    print_function, division, absolute_import, unicode_literals)
-from collections import OrderedDict
 import fontTools.voltLib.ast as ast
 from fontTools.voltLib.lexer import Lexer
 from fontTools.voltLib.error import VoltLibError
@@ -15,9 +12,10 @@ PARSE_FUNCS = {
     "GRID_PPEM": "parse_ppem_",
     "PRESENTATION_PPEM": "parse_ppem_",
     "PPOSITIONING_PPEM": "parse_ppem_",
-    "COMPILER_USEEXTENSIONLOOKUPS": "parse_compiler_flag_",
-    "COMPILER_USEPAIRPOSFORMAT2": "parse_compiler_flag_",
+    "COMPILER_USEEXTENSIONLOOKUPS": "parse_noarg_option_",
+    "COMPILER_USEPAIRPOSFORMAT2": "parse_noarg_option_",
     "CMAP_FORMAT": "parse_cmap_format",
+    "DO_NOT_TOUCH_CMAP": "parse_noarg_option_",
 }
 
 
@@ -217,13 +215,16 @@ class Parser(object):
             if self.next_token_ == "MARK_GLYPH_SET":
                 self.advance_lexer_()
                 mark_glyph_set = self.expect_string_()
-            elif self.next_token_type_ == Lexer.STRING:
-                process_marks = self.expect_string_()
             elif self.next_token_ == "ALL":
                 self.advance_lexer_()
+            elif self.next_token_ == "NONE":
+                self.advance_lexer_()
+                process_marks = False
+            elif self.next_token_type_ == Lexer.STRING:
+                process_marks = self.expect_string_()
             else:
                 raise VoltLibError(
-                    "Expected ALL, MARK_GLYPH_SET or an ID. "
+                    "Expected ALL, NONE, MARK_GLYPH_SET or an ID. "
                     "Got %s" % (self.next_token_type_),
                     location)
         elif self.next_token_ == "SKIP_MARKS":
@@ -241,7 +242,7 @@ class Parser(object):
         comments = None
         if self.next_token_ == "COMMENTS":
             self.expect_keyword_("COMMENTS")
-            comments = self.expect_string_()
+            comments = self.expect_string_().replace(r'\n', '\n')
         context = []
         while self.next_token_ in ("EXCEPT_CONTEXT", "IN_CONTEXT"):
             context = self.parse_context_()
@@ -311,7 +312,7 @@ class Parser(object):
             raise VoltLibError(
                 "Invalid substitution type",
                 location)
-        mapping = OrderedDict(zip(tuple(src), tuple(dest)))
+        mapping = dict(zip(tuple(src), tuple(dest)))
         if max_src == 1 and max_dest == 1:
             if reversal:
                 sub = ast.SubstitutionReverseChainingSingleDefinition(
@@ -493,7 +494,7 @@ class Parser(object):
                 adjustment, size = self.parse_adjust_by_()
                 dy_adjust_by[size] = adjustment
         self.expect_keyword_("END_POS")
-        return (adv, dx, dy, adv_adjust_by, dx_adjust_by, dy_adjust_by)
+        return ast.Pos(adv, dx, dy, adv_adjust_by, dx_adjust_by, dy_adjust_by)
 
     def parse_unicode_values_(self):
         location = self.cur_token_location_
@@ -549,11 +550,11 @@ class Parser(object):
         setting = ast.SettingDefinition(ppem_name, value, location=location)
         return setting
 
-    def parse_compiler_flag_(self):
+    def parse_noarg_option_(self):
         location = self.cur_token_location_
-        flag_name = self.cur_token_
+        name = self.cur_token_
         value = True
-        setting = ast.SettingDefinition(flag_name, value, location=location)
+        setting = ast.SettingDefinition(name, value, location=location)
         return setting
 
     def parse_cmap_format(self):
@@ -631,10 +632,10 @@ class SymbolTable(object):
 
 class OrderedSymbolTable(SymbolTable):
     def __init__(self):
-        self.scopes_ = [OrderedDict()]
+        self.scopes_ = [{}]
 
     def enter_scope(self):
-        self.scopes_.append(OrderedDict())
+        self.scopes_.append({})
 
     def resolve(self, name, case_insensitive=False):
         SymbolTable.resolve(self, name, case_insensitive=case_insensitive)

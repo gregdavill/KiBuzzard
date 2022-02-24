@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import print_function, division, absolute_import, unicode_literals
-from fontTools.misc.py23 import *
+from io import BytesIO
 import os
 import unittest
 from fontTools.ttLib import TTFont
+from fontTools.misc.textTools import strjoin
 from fontTools.misc.xmlReader import XMLReader, ProgressPrinter, BUFSIZE
 import tempfile
 

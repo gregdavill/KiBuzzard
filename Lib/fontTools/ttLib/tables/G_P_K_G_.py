@@ -1,7 +1,5 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.misc import sstruct
-from fontTools.misc.textTools import safeEval, readHex
+from fontTools.misc.textTools import bytesjoin, safeEval, readHex
 from . import DefaultTable
 import sys
 import array
@@ -24,7 +22,7 @@ class table_G_P_K_G_(DefaultTable.DefaultTable):
 
 		GMAPoffsets = array.array("I")
 		endPos = (self.numGMAPs+1) * 4
-		GMAPoffsets.fromstring(newData[:endPos])
+		GMAPoffsets.frombytes(newData[:endPos])
 		if sys.byteorder != "big": GMAPoffsets.byteswap()
 		self.GMAPs = []
 		for i in range(self.numGMAPs):
@@ -34,7 +32,7 @@ class table_G_P_K_G_(DefaultTable.DefaultTable):
 		pos = endPos
 		endPos = pos + (self.numGlyplets + 1)*4
 		glyphletOffsets = array.array("I")
-		glyphletOffsets.fromstring(newData[pos:endPos])
+		glyphletOffsets.frombytes(newData[pos:endPos])
 		if sys.byteorder != "big": glyphletOffsets.byteswap()
 		self.glyphlets = []
 		for i in range(self.numGlyplets):
@@ -57,7 +55,7 @@ class table_G_P_K_G_(DefaultTable.DefaultTable):
 			GMAPoffsets[i] = pos
 		gmapArray = array.array("I", GMAPoffsets)
 		if sys.byteorder != "big": gmapArray.byteswap()
-		dataList.append(gmapArray.tostring())
+		dataList.append(gmapArray.tobytes())
 
 		glyphletOffsets[0] = pos
 		for i in range(1, self.numGlyplets +1):
@@ -65,7 +63,7 @@ class table_G_P_K_G_(DefaultTable.DefaultTable):
 			glyphletOffsets[i] = pos
 		glyphletArray = array.array("I", glyphletOffsets)
 		if sys.byteorder != "big": glyphletArray.byteswap()
-		dataList.append(glyphletArray.tostring())
+		dataList.append(glyphletArray.tobytes())
 		dataList += self.GMAPs
 		dataList += self.glyphlets
 		data = bytesjoin(dataList)
@@ -107,7 +105,7 @@ class table_G_P_K_G_(DefaultTable.DefaultTable):
 			if not hasattr(self, "GMAPs"):
 				self.GMAPs = []
 			for element in content:
-				if isinstance(element, basestring):
+				if isinstance(element, str):
 					continue
 				itemName, itemAttrs, itemContent = element
 				if itemName == "hexdata":
@@ -116,7 +114,7 @@ class table_G_P_K_G_(DefaultTable.DefaultTable):
 			if not hasattr(self, "glyphlets"):
 				self.glyphlets = []
 			for element in content:
-				if isinstance(element, basestring):
+				if isinstance(element, str):
 					continue
 				itemName, itemAttrs, itemContent = element
 				if itemName == "hexdata":

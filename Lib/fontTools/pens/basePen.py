@@ -8,7 +8,7 @@ it is an abstraction for drawing outlines, making sure that outline objects
 don't need to know the details about how and where they're being drawn, and
 that drawings don't need to know the details of how outlines are stored.
 
-The most basic pattern is this:
+The most basic pattern is this::
 
 	outline.draw(pen)  # 'outline' draws itself onto 'pen'
 
@@ -21,13 +21,13 @@ The AbstractPen class defines the Pen protocol. It implements almost
 nothing (only no-op closePath() and endPath() methods), but is useful
 for documentation purposes. Subclassing it basically tells the reader:
 "this class implements the Pen protocol.". An examples of an AbstractPen
-subclass is fontTools.pens.transformPen.TransformPen.
+subclass is :py:class:`fontTools.pens.transformPen.TransformPen`.
 
 The BasePen class is a base implementation useful for pens that actually
 draw (for example a pen renders outlines using a native graphics engine).
 BasePen contains a lot of base functionality, making it very easy to build
 a pen that fully conforms to the pen protocol. Note that if you subclass
-BasePen, you _don't_ override moveTo(), lineTo(), etc., but _moveTo(),
+BasePen, you *don't* override moveTo(), lineTo(), etc., but _moveTo(),
 _lineTo(), etc. See the BasePen doc string for details. Examples of
 BasePen subclasses are fontTools.pens.boundsPen.BoundsPen and
 fontTools.pens.cocoaPen.CocoaPen.
@@ -36,27 +36,31 @@ Coordinates are usually expressed as (x, y) tuples, but generally any
 sequence of length 2 will do.
 """
 
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
+from typing import Tuple
+
 from fontTools.misc.loggingTools import LogMixin
 
-__all__ =  ["AbstractPen", "NullPen", "BasePen",
+__all__ =  ["AbstractPen", "NullPen", "BasePen", "PenError",
 			"decomposeSuperBezierSegment", "decomposeQuadraticSegment"]
 
 
-class AbstractPen(object):
+class PenError(Exception):
+	"""Represents an error during penning."""
 
-	def moveTo(self, pt):
+
+class AbstractPen:
+
+	def moveTo(self, pt: Tuple[float, float]) -> None:
 		"""Begin a new sub path, set the current point to 'pt'. You must
 		end each sub path with a call to pen.closePath() or pen.endPath().
 		"""
 		raise NotImplementedError
 
-	def lineTo(self, pt):
+	def lineTo(self, pt: Tuple[float, float]) -> None:
 		"""Draw a straight line from the current point to 'pt'."""
 		raise NotImplementedError
 
-	def curveTo(self, *points):
+	def curveTo(self, *points: Tuple[float, float]) -> None:
 		"""Draw a cubic bezier with an arbitrary number of control points.
 
 		The last point specified is on-curve, all others are off-curve
@@ -77,7 +81,7 @@ class AbstractPen(object):
 		"""
 		raise NotImplementedError
 
-	def qCurveTo(self, *points):
+	def qCurveTo(self, *points: Tuple[float, float]) -> None:
 		"""Draw a whole string of quadratic curve segments.
 
 		The last point specified is on-curve, all others are off-curve
@@ -94,19 +98,23 @@ class AbstractPen(object):
 		"""
 		raise NotImplementedError
 
-	def closePath(self):
+	def closePath(self) -> None:
 		"""Close the current sub path. You must call either pen.closePath()
 		or pen.endPath() after each sub path.
 		"""
 		pass
 
-	def endPath(self):
+	def endPath(self) -> None:
 		"""End the current sub path, but don't close it. You must call
 		either pen.closePath() or pen.endPath() after each sub path.
 		"""
 		pass
 
-	def addComponent(self, glyphName, transformation):
+	def addComponent(
+		self,
+		glyphName: str,
+		transformation: Tuple[float, float, float, float, float, float]
+	) -> None:
 		"""Add a sub glyph. The 'transformation' argument must be a 6-tuple
 		containing an affine transformation, or a Transform object from the
 		fontTools.misc.transform module. More precisely: it should be a
@@ -115,7 +123,7 @@ class AbstractPen(object):
 		raise NotImplementedError
 
 
-class NullPen(object):
+class NullPen(AbstractPen):
 
 	"""A pen that does nothing.
 	"""
@@ -143,9 +151,13 @@ class NullPen(object):
 
 
 class LoggingPen(LogMixin, AbstractPen):
-	"""A pen with a `log` property (see fontTools.misc.loggingTools.LogMixin)
+	"""A pen with a ``log`` property (see fontTools.misc.loggingTools.LogMixin)
 	"""
 	pass
+
+
+class MissingComponentError(KeyError):
+	"""Indicates a component pointing to a non-existent glyph in the glyphset."""
 
 
 class DecomposingPen(LoggingPen):
@@ -156,10 +168,12 @@ class DecomposingPen(LoggingPen):
 
 	You must override moveTo, lineTo, curveTo and qCurveTo. You may
 	additionally override closePath, endPath and addComponent.
+
+	By default a warning message is logged when a base glyph is missing;
+	set the class variable ``skipMissingComponents`` to False if you want
+	to raise a :class:`MissingComponentError` exception.
 	"""
 
-	# By default a warning message is logged when a base glyph is missing;
-	# set this to False if you want to raise a 'KeyError' exception
 	skipMissingComponents = True
 
 	def __init__(self, glyphSet):
@@ -177,7 +191,7 @@ class DecomposingPen(LoggingPen):
 			glyph = self.glyphSet[glyphName]
 		except KeyError:
 			if not self.skipMissingComponents:
-				raise
+				raise MissingComponentError(glyphName)
 			self.log.warning(
 				"glyph '%s' is missing from glyphSet; skipped" % glyphName)
 		else:
