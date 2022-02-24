@@ -201,6 +201,14 @@ class Svg2ModExportLatestCustom( Svg2ModExportLatest ):
                 self.params, #3
             )
         )
+    
+    def _write_module_header(
+        self, label_size, label_pen,
+        reference_y, value_y, front,
+    ):
+        super()._write_module_header(0, 0, reference_y, value_y, front)
+
+    
 
 
 class Svg2Points( Svg2ModExport ):
