@@ -1,5 +1,5 @@
 # Copyright (C) 2013 -- CJlano < cjlano @ free.fr >
-# Copyright (C) 2021 -- svg2mod developers < GitHub.com / svg2mod >
+# Copyright (C) 2022 -- svg2mod developers < GitHub.com / svg2mod >
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -159,6 +159,11 @@ class Angle:
 
     def __neg__(self):
         return Angle(Point(self.cos, -self.sin))
+    def __add__(self, other):
+        if not isinstance(other, Angle):
+            try: other = Angle(other)
+            except: return NotImplemented
+        return Angle(self.angle+other.angle)
 
 class Segment:
     '''A segment is an object defined by 2 points'''
@@ -169,7 +174,7 @@ class Segment:
     def __str__(self):
         return 'Segment from ' + str(self.start) + ' to ' + str(self.end)
 
-    def segments(self, precision=0):
+    def segments(self, __=0):
         ''' Segments is simply the segment start -> end'''
         return [self.start, self.end]
 
@@ -191,12 +196,11 @@ class Segment:
         if s.x == 0:
         # Vertical Segment => pdistance is the difference of abscissa
             return abs(self.start.x - p.x)
-        else:
         # That's 2-D perpendicular distance formula (ref: Wikipedia)
-            slope = s.y/s.x
-            # intercept: Crossing with ordinate y-axis
-            intercept = self.start.y - (slope * self.start.x)
-            return abs(slope * p.x - p.y + intercept) / math.sqrt(slope ** 2 + 1)
+        slope = s.y/s.x
+        # intercept: Crossing with ordinate y-axis
+        intercept = self.start.y - (slope * self.start.x)
+        return abs(slope * p.x - p.y + intercept) / math.sqrt(slope ** 2 + 1)
 
 
     def bbox(self):
@@ -231,8 +235,7 @@ class Bezier:
         '''Return Point at index n'''
         if n >= self.dimension:
             raise LookupError('Index is larger than Bezier curve dimension')
-        else:
-            return self.pts[n]
+        return self.pts[n]
 
     def rlength(self):
         '''Rough Bezier length: length of control point segments'''
@@ -275,7 +278,8 @@ class Bezier:
             segments.append(self._bezierN(float(t)/n))
         return segments
 
-    def _bezier1(self, p0, p1, t):
+    @staticmethod
+    def _bezier1(p0, p1, t):
         '''Bezier curve, one dimension
         Compute the Point corresponding to a linear Bezier curve between
         p0 and p1 at "time" t '''
@@ -294,7 +298,7 @@ class Bezier:
             # For each control point of nth dimension,
             # compute linear Bezier point a t
             for i in range(0,n-1):
-                res[i] = self._bezier1(res[i], res[i+1], t)
+                res[i] = Bezier._bezier1(res[i], res[i+1], t)
         return res[0]
 
     def transform(self, matrix):
@@ -335,5 +339,4 @@ def simplify_segment(segment, epsilon):
         r2 = simplify_segment(segment[index:], epsilon)
         # Remove redundant 'middle' Point
         return r1[:-1] + r2
-    else:
-        return [segment[0], segment[-1]]
+    return [segment[0], segment[-1]]

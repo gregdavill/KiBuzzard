@@ -22,7 +22,7 @@ tag = ""
 
 try:
     ps = subprocess.check_output(["git","describe","--tag"], stderr=subprocess.STDOUT)
-    tag = ps.decode('utf-8')
+    tag = ps.decode('utf-8').strip()
     tag = tag.replace("-", ".dev", 1).replace("-", "+")
 except:
     tag = "0.dev0"
@@ -48,7 +48,7 @@ setup(
     author_email='',
     url='https://github.com/svg2mod/svg2mod',
     packages=setuptools.find_packages(),
-    entry_points={'console_scripts':['svg2mod = svg2mod.svg2mod:main']},
+    entry_points={'console_scripts':['svg2mod = svg2mod.cli:main']},
     package_dir={'svg2mod':'svg2mod'},
     include_package_data=True,
     package_data={'kipart': ['*.gif', '*.png']},
@@ -58,12 +58,16 @@ setup(
     zip_safe=False,
     keywords='svg2mod, KiCAD, inkscape',
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Manufacturing',
         'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
 	setup_requires=setup_requirements,
     test_suite='test',

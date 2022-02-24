@@ -1,7 +1,5 @@
-# SVG parser in Python
-
 # Copyright (C) 2013 -- CJlano < cjlano @ free.fr >
-# Copyright (C) 2021 -- svg2mod developers < GitHub.com / svg2mod >
+# Copyright (C) 2022 -- svg2mod developers < GitHub.com / svg2mod >
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,28 +19,28 @@ A SVG parser with tools to convert an XML svg file
 to objects that can be simplified into points.
 '''
 
-import xml.etree.ElementTree as etree
-import math
-import sys
-import os
 import copy
-import re
+import inspect
 import itertools
-import operator
-import platform
 import json
 import logging
-import inspect
+import math
+import operator
+import os
+import platform
+import re
+import sys
+import xml.etree.ElementTree as etree
+from typing import List, Tuple
 
-from fontTools.ttLib import ttFont
-from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.misc import loggingTools
+from fontTools.pens.svgPathPen import SVGPathPen
+from fontTools.ttLib import ttFont
+from svg2mod.coloredlogger import logger
 
-from .geometry import Point,Angle,Segment,Bezier,MoveTo,simplify_segment
-
+from .geometry import Angle, Bezier, MoveTo, Point, Segment, simplify_segment
 
 svg_ns = '{http://www.w3.org/2000/svg}'
-
 
 # Regex commonly used
 number_re = r'[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?'
@@ -62,9 +60,18 @@ unit_convert = {
         '%' :  1 / 100.0   # 1 percent
         }
 
+# Logging spammed 'Unable to find font because no font was specified.'
+# this allows it to only print the error once before muting it for that run.
+_font_warning_sent = False
+
+
 class Transformable:
     '''Abstract class for objects that can be geometrically drawn & transformed'''
-    def __init__(self, elt=None):
+
+    # This list is all styles that should have the transformation matrix applied
+    transformable_styles = ["stroke-width"]
+
+    def __init__(self, elt=None, parent_styles=None):
         # a 'Transformable' is represented as a list of Transformable items
         self.items = []
         self.id = hex(id(self))
@@ -72,13 +79,34 @@ class Transformable:
         self.matrix = Matrix()
         self.scalex = 1
         self.scaley = 1
-        self.style = ""
+        self.style = {} if not parent_styles and not isinstance(parent_styles, dict) else parent_styles.copy()
         self.rotation = 0
         self.viewport = Point(800, 600) # default viewport is 800x600
         if elt is not None:
             self.id = elt.get('id', self.id)
+
+            # parse styles and save as dictionary.
+            if elt.get('style'):
+                for style in elt.get('style').split(";"):
+                    if style.find(":") == -1:
+                        self.style[name] = None
+                    else:
+                        nv = style.split(":")
+                        name = nv[ 0 ].strip()
+                        value = nv[ 1 ].strip()
+                        if name in self.transformable_styles:
+                            value = list(re.search(r'(\d+\.?\d*)(\D+)?', value).groups())
+                            self.style[name] = float(value[0])
+                            if value[1] and value[1] not in unit_convert:
+                                logger.warning("Style '{}' has an unexpected unit: {}".format(style, value[1]))
+                        else:
+                            self.style[name] = value
+
             # Parse transform attribute to update self.matrix
             self.get_transformations(elt)
+
+        if self.style.get("display") == "none":
+            self.hidden = True
 
     def bbox(self):
         '''Bounding box of all points'''
@@ -114,7 +142,7 @@ class Transformable:
             op = op.strip()
             # Keep only numbers
             arg = [float(x) for x in re.findall(number_re, arg)]
-            logging.debug('transform: ' + op + ' '+ str(arg))
+            logger.debug('transform: ' + op + ' '+ str(arg))
 
             if op == 'matrix':
                 self.matrix *= Matrix(arg)
@@ -152,6 +180,15 @@ class Transformable:
                 tana = math.tan(math.radians(arg[0]))
                 self.matrix *= Matrix([1, tana, 0, 1, 0, 0])
 
+    def transform_styles(self, matrix):
+        '''Any style in this classes transformable_styles
+        will be scaled by the provided matrix.
+        '''
+        for style in self.transformable_styles:
+            if self.style.get(style):
+                self.style[style] = float(self.style[style]) * ((matrix.xscale()+matrix.yscale())/2)
+
+
     def transform(self, matrix=None):
         '''Apply the provided matrix. Default (None)
         If no matrix is supplied then recursively apply
@@ -161,9 +198,7 @@ class Transformable:
             matrix = self.matrix
         else:
             matrix *= self.matrix
-        #print( "do transform: {}: {}".format( self.__class__.__name__, matrix ) )
-        #print( "do transform: {}: {}".format( self, matrix ) )
-        #traceback.print_stack()
+        self.transform_styles(matrix)
         for x in self.items:
             x.transform(matrix)
 
@@ -225,7 +260,7 @@ class Svg(Transformable):
         if filename:
             self.parse(filename)
 
-    def parse(self, filename):
+    def parse(self, filename:str):
         '''Read provided svg xml file and
         append all svg element to items list
         '''
@@ -254,7 +289,7 @@ class Svg(Transformable):
             if self.root.get('width') is None or self.root.get('height') is None:
                 width = float(view_box[2])
                 height = float(view_box[3])
-                logging.warning("Unable to find width or height properties. Using viewBox.")
+                logger.warning("Unable to find width or height properties. Using viewBox.")
 
             sx = width / float(view_box[2])
             sy = height / float(view_box[3])
@@ -264,7 +299,7 @@ class Svg(Transformable):
             top_group.matrix = Matrix([sx, 0, 0, sy, tx, ty])
         if ( self.root.get("width") is None or self.root.get("height") is None ) \
                 and self.root.get("viewBox") is None:
-            logging.critical("Fatal Error: Unable to find SVG dimensions. Exiting.")
+            logger.critical("Fatal Error: Unable to find SVG dimensions. Exiting.")
             sys.exit(-1)
 
         # Parse XML elements hierarchically with groups <g>
@@ -277,8 +312,7 @@ class Svg(Transformable):
         t = self.root.find(svg_ns + 'title')
         if t is not None:
             return t
-        else:
-            return os.path.splitext(os.path.basename(self.filename))[0]
+        return os.path.splitext(os.path.basename(self.filename))[0]
 
     def json(self):
         '''Return a dictionary of children items'''
@@ -294,20 +328,16 @@ class Group(Transformable):
     # class Group handles the <g> tag
     tag = 'g'
 
-    def __init__(self, elt=None):
-        Transformable.__init__(self, elt)
+    def __init__(self, elt=None, *args, **kwargs):
+        Transformable.__init__(self, elt, *args, **kwargs)
 
         self.name = ""
-        self.hidden = False
         if elt is not None:
             for ident, value in elt.attrib.items():
 
                 ident = self.parse_name( ident )
                 if ident[ "name" ] == "label":
                     self.name = value
-                if ident[ "name" ] == "style":
-                    if re.search( r"display\s*:\s*none", value ):
-                        self.hidden = True
 
     @staticmethod
     def parse_name( tag ):
@@ -328,10 +358,10 @@ class Group(Transformable):
         for elt in element:
             elt_class = svgClass.get(elt.tag, None)
             if elt_class is None:
-                logging.debug('No handler for element %s' % elt.tag)
+                logger.debug('No handler for element %s' % elt.tag)
                 continue
             # instantiate elt associated class (e.g. <path>: item = Path(elt)
-            item = elt_class(elt)
+            item = elt_class(elt, parent_styles=self.style)
             # Apply group matrix to the newly created object
             # Actually, this is effectively done in Svg.__init__() through call to
             # self.transform(), so doing it here will result in the transformations
@@ -381,23 +411,32 @@ class Matrix:
                     + self.vect[5]
             return Matrix([a, b, c, d, e, f])
 
-        elif isinstance(other, Point):
+        if isinstance(other, Point):
             x = other.x * self.vect[0] + other.y * self.vect[2] + self.vect[4]
             y = other.x * self.vect[1] + other.y * self.vect[3] + self.vect[5]
             return Point(x,y)
 
-        else:
-            return NotImplemented
+        return NotImplemented
 
     def __str__(self):
         return str(self.vect)
 
-    def xlength(self, x):
-        '''x scale of vector'''
-        return x * self.vect[0]
-    def ylength(self, y):
-        '''y scale of vector'''
-        return y * self.vect[3]
+    def xscale(self):
+        '''Return the rotated x scalar value'''
+        return self.vect[0]/abs(self.vect[0]) * math.sqrt(self.vect[0]**2 + self.vect[2]**2)
+    def yscale(self):
+        '''Return the rotated x scalar value'''
+        return self.vect[3]/abs(self.vect[3]) * math.sqrt(self.vect[1]**2 + self.vect[3]**2)
+    def rot(self):
+        '''Return the angle of rotation from the matrix.
+
+        https://math.stackexchange.com/questions/13150/extracting-rotation-scale-values-from-2d-transformation-matrix
+        '''
+        if self.vect[0] != 0:
+            return Angle(math.atan2(-self.vect[2], self.vect[0]))
+        if self.vect[3] != 0:
+            return Angle(math.atan2(self.vect[1], self.vect[3]))
+        return 0
 
 
 
@@ -411,13 +450,12 @@ class Path(Transformable):
     tag = 'path'
     COMMANDS = 'MmZzLlHhVvCcSsQqTtAa'
 
-    def __init__(self, elt=None):
-        Transformable.__init__(self, elt)
+    def __init__(self, elt=None, *args, **kwargs):
+        Transformable.__init__(self, elt, *args, **kwargs)
         if elt is not None:
-            self.style = elt.get('style')
             self.parse(elt.get('d'))
 
-    def parse(self, pathstr):
+    def parse(self, pathstr:str):
         """Parse svg path string and build elements list"""
 
         pathlst = re.findall(number_re + r"|\ *[%s]\ *" % Path.COMMANDS, pathstr)
@@ -533,14 +571,14 @@ class Path(Transformable):
                 flags = pathlst.pop().strip()
                 large_arc_flag = flags[0]
                 if large_arc_flag not in '01':
-                    logging.error("Arc parsing failure")
+                    logger.error("Arc parsing failure")
                     break
 
                 if len(flags) > 1:  flags = flags[1:].strip()
                 else:               flags = pathlst.pop().strip()
                 sweep_flag = flags[0]
                 if sweep_flag not in '01':
-                    logging.error("Arc parsing failure")
+                    logger.error("Arc parsing failure")
                     break
 
                 if len(flags) > 1:  x = flags[1:]
@@ -561,7 +599,7 @@ class Path(Transformable):
     def __repr__(self):
         return '<Path ' + self.id + '>'
 
-    def segments(self, precision=0):
+    def segments(self, precision=0) -> List[Segment]:
         '''Return a list of segments, each segment is ended by a MoveTo.
            A segment is a list of Points'''
         ret = []
@@ -577,7 +615,7 @@ class Path(Transformable):
 
         return ret
 
-    def simplify(self, precision):
+    def simplify(self, precision:float) -> List[Segment]:
         '''Simplify segment with precision:
            Remove any point which are ~aligned'''
         ret = []
@@ -600,15 +638,14 @@ class Ellipse(Transformable):
     # class Ellipse handles the <ellipse> tag
     tag = 'ellipse'
 
-    def __init__(self, elt=None):
-        Transformable.__init__(self, elt)
+    def __init__(self, elt=None, *args, **kwargs):
+        Transformable.__init__(self, elt, *args, **kwargs)
         self.arc = False
         if elt is not None:
             self.center = Point(self.xlength(elt.get('cx')),
                                 self.ylength(elt.get('cy')))
             self.rx = self.length(elt.get('rx'))
             self.ry = self.length(elt.get('ry'))
-            self.style = elt.get('style')
             if elt.get('d') is not None:
                 self.arc = True
                 self.path = Path(elt)
@@ -621,7 +658,7 @@ class Ellipse(Transformable):
     def __repr__(self):
         return '<Ellipse ' + self.id + '>'
 
-    def bbox(self):
+    def bbox(self) -> Tuple[Point, Point]:
         '''Bounding box'''
         #TODO change bounding box dependent on rotation
         pmin = self.center - Point(self.rx, self.ry)
@@ -638,18 +675,23 @@ class Ellipse(Transformable):
             matrix = self.matrix
         else:
             matrix *= self.matrix
-        self.center = matrix * self.center
-        self.rx = matrix.xlength(self.rx)
-        self.ry = matrix.ylength(self.ry)
+        self.transform_styles(matrix)
 
-    def P(self, t):
-        '''Return a Point on the Ellipse for t in [0..1] or % from angle 0 to the full circle'''
-        #TODO change point cords if rotation is set
+        self.center = matrix * self.center
+        self.rx = matrix.xscale()*self.rx
+        self.ry = matrix.yscale()*self.ry
+        self.rotation += math.degrees(matrix.rot().angle)
+        self.matrix= matrix
+
+    def P(self, t) -> Point:
+        '''Return a Point on the Ellipse for t in [0..1] or % from angle 0 to the full circle.
+        Rotation is not handled in this function.
+        '''
         x = self.center.x + self.rx * math.cos(2 * math.pi * t)
         y = self.center.y + self.ry * math.sin(2 * math.pi * t)
         return Point(x,y)
 
-    def segments(self, precision=0):
+    def segments(self, precision=0) -> List[Segment]:
         '''Flatten all curves to segments with target length of precision'''
         if self.arc:
             segs = self.path.segments(precision)
@@ -667,10 +709,10 @@ class Ellipse(Transformable):
             p.sort(key=operator.itemgetter(0))
             d = Segment(p[0][1],p[1][1]).length()
 
-        ret = [x.rot(math.radians(self.rotation), x=self.center.x, y=self.center.y) for t,x in p]
+        ret = [x.rot(math.radians(self.rotation), x=self.center.x, y=self.center.y) for __,x in p]
         return [ret]
 
-    def simplify(self, precision):
+    def simplify(self, __):
         '''Return self because a 3 point representation is already simple'''
         return self
 
@@ -829,8 +871,12 @@ class Arc(Ellipse):
         elif self.sweep_flag and self.angles[1] < self.angles[0]:
             self.angles[1] += 2*math.pi
 
+    def transform(self, matrix=None):
+        super().transform(matrix)
+        self.end_pts[0] = self.matrix * self.end_pts[0]
+        self.end_pts[1] = self.matrix * self.end_pts[1]
 
-    def segments(self, precision=0):
+    def segments(self, precision=0) -> List[Segment]:
         '''This returns segments as expected by the
         Path object. (A list of points. Not a list of lists of points)
         '''
@@ -838,12 +884,12 @@ class Arc(Ellipse):
             return self.end_pts
         return Ellipse.segments(self, precision)[0]
 
-    def P(self, t):
+    def P(self, t) -> Point:
         '''Return a Point on the Arc for t in [0..1] where t is the % from
-        the start angle to the end angle
+        the start angle to the end angle.
+
+        Final angle transformation is handled in Ellipse.segments
         '''
-        #TODO change point cords if rotation is set
-        # the angles are set in the calculate_center function
         x = self.center.x + self.rx * math.cos(((self.angles[1] - self.angles[0]) * t) + self.angles[0])
         y = self.center.y + self.ry * math.sin(((self.angles[1] - self.angles[0]) * t) + self.angles[0])
         return Point(x,y)
@@ -858,16 +904,16 @@ class Circle(Ellipse):
     # class Circle handles the <circle> tag
     tag = 'circle'
 
-    def __init__(self, elt=None):
+    def __init__(self, elt=None, *args, **kwargs):
         if elt is not None:
             elt.set('rx', elt.get('r'))
             elt.set('ry', elt.get('r'))
-        Ellipse.__init__(self, elt)
+        Ellipse.__init__(self, elt, *args, **kwargs)
 
     def __repr__(self):
         return '<Circle ' + self.id + '>'
 
-class Rect(Transformable):
+class Rect(Path):
     '''SVG <rect> tag handler
     This decompiles a rectangle svg xml element into
     essentially a path with 4 segments.
@@ -879,22 +925,60 @@ class Rect(Transformable):
     # class Rect handles the <rect> tag
     tag = 'rect'
 
-    def __init__(self, elt=None):
-        Transformable.__init__(self, elt)
+    def __init__(self, elt=None, *args, **kwargs):
+        Transformable.__init__(self, elt, *args, **kwargs)
         if elt is not None:
-            self.P1 = Point(self.xlength(elt.get('x')),
+            p = Point(self.xlength(elt.get('x')),
                             self.ylength(elt.get('y')))
+            width = self.xlength(elt.get("width"))
+            height = self.xlength(elt.get("height"))
 
-            self.P2 = Point(self.P1.x + self.xlength(elt.get('width')),
-                            self.P1.y + self.ylength(elt.get('height')))
-            self.style = elt.get('style')
-            if (elt.get('rx') or elt.get('ry')):
-                logging.warning("Unsupported corner radius on rect.")
+            rx = self.xlength(elt.get('rx'))
+            ry = self.xlength(elt.get('ry'))
+            if not rx: rx = ry if ry else 0
+            if not ry: ry = rx if rx else 0
+            if rx > width/2: rx = width/2
+            if ry > height/2: ry = width/2
+            if rx or ry:
+                cmd = f'''M{p.x+rx} {p.y} a{rx} {ry} 0 0 0 {-rx} {ry} v{height-(ry*2)}
+                a{rx} {ry} 0 0 0 {rx} {ry}   h{width-(rx*2)}
+                a{rx} {ry} 0 0 0 {rx} {-ry}  v{-(height-(ry*2))}
+                a{rx} {ry} 0 0 0 {-rx} {-ry} h{-(width-(rx*2))} z'''
+            else:
+                cmd = f'M{p.x},{p.y}v{height}h{width}v{-height}h{-width}'
+
+            self.p = p
+            self.width = width
+            self.height = height
+            self.rx = rx
+            self.ry = ry
+
+            self.parse(cmd)
 
     def __repr__(self):
         return '<Rect ' + self.id + '>'
 
-    def bbox(self):
+class Line(Transformable):
+    '''SVG <line> tag handler
+
+    This is essentially a wrapper around the Segment class
+    '''
+    # class Line handles the <line> tag
+    tag = 'line'
+
+    def __init__(self, elt=None, *args, **kwargs):
+        Transformable.__init__(self, elt, *args, **kwargs)
+        if elt is not None:
+            self.P1 = Point(self.xlength(elt.get('x1')),
+                            self.ylength(elt.get('y1')))
+            self.P2 = Point(self.xlength(elt.get('x2')),
+                            self.ylength(elt.get('y2')))
+            self.segment = Segment(self.P1, self.P2)
+
+    def __repr__(self):
+        return '<Line ' + self.id + '>'
+
+    def bbox(self) -> Tuple[Point, Point]:
         '''Bounding box'''
         xmin = min([p.x for p in (self.P1, self.P2)])
         xmax = max([p.x for p in (self.P1, self.P2)])
@@ -912,76 +996,13 @@ class Rect(Transformable):
             matrix = self.matrix
         else:
             matrix *= self.matrix
-        self.P1 = matrix * self.P1
-        self.P2 = matrix * self.P2
+        self.transform_styles(matrix)
 
-    def segments(self, precision=0):
-        '''A rectangle is built with a segment going thru 4 points'''
-        ret = []
-        Pa, Pb = Point(0,0),Point(0,0)
-        if self.rotation % 90 == 0:
-            Pa = Point(self.P1.x, self.P2.y)
-            Pb = Point(self.P2.x, self.P1.y)
-        else:
-            # TODO use built-in rotation function
-            sa = math.sin(math.radians(self.rotation)) / math.cos(math.radians(self.rotation))
-            sb = -1 / sa
-            ba = -sa * self.P1.x + self.P1.y
-            bb = -sb * self.P2.x + self.P2.y
-            x = (ba-bb) / (sb-sa)
-            Pa = Point(x, sa * x + ba)
-            bb = -sb * self.P1.x + self.P1.y
-            ba = -sa * self.P2.x + self.P2.y
-            x = (ba-bb) / (sb-sa)
-            Pb = Point(x, sa * x + ba)
-
-        ret.append([self.P1, Pa, self.P2, Pb, self.P1])
-        return ret
-
-
-class Line(Transformable):
-    '''SVG <line> tag handler
-
-    This is essentially a wrapper around the Segment class
-    '''
-    # class Line handles the <line> tag
-    tag = 'line'
-
-    def __init__(self, elt=None):
-        Transformable.__init__(self, elt)
-        if elt is not None:
-            self.P1 = Point(self.xlength(elt.get('x1')),
-                            self.ylength(elt.get('y1')))
-            self.P2 = Point(self.xlength(elt.get('x2')),
-                            self.ylength(elt.get('y2')))
-            self.segment = Segment(self.P1, self.P2)
-
-    def __repr__(self):
-        return '<Line ' + self.id + '>'
-
-    def bbox(self):
-        '''Bounding box'''
-        xmin = min([p.x for p in (self.P1, self.P2)])
-        xmax = max([p.x for p in (self.P1, self.P2)])
-        ymin = min([p.y for p in (self.P1, self.P2)])
-        ymax = max([p.y for p in (self.P1, self.P2)])
-
-        return (Point(xmin,ymin), Point(xmax,ymax))
-
-    def transform(self, matrix):
-        '''Apply the provided matrix. Default (None)
-        If no matrix is supplied then recursively apply
-        it's already existing matrix to all items.
-        '''
-        if matrix is None:
-            matrix = self.matrix
-        else:
-            matrix *= self.matrix
         self.P1 = matrix * self.P1
         self.P2 = matrix * self.P2
         self.segment = Segment(self.P1, self.P2)
 
-    def segments(self, precision=0):
+    def segments(self, __=0) -> List[Segment]:
         '''Return the segment of the line'''
         return [self.segment.segments()]
 
@@ -1021,14 +1042,13 @@ class Text(Transformable):
         "Windows": ["C:/Windows/Fonts", "~/AppData/Local/Microsoft/Windows/Fonts"]
     }
 
-    def __init__(self, elt=None, parent=None):
-        Transformable.__init__(self, elt)
+    def __init__(self, elt=None, parent=None, *args, **kwargs):
+        Transformable.__init__(self, elt, *args, **kwargs)
 
         self.bbox_points = [Point(0,0), Point(0,0)]
         self.paths = []
 
         if elt is not None:
-            self.style = elt.get('style')
             self.parse(elt, parent)
             if parent is None:
                 self.convert_to_path(auto_transform=False)
@@ -1102,13 +1122,9 @@ class Text(Transformable):
             "font-weight": elt.get('font-weight'),
             "font-style": elt.get('font-style'),
         }
-        if self.style is not None:
-            for style in self.style.split(";"):
-                nv = style.split(":")
-                name = nv[ 0 ].strip()
-                value = nv[ 1 ].strip()
-                if list(self.font_configs.keys()).count(name) != 0:
-                    self.font_configs[name] = value
+        for style in self.style:
+            if style in self.font_configs.keys() and self.style[style]:
+                self.font_configs[style] = self.style[style]
 
         if isinstance(self.font_configs["font-size"], str):
             self.font_configs["font-size"] = float(self.font_configs["font-size"].strip("px"))
@@ -1139,7 +1155,7 @@ class Text(Transformable):
             if elt.tail is not None:
                 parent.text.append((elt.tail, parent))
 
-        del(self.font_configs)
+        del self.font_configs
 
 
     def find_font_file(self):
@@ -1156,7 +1172,10 @@ class Text(Transformable):
         '''
         if self.font_family is None:
             if Text.default_font is None:
-                logging.error("Unable to find font because no font was specified.")
+                global _font_warning_sent
+                if not _font_warning_sent:
+                    logger.error("Unable to find font because no font was specified.")
+                    _font_warning_sent = True
                 return None
             self.font_family = Text.default_font
         fonts = [fnt.strip().strip("'") for fnt in self.font_family.split(",")]
@@ -1171,9 +1190,9 @@ class Text(Transformable):
                 break
         if font_files is None:
             # We are unable to find a font and since there is no default font stop building font data
-            logging.error("Unable to find font(s) \"{}\"{}".format(
+            logger.error("Unable to find font(s) \"{}\"{}".format(
                 self.font_family,
-                " and no default font specified" if Text.default_font is None else " or default font \"{}\"".format(Text.default_font)
+                " and no default font specified" if Text.default_font is None else f" or default font \"{Text.default_font}\""
             ))
             self.paths = []
             return
@@ -1191,11 +1210,11 @@ class Text(Transformable):
         elif italic and not bold:
             search = ita
         elif italic and bold:
-            search = ["{} {}".format(b,i) if n == 0 else "{} {}".format(i,b) for b in bol for i in ita for n in range(2)]
+            search = [f"{b} {i}" if n == 0 else f"{i} {b}" for b in bol for i in ita for n in range(2)]
         tar_font = list(filter(None, [font_files.get(style) for style in search]))
         if len(tar_font) == 0 and len(font_files.keys()) == 1:
             tar_font = [font_files[list(font_files.keys())[0]]]
-            logging.warning("Font \"{}\" does not natively support style \"{}\" using \"{}\" instead".format(
+            logger.warning("Font \"{}\" does not natively support style \"{}\" using \"{}\" instead".format(
                 target_font, search[0], list(font_files.keys())[0]))
         elif len(tar_font) == 0 and italic and bold:
             orig_search = search[0]
@@ -1207,7 +1226,7 @@ class Text(Transformable):
             for style in search:
                 if font_files.get(style) is not None:
                     tar_font = [font_files[style]]
-                    logging.warning("Font \"{}\" does not natively support style \"{}\" using \"{}\" instead".format(
+                    logger.warning("Font \"{}\" does not natively support style \"{}\" using \"{}\" instead".format(
                         target_font, orig_search, style))
                     break
         return tar_font[0]
@@ -1225,6 +1244,7 @@ class Text(Transformable):
         is never called elsewhere.
         '''
         self.paths = []
+        if not self.text: return
         prev_origin = self.text[0][1].origin
 
         offset = Point(prev_origin.x, prev_origin.y)
@@ -1245,16 +1265,15 @@ class Text(Transformable):
             for char in text:
 
                 pathbuf = ""
-
                 try: glf = ttf.getGlyphSet()[ttf.getBestCmap()[ord(char)]]
                 except KeyError:
-                    logging.warning("Unsuported character in <text> element \"{}\"".format(char))
+                    logger.warning('Unsuported character in <text> element "{}"'.format(char))
                     #txt = txt.replace(char, "")
                     continue
 
-                pen = SVGPathPen(ttf.getGlyphSet())
+                pen = SVGPathPen(ttf.getGlyphSet)
                 glf.draw(pen)
-                
+
                 for cmd in pen._commands:
                     pathbuf += cmd + ' '
 
@@ -1265,15 +1284,14 @@ class Text(Transformable):
                     translate = Matrix([1,0,0,-1,offset.x,size+attrib.origin.y]) * Matrix([scale,0,0,scale,0,0])
                     # This queues the translations until .transform() is called
                     path[-1].matrix =  translate * path[-1].matrix
-                    #path[-1].get_transformations({"transform":"translate({},{}) scale({})".format(
-                    #    offset.x, -size+attrib.origin.y, scale)})
+
                 offset.x += (scale*glf.width)
 
             self.paths.append(path)
         if auto_transform:
             self.transform()
 
-    def bbox(self):
+    def bbox(self) -> Tuple[Point, Point]:
         '''Find the bounding box of all the paths that make
         each letter.
         This will only work if there are available paths.
@@ -1297,12 +1315,14 @@ class Text(Transformable):
             matrix = self.matrix
         else:
             matrix *= self.matrix
+        self.transform_styles(matrix)
+
         self.origin = matrix * self.origin
         for paths in self.paths:
             for path in paths:
                 path.transform(matrix)
 
-    def segments(self, precision=0) :
+    def segments(self, precision=0) -> List[Segment]:
         '''Get a list of all points in all paths
         with provide precision.
         This will only work if there are available paths.
@@ -1314,7 +1334,7 @@ class Text(Transformable):
         return segs
 
     @staticmethod
-    def load_system_fonts(reload=False):
+    def load_system_fonts(reload:bool=False) -> List[dict]:
         '''Find all fonts in common locations on the file system
         To properly read all fonts they need to be parsed so this
         is inherently slow on systems with many fonts.
@@ -1328,7 +1348,7 @@ class Text(Transformable):
             Text._system_fonts = {}
         if len(Text._system_fonts.keys()) < 1:
             fonts_files = []
-            logging.info("Loading system fonts.")
+            logger.info("Loading system fonts.")
             for path in Text._os_font_paths[platform.system()]:
                 try:
                     fonts_files.extend([os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(path)) for f in fn])
@@ -1346,7 +1366,7 @@ class Text(Transformable):
                         Text._system_fonts[name][style] = ffile
                 except:
                     pass
-            logging.debug("  Found {} fonts in system".format(len(Text._system_fonts.keys())))
+            logger.debug(f"  Found {len(Text._system_fonts.keys())} fonts in system")
         return Text._system_fonts
 
 
@@ -1366,6 +1386,7 @@ class JSONEncoder(json.JSONEncoder):
 
 # Make fontTools more quiet
 loggingTools.configLogger(level=logging.INFO)
+
 
 # SVG tag handler classes are initialized here
 # (classes must be defined before)

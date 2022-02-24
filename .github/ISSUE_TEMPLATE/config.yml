@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature Request
+    url: https://github.com/svg2mod/svg2mod/discussions/categories/ideas
+    about: Please use our GitHub Discussions board for making feature requests.
+  - name: Questions
+    url: https://github.com/svg2mod/svg2mod/discussions/categories/q-a
+    about: The issue tracker is only for issues. Please keep all other questions and discussions to GitHub Disscussions.
