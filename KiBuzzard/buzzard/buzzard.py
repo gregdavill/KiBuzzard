@@ -200,7 +200,7 @@ class Svg2ModExportv6PrettyUser( svg2mod.Svg2ModExportv6Pretty ):
 
     def _write_library_intro( self, cmdline ):
         self.output_file.write( """(footprint {0} (layer F.Cu) (tedit {1:8X}) (generator kibuzzard)
-    (attr virtual)
+    (attr board_only exclude_from_pos_files exclude_from_bom)
     (descr "{2}")
     (tags "kb_params={3}")
     """.format(
