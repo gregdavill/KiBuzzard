@@ -1,0 +1,61 @@
+name: Report an issue with svg2mod
+description: Report an issue with svg2mod.
+labels: [bug, unconfirmed]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue form is for reporting bugs only!
+
+        If you have a feature or enhancement request, please use the [ideas category][fr] in the github discussions.
+
+        [fr]: https://github.com/svg2mod/svg2mod/discussions/categories/ideas
+
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: The problem
+      description: |
+        Describe the issue you are experiencing here, to communicate to the
+        maintainers. Tell us what you were trying to do and what happened.
+
+        Provide a clear and concise description of what the problem is.
+
+  - type: input
+    validations:
+      required: true
+    attributes:
+      label: Version
+      description: |
+        The version of svg2mod you are using.
+
+        If installed via pip you can use `pip show svg2mod` to get the version.
+
+        Otherwise `git describe --tag` if you installed locally.
+
+  - type: input
+    validations:
+      required: true
+    id: command_line
+    attributes:
+      label: Command line
+      description: >
+        The command that when run will reproduce the error.
+
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Debug output
+      description: The output of the command. Please use the `--debug` flag.
+      render: txt
+
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Sample file and additional information
+      description: |
+        __Please attach a sample file__ that will trigger the issue and
+        if you have any additional information for us, use the field below.

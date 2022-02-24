@@ -1,0 +1,46 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Python lint and test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install wheel pytest pylint pyenchant ./
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Lint with pylint
+      run: |
+        pylint --rcfile .linter/cleanup.rc svg2mod setup.py
+    - name: Test with pytest
+      run: |
+        python setup.py test
+    - name: Run svg tests
+      run: |
+        svg2mod -i examples/svg2mod.svg -o output.mod -x -c -P --name TEST --value VALUE -f 2 -p 1 --format legacy --units mm -d 300 --debug
+        svg2mod -i examples/svg2mod.svg --format legacy --force F.Cu
+        svg2mod -i examples/svg2mod.svg --format legacy -o output.mod
+        svg2mod -i examples/svg2mod.svg --format pretty --debug --force F.Cu -x
+        svg2mod -i examples/svg2mod.svg --debug
+        svg2mod -i examples/svg2mod.svg
+        svg2mod -l

@@ -43,3 +43,5 @@ poly
 Regex
 thru
 Faux
+getLogger
+keepout
