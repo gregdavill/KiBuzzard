@@ -1,10 +1,9 @@
 """fontTools.misc.timeTools.py -- tools for working with OpenType timestamps.
 """
 
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 import os
 import time
+from datetime import datetime, timezone
 import calendar
 
 
@@ -45,7 +44,12 @@ def timestampToString(value):
 	return asctime(time.gmtime(max(0, value + epoch_diff)))
 
 def timestampFromString(value):
-	return calendar.timegm(time.strptime(value)) - epoch_diff
+	wkday, mnth = value[:7].split()
+	t = datetime.strptime(value[7:], ' %d %H:%M:%S %Y')
+	t = t.replace(month=MONTHNAMES.index(mnth), tzinfo=timezone.utc)
+	wkday_idx = DAYNAMES.index(wkday)
+	assert t.weekday() == wkday_idx, '"' + value + '" has inconsistent weekday'
+	return int(t.timestamp()) - epoch_diff
 
 def timestampNow():
 	# https://reproducible-builds.org/specs/source-date-epoch/

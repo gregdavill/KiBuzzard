@@ -1,51 +1,11 @@
 """The module contains miscellaneous helpers.
 It's not considered part of the public ufoLib API.
 """
-from __future__ import absolute_import, unicode_literals
-import sys
 import warnings
 import functools
-from datetime import datetime
-from fontTools.misc.py23 import tounicode
 
 
-if hasattr(datetime, "timestamp"):  # python >= 3.3
-
-    def datetimeAsTimestamp(dt):
-        return dt.timestamp()
-
-else:
-    from datetime import tzinfo, timedelta
-
-    ZERO = timedelta(0)
-
-    class UTC(tzinfo):
-
-        def utcoffset(self, dt):
-            return ZERO
-
-        def tzname(self, dt):
-            return "UTC"
-
-        def dst(self, dt):
-            return ZERO
-
-    utc = UTC()
-
-    EPOCH = datetime.fromtimestamp(0, tz=utc)
-
-    def datetimeAsTimestamp(dt):
-        return (dt - EPOCH).total_seconds()
-
-
-# TODO: should import from fontTools.misc.py23
-try:
-	long = long
-except NameError:
-	long = int
-
-integerTypes = (int, long)
-numberTypes = (int, float, long)
+numberTypes = (int, float)
 
 
 def deprecated(msg=""):
@@ -65,7 +25,7 @@ def deprecated(msg=""):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             warnings.warn(
-                "{} function is a deprecated. {}".format(func.__name__, msg),
+                f"{func.__name__} function is a deprecated. {msg}",
                 category=DeprecationWarning,
                 stacklevel=2,
             )
@@ -76,8 +36,37 @@ def deprecated(msg=""):
     return deprecated_decorator
 
 
-def fsdecode(path, encoding=sys.getfilesystemencoding()):
-    return tounicode(path, encoding=encoding)
+# To be mixed with enum.Enum in UFOFormatVersion and GLIFFormatVersion
+class _VersionTupleEnumMixin:
+    @property
+    def major(self):
+        return self.value[0]
+
+    @property
+    def minor(self):
+        return self.value[1]
+
+    @classmethod
+    def _missing_(cls, value):
+        # allow to initialize a version enum from a single (major) integer
+        if isinstance(value, int):
+            return cls((value, 0))
+        # or from None to obtain the current default version
+        if value is None:
+            return cls.default()
+        return super()._missing_(value)
+
+    def __str__(self):
+        return f"{self.major}.{self.minor}"
+
+    @classmethod
+    def default(cls):
+        # get the latest defined version (i.e. the max of all versions)
+        return max(cls.__members__.values())
+
+    @classmethod
+    def supported_versions(cls):
+        return frozenset(cls.__members__.values())
 
 
 if __name__ == "__main__":

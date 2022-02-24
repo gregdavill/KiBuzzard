@@ -1,7 +1,5 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.misc import sstruct
-from fontTools.misc.textTools import safeEval
+from fontTools.misc.textTools import tobytes, tostr, safeEval
 from . import DefaultTable
 
 GMAPFormat = """
@@ -116,7 +114,7 @@ class table_G_M_A_P_(DefaultTable.DefaultTable):
 			gmapRecord = GMAPRecord()
 			self.gmapRecords.append(gmapRecord)
 			for element in content:
-				if isinstance(element, basestring):
+				if isinstance(element, str):
 					continue
 				name, attrs, content = element
 				gmapRecord.fromXML(name, attrs, content, ttFont)

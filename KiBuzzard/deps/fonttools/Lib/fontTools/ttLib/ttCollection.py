@@ -1,7 +1,6 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.ttLib.ttFont import TTFont
 from fontTools.ttLib.sfnt import readTTCHeader, writeTTCHeader
+from io import BytesIO
 import struct
 import logging
 
@@ -36,6 +35,16 @@ class TTCollection(object):
 		for i in range(header.numFonts):
 			font = TTFont(file, fontNumber=i, _tableCache=tableCache, **kwargs)
 			fonts.append(font)
+			
+	def __enter__(self):
+		return self
+	
+	def __exit__(self, type, value, traceback):
+		self.close()
+		
+	def close(self):
+		for font in self.fonts:
+			font.close()
 
 	def save(self, file, shareTables=True):
 		"""Save the font to disk. Similarly to the constructor,
@@ -67,7 +76,7 @@ class TTCollection(object):
 			final.write(file.getvalue())
 		file.close()
 
-	def saveXML(self, fileOrPath, newlinestr=None, writeVersion=True, **kwargs):
+	def saveXML(self, fileOrPath, newlinestr="\n", writeVersion=True, **kwargs):
 
 		from fontTools.misc import xmlWriter
 		writer = xmlWriter.XMLWriter(fileOrPath, newlinestr=newlinestr)
@@ -95,7 +104,7 @@ class TTCollection(object):
 		return self.fonts[item]
 
 	def __setitem__(self, item, value):
-		self.fonts[item] = values
+		self.fonts[item] = value
 
 	def __delitem__(self, item):
 		return self.fonts[item]

@@ -1,18 +1,25 @@
-"""Misc integer tools."""
-
-from __future__ import print_function, absolute_import, division
-from fontTools.misc.py23 import *
-
-__all__ = ['popCount']
+__all__ = ["popCount"]
 
 
-def popCount(v):
-    """Return number of 1 bits in an integer."""
+try:
+    bit_count = int.bit_count
+except AttributeError:
 
-    if v > 0xFFFFFFFF:
-        return popCount(v >> 32) + popCount(v & 0xFFFFFFFF)
+    def bit_count(v):
+        return bin(v).count("1")
 
-    # HACKMEM 169
-    y = (v >> 1) & 0xDB6DB6DB
-    y = v - y - ((y >> 1) & 0xDB6DB6DB)
-    return (((y + (y >> 3)) & 0xC71C71C7) % 0x3F)
+
+"""Return number of 1 bits (population count) of the absolute value of an integer.
+
+See https://docs.python.org/3.10/library/stdtypes.html#int.bit_count
+"""
+popCount = bit_count
+
+
+def bit_indices(v):
+    """Return list of indices where bits are set, 0 being the index of the least significant bit.
+
+    >>> bit_indices(0b101)
+    [0, 2]
+    """
+    return [i for i, b in enumerate(bin(v)[::-1]) if b == "1"]

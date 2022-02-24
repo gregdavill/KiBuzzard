@@ -1,16 +1,15 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
-from fontTools.misc.textTools import safeEval
+from fontTools.misc.textTools import bytesjoin, safeEval
 from . import DefaultTable
-import operator
 import struct
 
 
 class table_V_O_R_G_(DefaultTable.DefaultTable):
 
-	""" This table is structured so that you can treat it like a dictionary keyed by glyph name.
-	ttFont['VORG'][<glyphName>] will return the vertical origin for any glyph
-	ttFont['VORG'][<glyphName>] = <value> will set the vertical origin for any glyph.
+	"""This table is structured so that you can treat it like a dictionary keyed by glyph name.
+
+	``ttFont['VORG'][<glyphName>]`` will return the vertical origin for any glyph.
+
+	``ttFont['VORG'][<glyphName>] = <value>`` will set the vertical origin for any glyph.
 	"""
 
 	def decompile(self, data, ttFont):
@@ -85,7 +84,7 @@ class table_V_O_R_G_(DefaultTable.DefaultTable):
 		if name == "VOriginRecord":
 			vOriginRec = VOriginRecord()
 			for element in content:
-				if isinstance(element, basestring):
+				if isinstance(element, str):
 					continue
 				name, attrs, content = element
 				vOriginRec.fromXML(name, attrs, content, ttFont)

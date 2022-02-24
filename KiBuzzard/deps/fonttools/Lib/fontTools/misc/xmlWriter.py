@@ -1,7 +1,6 @@
 """xmlWriter.py -- Simple XML authoring class"""
 
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
+from fontTools.misc.textTools import byteord, strjoin, tobytes, tostr
 import sys
 import os
 import string
@@ -12,7 +11,7 @@ INDENT = "  "
 class XMLWriter(object):
 
 	def __init__(self, fileOrPath, indentwhite=INDENT, idlefunc=None, encoding="utf_8",
-			newlinestr=None):
+			newlinestr="\n"):
 		if encoding.lower().replace('-','').replace('_','') != 'utf8':
 			raise Exception('Only UTF-8 encoding is supported.')
 		if fileOrPath == '-':
@@ -35,8 +34,8 @@ class XMLWriter(object):
 			self.totype = tobytes
 		except TypeError:
 			# This better not fail.
-			self.file.write(tounicode(''))
-			self.totype = tounicode
+			self.file.write('')
+			self.totype = tostr
 		self.indentwhite = self.totype(indentwhite)
 		if newlinestr is None:
 			self.newlinestr = self.totype(os.linesep)
@@ -157,7 +156,7 @@ class XMLWriter(object):
 			return ""
 		data = ""
 		for attr, value in attributes:
-			if not isinstance(value, (bytes, unicode)):
+			if not isinstance(value, (bytes, str)):
 				value = str(value)
 			data = data + ' %s="%s"' % (attr, escapeattr(value))
 		return data

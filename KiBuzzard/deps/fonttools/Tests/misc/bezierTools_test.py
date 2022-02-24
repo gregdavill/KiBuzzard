@@ -1,8 +1,8 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
+import fontTools.misc.bezierTools as bezierTools
 from fontTools.misc.bezierTools import (
-    calcQuadraticBounds, calcCubicBounds, splitLine, splitQuadratic,
-    splitCubic, splitQuadraticAtT, splitCubicAtT, solveCubic)
+    calcQuadraticBounds, calcCubicBounds, curveLineIntersections,
+    segmentPointAtT, splitLine, splitQuadratic, splitCubic, splitQuadraticAtT,
+    splitCubicAtT, solveCubic)
 import pytest
 
 
@@ -131,3 +131,36 @@ def test_solveCubic():
     assert solveCubic(1.0, -4.5, 6.75, -3.375) == [1.5, 1.5, 1.5]
     assert solveCubic(-12.0, 18.0, -9.0, 1.50023651123) == [0.5, 0.5, 0.5]
     assert solveCubic(9.0, 0.0, 0.0, -7.62939453125e-05) == [-0.0, -0.0, -0.0]
+
+
+_segmentPointAtT_testData = [
+    ([(0, 10), (200, 100)], 0.0, (0, 10)),
+    ([(0, 10), (200, 100)], 0.5, (100, 55)),
+    ([(0, 10), (200, 100)], 1.0, (200, 100)),
+    ([(0, 10), (100, 100), (200, 50)], 0.0, (0, 10)),
+    ([(0, 10), (100, 100), (200, 50)], 0.5, (100, 65.0)),
+    ([(0, 10), (100, 100), (200, 50)], 1.0, (200, 50.0)),
+    ([(0, 10), (100, 100), (200, 100), (300, 0)], 0.0, (0, 10)),
+    ([(0, 10), (100, 100), (200, 100), (300, 0)], 0.5, (150, 76.25)),
+    ([(0, 10), (100, 100), (200, 100), (300, 0)], 1.0, (300, 0)),
+]
+
+
+@pytest.mark.parametrize("segment, t, expectedPoint", _segmentPointAtT_testData)
+def test_segmentPointAtT(segment, t, expectedPoint):
+    point = segmentPointAtT(segment, t)
+    assert expectedPoint == point
+
+
+def test_intersections_straight_line():
+    curve = ((548, 183), (548, 289), (450, 366), (315, 366))
+    line1 = ((330, 376), (330, 286))
+    pt = curveLineIntersections(curve, line1)[0][0]
+    assert pt[0] == 330
+    line = (pt, (330, 286))
+    pt2 = (330.0001018806911, 295.5635754579425)
+    assert bezierTools._line_t_of_pt(*line, pt2) > 0
+    s = (19, 0)
+    e = (110, 0)
+    pt = (109.05194805194802, 0.0)
+    assert bezierTools._line_t_of_pt(s, e, pt) == pytest.approx(0.98958184)

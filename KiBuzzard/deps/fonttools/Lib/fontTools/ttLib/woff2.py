@@ -1,18 +1,17 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
+from io import BytesIO
 import sys
 import array
 import struct
 from collections import OrderedDict
 from fontTools.misc import sstruct
 from fontTools.misc.arrayTools import calcIntBounds
-from fontTools.misc.textTools import pad
+from fontTools.misc.textTools import Tag, bytechr, byteord, bytesjoin, pad
 from fontTools.ttLib import (TTFont, TTLibError, getTableModule, getTableClass,
 	getSearchRange)
 from fontTools.ttLib.sfnt import (SFNTReader, SFNTWriter, DirectoryEntry,
 	WOFFFlavorData, sfntDirectoryFormat, sfntDirectorySize, SFNTDirectoryEntry,
 	sfntDirectoryEntrySize, calcChecksum)
-from fontTools.ttLib.tables import ttProgram
+from fontTools.ttLib.tables import ttProgram, _g_l_y_f
 import logging
 
 
@@ -20,7 +19,10 @@ log = logging.getLogger("fontTools.ttLib.woff2")
 
 haveBrotli = False
 try:
-	import brotli
+	try:
+		import brotlicffi as brotli
+	except ImportError:
+		import brotli
 	haveBrotli = True
 except ImportError:
 	pass
@@ -30,7 +32,7 @@ class WOFF2Reader(SFNTReader):
 
 	flavor = "woff2"
 
-	def __init__(self, file, checkChecksums=1, fontNumber=-1):
+	def __init__(self, file, checkChecksums=0, fontNumber=-1):
 		if not haveBrotli:
 			log.error(
 				'The WOFF2 decoder requires the Brotli Python extension, available at: '
@@ -227,7 +229,11 @@ class WOFF2Writer(SFNTWriter):
 		# See:
 		# https://github.com/khaledhosny/ots/issues/60
 		# https://github.com/google/woff2/issues/15
-		if isTrueType and "glyf" in self.flavorData.transformedTables:
+		if (
+			isTrueType
+			and "glyf" in self.flavorData.transformedTables
+			and "glyf" in self.tables
+		):
 			self._normaliseGlyfAndLoca(padding=4)
 		self._setHeadTransformFlag()
 
@@ -652,7 +658,7 @@ class WOFF2LocaTable(getTableClass('loca')):
 			else:
 				locations = array.array("I", self.locations)
 			if sys.byteorder != "big": locations.byteswap()
-			data = locations.tostring()
+			data = locations.tobytes()
 		else:
 			# use the most compact indexFormat given the current glyph offsets
 			data = super(WOFF2LocaTable, self).compile(ttFont)
@@ -734,7 +740,7 @@ class WOFF2GlyfTable(getTableClass('glyf')):
 		for glyphID in range(self.numGlyphs):
 			self._encodeGlyph(glyphID)
 
-		self.bboxStream = self.bboxBitmap.tostring() + self.bboxStream
+		self.bboxStream = self.bboxBitmap.tobytes() + self.bboxStream
 		for stream in self.subStreams:
 			setattr(self, stream + 'Size', len(getattr(self, stream)))
 		self.version = 0
@@ -928,7 +934,7 @@ class WOFF2GlyfTable(getTableClass('glyf')):
 		flags = array.array('B')
 		triplets = array.array('B')
 		for i in range(len(coordinates)):
-			onCurve = glyph.flags[i]
+			onCurve = glyph.flags[i] & _g_l_y_f.flagOnCurve
 			x, y = coordinates[i]
 			absX = abs(x)
 			absY = abs(y)
@@ -962,8 +968,8 @@ class WOFF2GlyfTable(getTableClass('glyf')):
 				triplets.append(absY >> 8)
 				triplets.append(absY & 0xff)
 
-		self.flagStream += flags.tostring()
-		self.glyphStream += triplets.tostring()
+		self.flagStream += flags.tobytes()
+		self.glyphStream += triplets.tobytes()
 
 
 class WOFF2HmtxTable(getTableClass("hmtx")):
@@ -1094,7 +1100,7 @@ class WOFF2HmtxTable(getTableClass("hmtx")):
 		)
 		if sys.byteorder != "big":
 			advanceWidthArray.byteswap()
-		data += advanceWidthArray.tostring()
+		data += advanceWidthArray.tobytes()
 
 		if hasLsbArray:
 			lsbArray = array.array(
@@ -1107,7 +1113,7 @@ class WOFF2HmtxTable(getTableClass("hmtx")):
 			)
 			if sys.byteorder != "big":
 				lsbArray.byteswap()
-			data += lsbArray.tostring()
+			data += lsbArray.tobytes()
 
 		if hasLeftSideBearingArray:
 			leftSideBearingArray = array.array(
@@ -1119,7 +1125,7 @@ class WOFF2HmtxTable(getTableClass("hmtx")):
 			)
 			if sys.byteorder != "big":
 				leftSideBearingArray.byteswap()
-			data += leftSideBearingArray.tostring()
+			data += leftSideBearingArray.tobytes()
 
 		return data
 
@@ -1165,26 +1171,8 @@ class WOFF2FlavorData(WOFFFlavorData):
 				raise ValueError(
 					"'glyf' and 'loca' must be transformed (or not) together"
 				)
-
-		self.majorVersion = None
-		self.minorVersion = None
-		self.metaData = None
-		self.privData = None
+		super(WOFF2FlavorData, self).__init__(reader=reader)
 		if reader:
-			self.majorVersion = reader.majorVersion
-			self.minorVersion = reader.minorVersion
-			if reader.metaLength:
-				reader.file.seek(reader.metaOffset)
-				rawData = reader.file.read(reader.metaLength)
-				assert len(rawData) == reader.metaLength
-				metaData = brotli.decompress(rawData)
-				assert len(metaData) == reader.metaOrigLength
-				self.metaData = metaData
-			if reader.privLength:
-				reader.file.seek(reader.privOffset)
-				privData = reader.file.read(reader.privLength)
-				assert len(privData) == reader.privLength
-				self.privData = privData
 			transformedTables = [
 				tag
 				for tag, entry in reader.tables.items()
@@ -1202,6 +1190,9 @@ class WOFF2FlavorData(WOFFFlavorData):
 			transformedTables = woff2TransformedTableTags
 
 		self.transformedTables = set(transformedTables)
+
+	def _decompress(self, rawData):
+		return brotli.decompress(rawData)
 
 
 def unpackBase128(data):
@@ -1402,9 +1393,21 @@ def decompress(input_file, output_file):
 
 
 def main(args=None):
+	"""Compress and decompress WOFF2 fonts"""
 	import argparse
 	from fontTools import configLogger
 	from fontTools.ttx import makeOutputFileName
+
+	class _HelpAction(argparse._HelpAction):
+
+		def __call__(self, parser, namespace, values, option_string=None):
+			subparsers_actions = [
+					action for action in parser._actions
+					if isinstance(action, argparse._SubParsersAction)]
+			for subparsers_action in subparsers_actions:
+					for choice, subparser in subparsers_action.choices.items():
+							print(subparser.format_help())
+			parser.exit()
 
 	class _NoGlyfTransformAction(argparse.Action):
 		def __call__(self, parser, namespace, values, option_string=None):
@@ -1416,12 +1419,18 @@ def main(args=None):
 
 	parser = argparse.ArgumentParser(
 		prog="fonttools ttLib.woff2",
-		description="Compress and decompress WOFF2 fonts",
+		description=main.__doc__,
+		add_help = False
 	)
 
+	parser.add_argument('-h', '--help', action=_HelpAction,
+		help='show this help message and exit')
+
 	parser_group = parser.add_subparsers(title="sub-commands")
-	parser_compress = parser_group.add_parser("compress")
-	parser_decompress = parser_group.add_parser("decompress")
+	parser_compress = parser_group.add_parser("compress",
+		description = "Compress a TTF or OTF font to WOFF2")
+	parser_decompress = parser_group.add_parser("decompress",
+		description = "Decompress a WOFF2 font to OTF")
 
 	for subparser in (parser_compress, parser_decompress):
 		group = subparser.add_mutually_exclusive_group(required=False)

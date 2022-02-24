@@ -1,5 +1,3 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.misc.loggingTools import (
     LevelFormatter,
     Timer,
@@ -7,6 +5,7 @@ from fontTools.misc.loggingTools import (
     ChannelsFilter,
     LogMixin,
 )
+from io import StringIO
 import logging
 import textwrap
 import time

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.misc.loggingTools import LogMixin
+from fontTools.misc.textTools import tobytes, tostr
 import collections
+from io import BytesIO, StringIO
 import os
 import posixpath
 from fontTools.misc import etree as ET
@@ -33,6 +33,9 @@ def posix(path):
     if path.startswith('/'):
         # The above transformation loses absolute paths
         new_path = '/' + new_path
+    elif path.startswith(r'\\'):
+        # The above transformation loses leading slashes of UNC path mounts
+        new_path = '//' + new_path
     return new_path
 
 
@@ -101,14 +104,32 @@ class SourceDescriptor(SimpleDescriptor):
               'mutedGlyphNames',
               'familyName', 'styleName']
 
-    def __init__(self):
-        self.filename = None
+    def __init__(
+        self,
+        *,
+        filename=None,
+        path=None,
+        font=None,
+        name=None,
+        location=None,
+        layerName=None,
+        familyName=None,
+        styleName=None,
+        copyLib=False,
+        copyInfo=False,
+        copyGroups=False,
+        copyFeatures=False,
+        muteKerning=False,
+        muteInfo=False,
+        mutedGlyphNames=None,
+    ):
+        self.filename = filename
         """The original path as found in the document."""
 
-        self.path = None
+        self.path = path
         """The absolute path, calculated from filename."""
 
-        self.font = None
+        self.font = font
         """Any Python object. Optional. Points to a representation of this
         source font that is loaded in memory, as a Python object (e.g. a
         ``defcon.Font`` or a ``fontTools.ttFont.TTFont``).
@@ -120,43 +141,50 @@ class SourceDescriptor(SimpleDescriptor):
         this field to the disk and make ```filename`` point to that.
         """
 
-        self.name = None
-        self.location = None
-        self.layerName = None
-        self.copyLib = False
-        self.copyInfo = False
-        self.copyGroups = False
-        self.copyFeatures = False
-        self.muteKerning = False
-        self.muteInfo = False
-        self.mutedGlyphNames = []
-        self.familyName = None
-        self.styleName = None
+        self.name = name
+        self.location = location
+        self.layerName = layerName
+        self.familyName = familyName
+        self.styleName = styleName
+
+        self.copyLib = copyLib
+        self.copyInfo = copyInfo
+        self.copyGroups = copyGroups
+        self.copyFeatures = copyFeatures
+        self.muteKerning = muteKerning
+        self.muteInfo = muteInfo
+        self.mutedGlyphNames = mutedGlyphNames or []
 
     path = posixpath_property("_path")
     filename = posixpath_property("_filename")
 
 
 class RuleDescriptor(SimpleDescriptor):
-    """<!-- optional: list of substitution rules -->
-    <rules>
-        <rule name="vertical.bars">
-            <conditionset>
-                <condition minimum="250.000000" maximum="750.000000" name="weight"/>
-                <condition minimum="100" name="width"/>
-                <condition minimum="10" maximum="40" name="optical"/>
-            </conditionset>
-            <sub name="cent" with="cent.alt"/>
-            <sub name="dollar" with="dollar.alt"/>
-        </rule>
-    </rules>
+    """Represents the rule descriptor element
+
+    .. code-block:: xml
+
+        <!-- optional: list of substitution rules -->
+        <rules>
+            <rule name="vertical.bars">
+                <conditionset>
+                    <condition minimum="250.000000" maximum="750.000000" name="weight"/>
+                    <condition minimum="100" name="width"/>
+                    <condition minimum="10" maximum="40" name="optical"/>
+                </conditionset>
+                <sub name="cent" with="cent.alt"/>
+                <sub name="dollar" with="dollar.alt"/>
+            </rule>
+        </rules>
     """
     _attrs = ['name', 'conditionSets', 'subs']   # what do we need here
 
-    def __init__(self):
-        self.name = None
-        self.conditionSets = []  # list of list of dict(name='aaaa', minimum=0, maximum=1000)
-        self.subs = []  # list of substitutions stored as tuples of glyphnames ("a", "a.alt")
+    def __init__(self, *, name=None, conditionSets=None, subs=None):
+        self.name = name
+        # list of lists of dict(name='aaaa', minimum=0, maximum=1000)
+        self.conditionSets = conditionSets or []
+        # list of substitutions stored as tuples of glyphnames ("a", "a.alt")
+        self.subs = subs or []
 
 
 def evaluateRule(rule, location):
@@ -183,7 +211,7 @@ def evaluateConditions(conditions, location):
 
 
 def processRules(rules, location, glyphNames):
-    """ Apply these rules at this location to these glyphnames.minimum
+    """ Apply these rules at this location to these glyphnames
         - rule order matters
     """
     newNames = []
@@ -220,50 +248,75 @@ class InstanceDescriptor(SimpleDescriptor):
               'info',
               'lib']
 
-    def __init__(self):
-        self.filename = None    # the original path as found in the document
-        self.path = None        # the absolute path, calculated from filename
-        self.name = None
-        self.location = None
-        self.familyName = None
-        self.styleName = None
-        self.postScriptFontName = None
-        self.styleMapFamilyName = None
-        self.styleMapStyleName = None
-        self.localisedStyleName = {}
-        self.localisedFamilyName = {}
-        self.localisedStyleMapStyleName = {}
-        self.localisedStyleMapFamilyName = {}
-        self.glyphs = {}
-        self.kerning = True
-        self.info = True
+    def __init__(
+        self,
+        *,
+        filename=None,
+        path=None,
+        font=None,
+        name=None,
+        location=None,
+        familyName=None,
+        styleName=None,
+        postScriptFontName=None,
+        styleMapFamilyName=None,
+        styleMapStyleName=None,
+        localisedFamilyName=None,
+        localisedStyleName=None,
+        localisedStyleMapFamilyName=None,
+        localisedStyleMapStyleName=None,
+        glyphs=None,
+        kerning=True,
+        info=True,
+        lib=None,
+    ):
+        # the original path as found in the document
+        self.filename = filename
+        # the absolute path, calculated from filename
+        self.path = path
+        # Same as in SourceDescriptor.
+        self.font = font
+        self.name = name
+        self.location = location
+        self.familyName = familyName
+        self.styleName = styleName
+        self.postScriptFontName = postScriptFontName
+        self.styleMapFamilyName = styleMapFamilyName
+        self.styleMapStyleName = styleMapStyleName
+        self.localisedFamilyName = localisedFamilyName or {}
+        self.localisedStyleName = localisedStyleName or {}
+        self.localisedStyleMapFamilyName = localisedStyleMapFamilyName or {}
+        self.localisedStyleMapStyleName = localisedStyleMapStyleName or {}
+        self.glyphs = glyphs or {}
+        self.kerning = kerning
+        self.info = info
 
-        self.lib = {}
+        self.lib = lib or {}
         """Custom data associated with this instance."""
 
     path = posixpath_property("_path")
     filename = posixpath_property("_filename")
 
     def setStyleName(self, styleName, languageCode="en"):
-        self.localisedStyleName[languageCode] = tounicode(styleName)
+        self.localisedStyleName[languageCode] = tostr(styleName)
 
     def getStyleName(self, languageCode="en"):
         return self.localisedStyleName.get(languageCode)
 
     def setFamilyName(self, familyName, languageCode="en"):
-        self.localisedFamilyName[languageCode] = tounicode(familyName)
+        self.localisedFamilyName[languageCode] = tostr(familyName)
 
     def getFamilyName(self, languageCode="en"):
         return self.localisedFamilyName.get(languageCode)
 
     def setStyleMapStyleName(self, styleMapStyleName, languageCode="en"):
-        self.localisedStyleMapStyleName[languageCode] = tounicode(styleMapStyleName)
+        self.localisedStyleMapStyleName[languageCode] = tostr(styleMapStyleName)
 
     def getStyleMapStyleName(self, languageCode="en"):
         return self.localisedStyleMapStyleName.get(languageCode)
 
     def setStyleMapFamilyName(self, styleMapFamilyName, languageCode="en"):
-        self.localisedStyleMapFamilyName[languageCode] = tounicode(styleMapFamilyName)
+        self.localisedStyleMapFamilyName[languageCode] = tostr(styleMapFamilyName)
 
     def getStyleMapFamilyName(self, languageCode="en"):
         return self.localisedStyleMapFamilyName.get(languageCode)
@@ -294,15 +347,29 @@ class AxisDescriptor(SimpleDescriptor):
     flavor = "axis"
     _attrs = ['tag', 'name', 'maximum', 'minimum', 'default', 'map']
 
-    def __init__(self):
-        self.tag = None       # opentype tag for this axis
-        self.name = None      # name of the axis used in locations
-        self.labelNames = {}  # names for UI purposes, if this is not a standard axis,
-        self.minimum = None
-        self.maximum = None
-        self.default = None
-        self.hidden = False
-        self.map = []
+    def __init__(
+        self,
+        *,
+        tag=None,
+        name=None,
+        labelNames=None,
+        minimum=None,
+        default=None,
+        maximum=None,
+        hidden=False,
+        map=None,
+    ):
+        # opentype tag for this axis
+        self.tag = tag
+        # name of the axis used in locations
+        self.name = name
+        # names for UI purposes, if this is not a standard axis,
+        self.labelNames = labelNames or {}
+        self.minimum = minimum
+        self.maximum = maximum
+        self.default = default
+        self.hidden = hidden
+        self.map = map or []
 
     def serialize(self):
         # output to a dict, used in testing
@@ -358,7 +425,7 @@ class BaseDocWriter(object):
     def __init__(self, documentPath, documentObject):
         self.path = documentPath
         self.documentObject = documentObject
-        self.documentVersion = "4.0"
+        self.documentVersion = "4.1"
         self.root = ET.Element("designspace")
         self.root.attrib['format'] = self.documentVersion
         self._axes = []     # for use by the writer only
@@ -371,7 +438,11 @@ class BaseDocWriter(object):
             self._addAxis(axisObject)
 
         if self.documentObject.rules:
-            self.root.append(ET.Element("rules"))
+            if getattr(self.documentObject, "rulesProcessingLast", False):
+                attributes = {"processing": "last"}
+            else:
+                attributes = {}
+            self.root.append(ET.Element("rules", attributes))
         for ruleObject in self.documentObject.rules:
             self._addRule(ruleObject)
 
@@ -675,6 +746,14 @@ class BaseDocReader(LogMixin):
     def readRules(self):
         # we also need to read any conditions that are outside of a condition set.
         rules = []
+        rulesElement = self.root.find(".rules")
+        if rulesElement is not None:
+            processingValue = rulesElement.attrib.get("processing", "first")
+            if processingValue not in {"first", "last"}:
+                raise DesignSpaceDocumentError(
+                    "<rules> processing attribute value is not valid: %r, "
+                    "expected 'first' or 'last'" % processingValue)
+            self.documentObject.rulesProcessingLast = processingValue == "last"
         for ruleElement in self.root.findall(".rules/rule"):
             ruleObject = self.ruleDescriptorClass()
             ruleName = ruleObject.name = ruleElement.attrib.get("name")
@@ -752,7 +831,7 @@ class BaseDocReader(LogMixin):
                 # '{http://www.w3.org/XML/1998/namespace}lang'
                 for key, lang in labelNameElement.items():
                     if key == XML_LANG:
-                        axisObject.labelNames[lang] = tounicode(labelNameElement.text)
+                        axisObject.labelNames[lang] = tostr(labelNameElement.text)
             self.documentObject.axes.append(axisObject)
             self.axisDefaults[axisObject.name] = axisObject.default
 
@@ -921,7 +1000,10 @@ class BaseDocReader(LogMixin):
 
     def readGlyphElement(self, glyphElement, instanceObject):
         """
-        Read the glyph element.
+        Read the glyph element:
+
+        .. code-block:: xml
+
             <glyph name="b" unicode="0x62"/>
             <glyph name="b"/>
             <glyph name="b">
@@ -996,6 +1078,7 @@ class DesignSpaceDocument(LogMixin, AsDictMixin):
         self.instances = []
         self.axes = []
         self.rules = []
+        self.rulesProcessingLast = False
         self.default = None         # name of the default master
 
         self.lib = {}
@@ -1027,10 +1110,10 @@ class DesignSpaceDocument(LogMixin, AsDictMixin):
         return self
 
     def tostring(self, encoding=None):
-        if encoding is unicode or (
+        if encoding is str or (
             encoding is not None and encoding.lower() == "unicode"
         ):
-            f = UnicodeIO()
+            f = StringIO()
             xml_declaration = False
         elif encoding is None or encoding == "utf-8":
             f = BytesIO()
@@ -1116,14 +1199,34 @@ class DesignSpaceDocument(LogMixin, AsDictMixin):
     def addSource(self, sourceDescriptor):
         self.sources.append(sourceDescriptor)
 
+    def addSourceDescriptor(self, **kwargs):
+        source = self.writerClass.sourceDescriptorClass(**kwargs)
+        self.addSource(source)
+        return source
+
     def addInstance(self, instanceDescriptor):
         self.instances.append(instanceDescriptor)
+
+    def addInstanceDescriptor(self, **kwargs):
+        instance = self.writerClass.instanceDescriptorClass(**kwargs)
+        self.addInstance(instance)
+        return instance
 
     def addAxis(self, axisDescriptor):
         self.axes.append(axisDescriptor)
 
+    def addAxisDescriptor(self, **kwargs):
+        axis = self.writerClass.axisDescriptorClass(**kwargs)
+        self.addAxis(axis)
+        return axis
+
     def addRule(self, ruleDescriptor):
         self.rules.append(ruleDescriptor)
+
+    def addRuleDescriptor(self, **kwargs):
+        rule = self.writerClass.ruleDescriptorClass(**kwargs)
+        self.addRule(rule)
+        return rule
 
     def newDefaultLocation(self):
         """Return default location in design space."""

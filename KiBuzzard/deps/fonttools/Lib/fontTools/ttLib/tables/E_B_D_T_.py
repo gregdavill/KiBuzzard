@@ -1,7 +1,5 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.misc import sstruct
-from fontTools.misc.textTools import safeEval, readHex, hexStr, deHexStr
+from fontTools.misc.textTools import bytechr, byteord, bytesjoin, strjoin, safeEval, readHex, hexStr, deHexStr
 from .BitmapGlyphMetrics import BigGlyphMetrics, bigGlyphMetricsFormat, SmallGlyphMetrics, smallGlyphMetricsFormat
 from . import DefaultTable
 import itertools

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Script to add a suffix to all family names in the input font's `name` table,
 and to optionally rename the output files with the given suffix.
 
@@ -6,7 +6,6 @@ The current family name substring is searched in the nameIDs 1, 3, 4, 6, 16,
 and 21, and if found the suffix is inserted after it; or else the suffix is
 appended at the end.
 """
-from __future__ import print_function, absolute_import, unicode_literals
 import os
 import argparse
 import logging

@@ -1,5 +1,3 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.ttLib import TTFont
 from fontTools.varLib import build
 from fontTools.varLib.mutator import main as mutator
@@ -61,12 +59,11 @@ class MutatorTest(unittest.TestCase):
         lines = []
         with open(path, "r", encoding="utf-8") as ttx:
             for line in ttx.readlines():
-                # Elide ttFont attributes because ttLibVersion may change,
-                # and use os-native line separators so we can run difflib.
+                # Elide ttFont attributes because ttLibVersion may change.
                 if line.startswith("<ttFont "):
-                    lines.append("<ttFont>" + os.linesep)
+                    lines.append("<ttFont>\n")
                 else:
-                    lines.append(line.rstrip() + os.linesep)
+                    lines.append(line.rstrip() + "\n")
         return lines
 
     def expect_ttx(self, font, expected_ttx, tables):

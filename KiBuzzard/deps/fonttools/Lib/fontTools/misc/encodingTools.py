@@ -1,8 +1,6 @@
 """fontTools.misc.encodingTools.py -- tools for working with OpenType encodings.
 """
 
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 import fontTools.encodings.codecs
 
 # Map keyed by platformID, then platEncID, then possibly langID

@@ -1,5 +1,4 @@
 from collections import namedtuple
-import os
 from fontTools.cffLib import (
 	maxStackLimit,
 	TopDictIndex,
@@ -12,14 +11,25 @@ from fontTools.cffLib import (
 	FontDict,
 	VarStoreData
 )
-from fontTools.misc.py23 import BytesIO
+from io import BytesIO
 from fontTools.cffLib.specializer import (
 	specializeCommands, commandsToProgram)
 from fontTools.ttLib import newTable
 from fontTools import varLib
 from fontTools.varLib.models import allEqual
+from fontTools.misc.roundTools import roundFunc
 from fontTools.misc.psCharStrings import T2CharString, T2OutlineExtractor
-from fontTools.pens.t2CharStringPen import T2CharStringPen, t2c_round
+from fontTools.pens.t2CharStringPen import T2CharStringPen
+from functools import partial
+
+from .errors import (
+	VarLibCFFDictMergeError, VarLibCFFPointTypeMergeError,
+	VarLibCFFHintTypeMergeError,VarLibMergeError)
+
+
+# Backwards compatibility
+MergeDictError = VarLibCFFDictMergeError
+MergeTypeError = VarLibCFFPointTypeMergeError
 
 
 def addCFFVarStore(varFont, varModel, varDataList, masterSupports):
@@ -30,6 +40,11 @@ def addCFFVarStore(varFont, varModel, varDataList, masterSupports):
 
 	topDict = varFont['CFF2'].cff.topDictIndex[0]
 	topDict.VarStore = VarStoreData(otVarStore=varStoreCFFV)
+	if topDict.FDArray[0].vstore is None:
+		fdArray = topDict.FDArray
+		for fontDict in fdArray:
+			if hasattr(fontDict, "Private"):
+				fontDict.Private.vstore = topDict.VarStore
 
 
 def lib_convertCFFToCFF2(cff, otFont):
@@ -61,15 +76,16 @@ def lib_convertCFFToCFF2(cff, otFont):
 		fdArray.append(fontDict)
 		fontDict.Private = privateDict
 		privateOpOrder = buildOrder(privateDictOperators2)
-		for entry in privateDictOperators:
-			key = entry[1]
-			if key not in privateOpOrder:
-				if key in privateDict.rawDict:
-					# print "Removing private dict", key
-					del privateDict.rawDict[key]
-				if hasattr(privateDict, key):
-					delattr(privateDict, key)
-					# print "Removing privateDict attr", key
+		if privateDict is not None:
+			for entry in privateDictOperators:
+				key = entry[1]
+				if key not in privateOpOrder:
+					if key in privateDict.rawDict:
+						# print "Removing private dict", key
+						del privateDict.rawDict[key]
+					if hasattr(privateDict, key):
+						delattr(privateDict, key)
+						# print "Removing privateDict attr", key
 	else:
 		# clean up the PrivateDicts in the fdArray
 		fdArray = topDict.FDArray
@@ -120,16 +136,6 @@ def convertCFFtoCFF2(varFont):
 	del varFont['CFF ']
 
 
-class MergeDictError(TypeError):
-	def __init__(self, key, value, values):
-		error_msg = ["For the Private Dict key '{}', ".format(key),
-					 "the default font value list:",
-					 "\t{}".format(value),
-					 "had a different number of values than a region font:"]
-		error_msg += ["\t{}".format(region_value) for region_value in values]
-		error_msg = os.linesep.join(error_msg)
-
-
 def conv_to_int(num):
 	if isinstance(num, float) and num.is_integer():
 		return int(num)
@@ -157,15 +163,17 @@ def merge_PrivateDicts(top_dicts, vsindex_dict, var_model, fd_map):
 	"""
 	I step through the FontDicts in the FDArray of the varfont TopDict.
 	For each varfont FontDict:
-		step through each key in FontDict.Private.
-		For each key, step through each relevant source font Private dict, and
+	
+	* step through each key in FontDict.Private.
+	* For each key, step through each relevant source font Private dict, and
 		build a list of values to blend.
+
 	The 'relevant' source fonts are selected by first getting the right
-	submodel using vsindex_dict[vsindex]. The indices of the
-	subModel.locations are mapped to source font list indices by
+	submodel using ``vsindex_dict[vsindex]``. The indices of the
+	``subModel.locations`` are mapped to source font list indices by
 	assuming the latter order is the same as the order of the
-	var_model.locations. I can then get the index of each subModel
-	location in the list of var_model.locations.
+	``var_model.locations``. I can then get the index of each subModel
+	location in the list of ``var_model.locations``.
 	"""
 
 	topDict = top_dicts[0]
@@ -213,7 +221,7 @@ def merge_PrivateDicts(top_dicts, vsindex_dict, var_model, fd_map):
 				try:
 					values = zip(*values)
 				except IndexError:
-					raise MergeDictError(key, value, values)
+					raise VarLibCFFDictMergeError(key, value, values)
 				"""
 				Row 0 contains the first  value from each master.
 				Convert each row from absolute values to relative
@@ -265,6 +273,12 @@ def merge_PrivateDicts(top_dicts, vsindex_dict, var_model, fd_map):
 			private_dict.rawDict[key] = dataList
 
 
+def _cff_or_cff2(font):
+	if "CFF " in font:
+		return font["CFF "]
+	return font["CFF2"]
+
+
 def getfd_map(varFont, fonts_list):
 	""" Since a subset source font may have fewer FontDicts in their
 	FDArray than the default font, we have to match up the FontDicts in
@@ -277,7 +291,7 @@ def getfd_map(varFont, fonts_list):
 	default_font = fonts_list[0]
 	region_fonts = fonts_list[1:]
 	num_regions = len(region_fonts)
-	topDict = default_font['CFF '].cff.topDictIndex[0]
+	topDict = _cff_or_cff2(default_font).cff.topDictIndex[0]
 	if not hasattr(topDict, 'FDSelect'):
 		# All glyphs reference only one FontDict.
 		# Map the FD index for regions to index 0.
@@ -293,7 +307,7 @@ def getfd_map(varFont, fonts_list):
 			fd_map[fdIndex] = {}
 	for ri, region_font in enumerate(region_fonts):
 		region_glyphOrder = region_font.getGlyphOrder()
-		region_topDict = region_font['CFF '].cff.topDictIndex[0]
+		region_topDict = _cff_or_cff2(region_font).cff.topDictIndex[0]
 		if not hasattr(region_topDict, 'FDSelect'):
 			# All the glyphs share the same FontDict. Pick any glyph.
 			default_fdIndex = gname_mapping[region_glyphOrder[0]]
@@ -312,7 +326,7 @@ CVarData = namedtuple('CVarData', 'varDataList masterSupports vsindex_dict')
 def merge_region_fonts(varFont, model, ordered_fonts_list, glyphOrder):
 	topDict = varFont['CFF2'].cff.topDictIndex[0]
 	top_dicts = [topDict] + [
-					ttFont['CFF '].cff.topDictIndex[0]
+					_cff_or_cff2(ttFont).cff.topDictIndex[0]
 					for ttFont in ordered_fonts_list[1:]
 					]
 	num_masters = len(model.mapping)
@@ -405,38 +419,13 @@ def merge_charstrings(glyphOrder, num_masters, top_dicts, masterModel):
 	# in the PrivatDict, so we will build the default data for vsindex = 0.
 	if not vsindex_dict:
 		key = (True,) * num_masters
-		_add_new_vsindex(model, key, masterSupports, vsindex_dict,
+		_add_new_vsindex(masterModel, key, masterSupports, vsindex_dict,
 			vsindex_by_key, varDataList)
 	cvData = CVarData(varDataList=varDataList, masterSupports=masterSupports,
 						vsindex_dict=vsindex_dict)
 	# XXX To do: optimize use of vsindex between the PrivateDicts and
 	# charstrings
 	return cvData
-
-
-class MergeTypeError(TypeError):
-	def __init__(self, point_type, pt_index, m_index, default_type, glyphName):
-			self.error_msg = [
-						"In glyph '{gname}' "
-						"'{point_type}' at point index {pt_index} in master "
-						"index {m_index} differs from the default font point "
-						"type '{default_type}'"
-						"".format(
-								gname=glyphName,
-								point_type=point_type, pt_index=pt_index,
-								m_index=m_index, default_type=default_type)
-							][0]
-			super(MergeTypeError, self).__init__(self.error_msg)
-
-
-def makeRoundNumberFunc(tolerance):
-	if tolerance < 0:
-		raise ValueError("Rounding tolerance must be positive")
-
-	def roundNumber(val):
-		return t2c_round(val, tolerance)
-
-	return roundNumber
 
 
 class CFFToCFF2OutlineExtractor(T2OutlineExtractor):
@@ -460,7 +449,7 @@ class MergeOutlineExtractor(CFFToCFF2OutlineExtractor):
 
 	def __init__(self, pen, localSubrs, globalSubrs,
 			nominalWidthX, defaultWidthX, private=None):
-		super(CFFToCFF2OutlineExtractor, self).__init__(pen, localSubrs,
+		super().__init__(pen, localSubrs,
 			globalSubrs, nominalWidthX, defaultWidthX, private)
 
 	def countHints(self):
@@ -514,9 +503,7 @@ class CFF2CharStringMergePen(T2CharStringPen):
 	def __init__(
 				self, default_commands, glyphName, num_masters, master_idx,
 				roundTolerance=0.5):
-		super(
-			CFF2CharStringMergePen,
-			self).__init__(
+		super().__init__(
 							width=None,
 							glyphSet=None, CFF2=True,
 							roundTolerance=roundTolerance)
@@ -527,7 +514,7 @@ class CFF2CharStringMergePen(T2CharStringPen):
 		self.prev_move_idx = 0
 		self.seen_moveto = False
 		self.glyphName = glyphName
-		self.roundNumber = makeRoundNumberFunc(roundTolerance)
+		self.round = roundFunc(roundTolerance, round=round)
 
 	def add_point(self, point_type, pt_coords):
 		if self.m_index == 0:
@@ -535,7 +522,7 @@ class CFF2CharStringMergePen(T2CharStringPen):
 		else:
 			cmd = self._commands[self.pt_index]
 			if cmd[0] != point_type:
-				raise MergeTypeError(
+				raise VarLibCFFPointTypeMergeError(
 									point_type,
 									self.pt_index, len(cmd[1]),
 									cmd[0], self.glyphName)
@@ -548,7 +535,7 @@ class CFF2CharStringMergePen(T2CharStringPen):
 		else:
 			cmd = self._commands[self.pt_index]
 			if cmd[0] != hint_type:
-				raise MergeTypeError(hint_type, self.pt_index, len(cmd[1]),
+				raise VarLibCFFHintTypeMergeError(hint_type, self.pt_index, len(cmd[1]),
 					cmd[0], self.glyphName)
 			cmd[1].append(args)
 		self.pt_index += 1
@@ -557,14 +544,14 @@ class CFF2CharStringMergePen(T2CharStringPen):
 		# For hintmask, fonttools.cffLib.specializer.py expects
 		# each of these to be represented by two sequential commands:
 		# first holding only the operator name, with an empty arg list,
-		# second with an empty string as the op name, and  the mask arg list.
+		# second with an empty string as the op name, and the mask arg list.
 		if self.m_index == 0:
 			self._commands.append([hint_type, []])
 			self._commands.append(["", [abs_args]])
 		else:
 			cmd = self._commands[self.pt_index]
 			if cmd[0] != hint_type:
-				raise MergeTypeError(hint_type, self.pt_index, len(cmd[1]),
+				raise VarLibCFFHintTypeMergeError(hint_type, self.pt_index, len(cmd[1]),
 					cmd[0], self.glyphName)
 			self.pt_index += 1
 			cmd = self._commands[self.pt_index]
@@ -603,22 +590,27 @@ class CFF2CharStringMergePen(T2CharStringPen):
 	def getCommands(self):
 		return self._commands
 
-	def reorder_blend_args(self, commands, get_delta_func, round_func):
+	def reorder_blend_args(self, commands, get_delta_func):
 		"""
 		We first re-order the master coordinate values.
-		For a moveto to lineto, the args are now arranged as:
+		For a moveto to lineto, the args are now arranged as::
+
 			[ [master_0 x,y], [master_1 x,y], [master_2 x,y] ]
-		We re-arrange this to
-		[	[master_0 x, master_1 x, master_2 x],
-			[master_0 y, master_1 y, master_2 y]
-		]
+
+		We re-arrange this to::
+
+			[	[master_0 x, master_1 x, master_2 x],
+				[master_0 y, master_1 y, master_2 y]
+			]
+
 		If the master values are all the same, we collapse the list to
 		as single value instead of a list.
 
-		We then convert this to:
-		[ [master_0 x] + [x delta tuple] + [numBlends=1]
-		  [master_0 y] + [y delta tuple] + [numBlends=1]
-		]
+		We then convert this to::
+
+			[ [master_0 x] + [x delta tuple] + [numBlends=1]
+			  [master_0 y] + [y delta tuple] + [numBlends=1]
+			]
 		"""
 		for cmd in commands:
 			# arg[i] is the set of arguments for this operator from master i.
@@ -634,8 +626,8 @@ class CFF2CharStringMergePen(T2CharStringPen):
 			# second has only args.
 			if lastOp in ['hintmask', 'cntrmask']:
 				coord = list(cmd[1])
-				assert allEqual(coord), (
-					"hintmask values cannot differ between source fonts.")
+				if not allEqual(coord):
+					raise VarLibMergeError("Hintmask values cannot differ between source fonts.")
 				cmd[1] = [coord[0][0]]
 			else:
 				coords = cmd[1]
@@ -646,8 +638,6 @@ class CFF2CharStringMergePen(T2CharStringPen):
 					else:
 						# convert to deltas
 						deltas = get_delta_func(coord)[1:]
-						if round_func:
-							deltas = [round_func(delta) for delta in deltas]
 						coord = [coord[0]] + deltas
 						new_coords.append(coord)
 				cmd[1] = new_coords
@@ -658,8 +648,7 @@ class CFF2CharStringMergePen(T2CharStringPen):
 					self, private=None, globalSubrs=None,
 					var_model=None, optimize=True):
 		commands = self._commands
-		commands = self.reorder_blend_args(commands, var_model.getDeltas,
-											self.roundNumber)
+		commands = self.reorder_blend_args(commands, partial (var_model.getDeltas, round=self.round))
 		if optimize:
 			commands = specializeCommands(
 						commands, generalizeFirst=False,

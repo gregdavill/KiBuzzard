@@ -1,7 +1,5 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.varLib.models import (
-    normalizeLocation, supportScalar, VariationModel)
+    normalizeLocation, supportScalar, VariationModel, VariationModelError)
 import pytest
 
 
@@ -146,7 +144,7 @@ class VariationModelTest(object):
         assert model.deltaWeights == deltaWeights
 
     def test_init_duplicate_locations(self):
-        with pytest.raises(ValueError, match="locations must be unique"):
+        with pytest.raises(VariationModelError, match="Locations must be unique."):
             VariationModel(
                 [
                     {"foo": 0.0, "bar": 0.0},

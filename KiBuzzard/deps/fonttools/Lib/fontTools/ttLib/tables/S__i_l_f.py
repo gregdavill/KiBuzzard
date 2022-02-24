@@ -1,13 +1,12 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.misc import sstruct
-from fontTools.misc.textTools import safeEval
-from itertools import *
+from fontTools.misc.fixedTools import floatToFixedToStr
+from fontTools.misc.textTools import byteord, safeEval
+# from itertools import *
 from . import DefaultTable
 from . import grUtils
 from array import array
 from functools import reduce
-import struct, operator, warnings, re, sys
+import struct, re, sys
 
 Silf_hdr_format = '''
     >
@@ -313,6 +312,7 @@ class table_S__i_l_f(DefaultTable.DefaultTable):
 
     def decompile(self, data, ttFont):
         sstruct.unpack2(Silf_hdr_format, data, self)
+        self.version = float(floatToFixedToStr(self.version, precisionBits=16))
         if self.version >= 5.0:
             (data, self.scheme) = grUtils.decompress(data)
             sstruct.unpack2(Silf_hdr_format_3, data, self)
@@ -391,6 +391,7 @@ class Silf(object):
     def decompile(self, data, ttFont, version=2.0):
         if version >= 3.0 :
             _, data = sstruct.unpack2(Silf_part1_format_v3, data, self)
+            self.ruleVersion = float(floatToFixedToStr(self.ruleVersion, precisionBits=16))
         _, data = sstruct.unpack2(Silf_part1_format, data, self)
         for jlevel in range(self.numJLevels):
             j, data = sstruct.unpack2(Silf_justify_format, data, _Object())
@@ -401,7 +402,7 @@ class Silf(object):
         data = data[self.numCritFeatures * 2 + 1:]
         (numScriptTag,) = struct.unpack_from('B', data)
         if numScriptTag:
-            self.scriptTags = [struct.unpack("4s", data[x:x+4])[0] for x in range(1, 1 + 4 * numScriptTag, 4)]
+            self.scriptTags = [struct.unpack("4s", data[x:x+4])[0].decode("ascii") for x in range(1, 1 + 4 * numScriptTag, 4)]
         data = data[1 + 4 * numScriptTag:]
         (self.lbGID,) = struct.unpack('>H', data[:2])
         if self.numPasses:
@@ -447,8 +448,8 @@ class Silf(object):
             data += struct.pack((">%dH" % self.numCritFeaturs), *self.critFeatures)
         data += struct.pack("BB", 0, len(self.scriptTags))
         if len(self.scriptTags):
-            tdata = [struct.pack("4s", x) for x in self.scriptTags]
-            data += "".join(tdata)
+            tdata = [struct.pack("4s", x.encode("ascii")) for x in self.scriptTags]
+            data += b"".join(tdata)
         data += struct.pack(">H", self.lbGID)
         self.passOffset = len(data)
 
@@ -746,7 +747,7 @@ class Pass(object):
         transes = []
         for t in self.stateTrans:
             if sys.byteorder != "big": t.byteswap()
-            transes.append(t.tostring())
+            transes.append(t.tobytes())
             if sys.byteorder != "big": t.byteswap()
         if not len(transes):
             self.startStates = [0]

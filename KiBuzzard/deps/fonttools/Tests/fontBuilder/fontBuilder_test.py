@@ -1,5 +1,3 @@
-from __future__ import print_function, division, absolute_import
-from __future__ import unicode_literals
 
 import os
 import pytest
@@ -166,13 +164,20 @@ def test_build_var(tmpdir):
     pen.lineTo((500, 400))
     pen.lineTo((500, 000))
     pen.closePath()
+    glyph1 = pen.glyph()
 
-    glyph = pen.glyph()
+    pen = TTGlyphPen(None)
+    pen.moveTo((50, 0))
+    pen.lineTo((50, 200))
+    pen.lineTo((250, 200))
+    pen.lineTo((250, 0))
+    pen.closePath()
+    glyph2 = pen.glyph()
 
     pen = TTGlyphPen(None)
     emptyGlyph = pen.glyph()
 
-    glyphs = {".notdef": emptyGlyph, "A": glyph, "a": glyph, ".null": emptyGlyph}
+    glyphs = {".notdef": emptyGlyph, "A": glyph1, "a": glyph2, ".null": emptyGlyph}
     fb.setupGlyf(glyphs)
     metrics = {}
     glyphTable = fb.font["glyf"]
@@ -208,6 +213,26 @@ def test_build_var(tmpdir):
     ]
     fb.setupGvar(variations)
 
+    fb.addFeatureVariations(
+        [
+            (
+                [
+                    {"LEFT": (0.8, 1), "DOWN": (0.8, 1)},
+                    {"RGHT": (0.8, 1), "UPPP": (0.8, 1)},
+                  ],
+                {"A": "a"}
+            )
+        ],
+        featureTag="rclt",
+    )
+
+    statAxes = []
+    for tag, minVal, defaultVal, maxVal, name in axes:
+        values = [dict(name="Neutral", value=defaultVal, flags=0x2),
+                  dict(name=name, value=maxVal)]
+        statAxes.append(dict(tag=tag, name=name, values=values))
+    fb.setupStat(statAxes)
+
     fb.setupOS2()
     fb.setupPost()
     fb.setupDummyDSIG()
@@ -235,6 +260,19 @@ def test_build_cff2(tmpdir):
     fb.save(outPath)
 
     _verifyOutput(outPath)
+
+
+def test_build_cff_to_cff2(tmpdir):
+    fb, _, _ = _setupFontBuilder(False, 1000)
+
+    pen = T2CharStringPen(600, None)
+    drawTestGlyph(pen)
+    charString = pen.getCharString()
+    charStrings = {".notdef": charString, "A": charString, "a": charString, ".null": charString}
+    fb.setupCFF("TestFont", {}, charStrings, {})
+
+    from fontTools.varLib.cff import convertCFFtoCFF2
+    convertCFFtoCFF2(fb.font)
 
 
 def test_setupNameTable_no_mac():

@@ -1,17 +1,13 @@
 """Helpers for writing unit tests."""
 
-from __future__ import (print_function, division, absolute_import,
-                        unicode_literals)
-try:
-    from collections.abc import Iterable
-except ImportError:  # python < 3.3
-    from collections import Iterable
+from collections.abc import Iterable
+from io import BytesIO
 import os
 import shutil
 import sys
 import tempfile
 from unittest import TestCase as _TestCase
-from fontTools.misc.py23 import *
+from fontTools.misc.textTools import tobytes
 from fontTools.misc.xmlWriter import XMLWriter
 
 
@@ -30,7 +26,7 @@ def parseXML(xmlSnippet):
     xml = b"<root>"
     if isinstance(xmlSnippet, bytes):
         xml += xmlSnippet
-    elif isinstance(xmlSnippet, unicode):
+    elif isinstance(xmlSnippet, str):
         xml += tobytes(xmlSnippet, 'utf-8')
     elif isinstance(xmlSnippet, Iterable):
         xml += b"".join(tobytes(s, 'utf-8') for s in xmlSnippet)
@@ -40,6 +36,14 @@ def parseXML(xmlSnippet):
     xml += b"</root>"
     reader.parser.Parse(xml, 0)
     return reader.root[2]
+
+
+def parseXmlInto(font, parseInto, xmlSnippet):
+    parsed_xml = [e for e in parseXML(xmlSnippet.strip()) if not isinstance(e, str)]
+    for name, attrs, content in parsed_xml:
+        parseInto.fromXML(name, attrs, content, font)
+    parseInto.populateDefaults()
+    return parseInto
 
 
 class FakeFont:
@@ -61,17 +65,25 @@ class FakeFont:
     def getGlyphID(self, name):
         return self.reverseGlyphOrderDict_[name]
 
+    def getGlyphIDMany(self, lst):
+        return [self.getGlyphID(gid) for gid in lst]
+
     def getGlyphName(self, glyphID):
         if glyphID < len(self.glyphOrder_):
             return self.glyphOrder_[glyphID]
         else:
             return "glyph%.5d" % glyphID
+    def getGlyphNameMany(self, lst):
+        return [self.getGlyphName(gid) for gid in lst]
 
     def getGlyphOrder(self):
         return self.glyphOrder_
 
     def getReverseGlyphMap(self):
         return self.reverseGlyphOrderDict_
+
+    def getGlyphNames(self):
+        return sorted(self.getGlyphOrder())
 
 
 class TestXMLReader_(object):
@@ -137,7 +149,7 @@ class MockFont(object):
         self._reverseGlyphOrder = AllocatingDict({'.notdef': 0})
         self.lazy = False
 
-    def getGlyphID(self, glyph, requireReal=None):
+    def getGlyphID(self, glyph):
         gid = self._reverseGlyphOrder[glyph]
         return gid
 

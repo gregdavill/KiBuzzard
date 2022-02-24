@@ -1,13 +1,11 @@
-from __future__ import (
-    print_function, division, absolute_import, unicode_literals)
-from fontTools.misc.py23 import *
+from fontTools.misc.textTools import byteord, tostr
 
 import re
 from bisect import bisect_right
 
 try:
     # use unicodedata backport compatible with python2:
-    # https://github.com/mikekap/unicodedata2
+    # https://github.com/fonttools/unicodedata2
     from unicodedata2 import *
 except ImportError:  # pragma: no cover
     # fall back to built-in unicodedata (possibly outdated)
@@ -52,7 +50,7 @@ def script(char):
     'Latn'
     >>> script(",")
     'Zyyy'
-    >>> script(unichr(0x10FFFF))
+    >>> script(chr(0x10FFFF))
     'Zzzz'
     """
     code = byteord(char)
@@ -75,9 +73,9 @@ def script_extension(char):
 
     >>> script_extension("a") == {'Latn'}
     True
-    >>> script_extension(unichr(0x060C)) == {'Arab', 'Rohg', 'Syrc', 'Thaa'}
+    >>> script_extension(chr(0x060C)) == {'Rohg', 'Syrc', 'Yezi', 'Arab', 'Thaa', 'Nkoo'}
     True
-    >>> script_extension(unichr(0x10FFFF)) == {'Zzzz'}
+    >>> script_extension(chr(0x10FFFF)) == {'Zzzz'}
     True
     """
     code = byteord(char)
@@ -136,10 +134,10 @@ def script_code(script_name, default=KeyError):
         return default
 
 
-# The data on script direction is taken from harfbuzz's "hb-common.cc":
-# https://goo.gl/X5FDXC
-# It matches the CLDR "scriptMetadata.txt as of January 2018:
-# http://unicode.org/repos/cldr/trunk/common/properties/scriptMetadata.txt
+# The data on script direction is taken from Harfbuzz source code:
+# https://github.com/harfbuzz/harfbuzz/blob/3.2.0/src/hb-common.cc#L514-L613
+# This in turn references the following "Script_Metadata" document:
+# https://docs.google.com/spreadsheets/d/1Y90M0Ie3MUJ6UVCRDOypOtijlMDLNNyyLk36T6iMu0o
 RTL_SCRIPTS = {
     # Unicode-1.1 additions
     'Arab',  # Arabic
@@ -192,6 +190,21 @@ RTL_SCRIPTS = {
 
     # Unicode-9.0 additions
     'Adlm',  # Adlam
+
+    # Unicode-11.0 additions
+    'Rohg',  # Hanifi Rohingya
+    'Sogo',  # Old Sogdian
+    'Sogd',  # Sogdian
+
+    # Unicode-12.0 additions
+    'Elym',  # Elymaic
+
+    # Unicode-13.0 additions
+    'Chrs',  # Chorasmian
+    'Yezi',  # Yezidi
+
+    # Unicode-14.0 additions
+    'Ougr',  # Old Uyghur
 }
 
 def script_horizontal_direction(script_code, default=KeyError):
@@ -211,9 +224,9 @@ def block(char):
 
     >>> block("a")
     'Basic Latin'
-    >>> block(unichr(0x060C))
+    >>> block(chr(0x060C))
     'Arabic'
-    >>> block(unichr(0xEFFFF))
+    >>> block(chr(0xEFFFF))
     'No_Block'
     """
     code = byteord(char)
@@ -250,6 +263,9 @@ def ot_tag_to_script(tag):
     tag = tostr(tag).strip()
     if not tag or " " in tag or len(tag) > 4:
         raise ValueError("invalid OpenType tag: %r" % tag)
+
+    if tag in OTTags.SCRIPT_ALIASES:
+        tag = OTTags.SCRIPT_ALIASES[tag]
 
     while len(tag) != 4:
         tag += str(" ")  # pad with spaces

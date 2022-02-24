@@ -1,5 +1,3 @@
-from __future__ import print_function, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.ttLib import newTable
 from fontTools.ttLib.tables._k_e_r_n import (
     KernTable_format_0, KernTable_format_unkown)

@@ -1,12 +1,25 @@
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.misc.fixedTools import otRound
+from fontTools.misc.testTools import getXML, parseXML
 from fontTools.pens.ttGlyphPen import TTGlyphPen
+from fontTools.pens.recordingPen import RecordingPen, RecordingPointPen
+from fontTools.pens.pointPen import PointToSegmentPen
 from fontTools.ttLib import TTFont, newTable, TTLibError
-from fontTools.ttLib.tables._g_l_y_f import GlyphCoordinates
+from fontTools.ttLib.tables._g_l_y_f import (
+    Glyph,
+    GlyphCoordinates,
+    GlyphComponent,
+    ARGS_ARE_XY_VALUES,
+    SCALED_COMPONENT_OFFSET,
+    UNSCALED_COMPONENT_OFFSET,
+    WE_HAVE_A_SCALE,
+    WE_HAVE_A_TWO_BY_TWO,
+    WE_HAVE_AN_X_AND_Y_SCALE,
+)
 from fontTools.ttLib.tables import ttProgram
 import sys
 import array
+from io import StringIO
+import itertools
 import pytest
 import re
 import os
@@ -160,10 +173,9 @@ class GlyphCoordinatesTest(object):
         assert g[0][0] == otRound(afloat)
 
     def test__checkFloat_overflow(self):
-        g = GlyphCoordinates([(1, 1)], typecode="h")
+        g = GlyphCoordinates([(1, 1)])
         g.append((0x8000, 0))
-        assert g.array.typecode == "d"
-        assert g.array == array.array("d", [1.0, 1.0, 32768.0, 0.0])
+        assert list(g.array) == [1.0, 1.0, 32768.0, 0.0]
 
 
 CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
@@ -180,7 +192,7 @@ def strip_ttLibVersion(string):
     return re.sub(' ttLibVersion=".*"', '', string)
 
 
-class glyfTableTest(unittest.TestCase):
+class GlyfTableTest(unittest.TestCase):
 
     def __init__(self, methodName):
         unittest.TestCase.__init__(self, methodName)
@@ -212,7 +224,7 @@ class glyfTableTest(unittest.TestCase):
         font['head'].decompile(self.headData, font)
         font['loca'].decompile(self.locaData, font)
         glyfTable.decompile(self.glyfData, font)
-        out = UnicodeIO()
+        out = StringIO()
         font.saveXML(out)
         glyfXML = strip_ttLibVersion(out.getvalue()).splitlines()
         self.assertEqual(glyfXML, self.glyfXML)
@@ -275,6 +287,370 @@ class glyfTableTest(unittest.TestCase):
         self.assertFalse(hasattr(composite, "program"))
 
         composite.compact(glyfTable)
+
+    def test_bit6_draw_to_pen_issue1771(self):
+        # https://github.com/fonttools/fonttools/issues/1771
+        font = TTFont(sfntVersion="\x00\x01\x00\x00")
+        # glyph00003 contains a bit 6 flag on the first point,
+        # which triggered the issue
+        font.importXML(GLYF_TTX)
+        glyfTable = font['glyf']
+        pen = RecordingPen()
+        glyfTable["glyph00003"].draw(pen, glyfTable=glyfTable)
+        expected = [('moveTo', ((501, 1430),)),
+                    ('lineTo', ((683, 1430),)),
+                    ('lineTo', ((1172, 0),)),
+                    ('lineTo', ((983, 0),)),
+                    ('lineTo', ((591, 1193),)),
+                    ('lineTo', ((199, 0),)),
+                    ('lineTo', ((12, 0),)),
+                    ('closePath', ()),
+                    ('moveTo', ((249, 514),)),
+                    ('lineTo', ((935, 514),)),
+                    ('lineTo', ((935, 352),)),
+                    ('lineTo', ((249, 352),)),
+                    ('closePath', ())]
+        self.assertEqual(pen.value, expected)
+
+    def test_bit6_draw_to_pointpen(self):
+        # https://github.com/fonttools/fonttools/issues/1771
+        font = TTFont(sfntVersion="\x00\x01\x00\x00")
+        # glyph00003 contains a bit 6 flag on the first point
+        # which triggered the issue
+        font.importXML(GLYF_TTX)
+        glyfTable = font['glyf']
+        pen = RecordingPointPen()
+        glyfTable["glyph00003"].drawPoints(pen, glyfTable=glyfTable)
+        expected = [
+            ('beginPath', (), {}),
+            ('addPoint', ((501, 1430), 'line', False, None), {}),
+            ('addPoint', ((683, 1430), 'line', False, None), {}),
+            ('addPoint', ((1172, 0), 'line', False, None), {}),
+            ('addPoint', ((983, 0), 'line', False, None), {}),
+        ]
+        self.assertEqual(pen.value[:len(expected)], expected)
+
+    def test_draw_vs_drawpoints(self):
+        font = TTFont(sfntVersion="\x00\x01\x00\x00")
+        font.importXML(GLYF_TTX)
+        glyfTable = font['glyf']
+        pen1 = RecordingPen()
+        pen2 = RecordingPen()
+        glyfTable["glyph00003"].draw(pen1, glyfTable)
+        glyfTable["glyph00003"].drawPoints(PointToSegmentPen(pen2), glyfTable)
+        self.assertEqual(pen1.value, pen2.value)
+
+    def test_compile_empty_table(self):
+        font = TTFont(sfntVersion="\x00\x01\x00\x00")
+        font.importXML(GLYF_TTX)
+        glyfTable = font['glyf']
+        # set all glyphs to zero contours
+        glyfTable.glyphs = {glyphName: Glyph() for glyphName in font.getGlyphOrder()}
+        glyfData = glyfTable.compile(font)
+        self.assertEqual(glyfData, b"\x00")
+        self.assertEqual(list(font["loca"]), [0] * (font["maxp"].numGlyphs+1))
+
+    def test_decompile_empty_table(self):
+        font = TTFont()
+        glyphNames = [".notdef", "space"]
+        font.setGlyphOrder(glyphNames)
+        font["loca"] = newTable("loca")
+        font["loca"].locations = [0] * (len(glyphNames) + 1)
+        font["glyf"] = newTable("glyf")
+        font["glyf"].decompile(b"\x00", font)
+        self.assertEqual(len(font["glyf"]), 2)
+        self.assertEqual(font["glyf"][".notdef"].numberOfContours, 0)
+        self.assertEqual(font["glyf"]["space"].numberOfContours, 0)
+
+    def test_getPhantomPoints(self):
+        # https://github.com/fonttools/fonttools/issues/2295
+        font = TTFont()
+        glyphNames = [".notdef"]
+        font.setGlyphOrder(glyphNames)
+        font["loca"] = newTable("loca")
+        font["loca"].locations = [0] * (len(glyphNames) + 1)
+        font["glyf"] = newTable("glyf")
+        font["glyf"].decompile(b"\x00", font)
+        font["hmtx"] = newTable("hmtx")
+        font["hmtx"].metrics = {".notdef": (100,0)}
+        font["head"] = newTable("head")
+        font["head"].unitsPerEm = 1000
+        self.assertEqual(
+            font["glyf"].getPhantomPoints(".notdef", font, 0), 
+            [(0, 0), (100, 0), (0, 0), (0, -1000)]
+        )
+
+class GlyphTest:
+
+    def test_getCoordinates(self):
+        glyphSet = {}
+        pen = TTGlyphPen(glyphSet)
+        pen.moveTo((0, 0))
+        pen.lineTo((100, 0))
+        pen.lineTo((100, 100))
+        pen.lineTo((0, 100))
+        pen.closePath()
+        # simple contour glyph
+        glyphSet["a"] = a = pen.glyph()
+
+        assert a.getCoordinates(glyphSet) == (
+            GlyphCoordinates([(0, 0), (100, 0), (100, 100), (0, 100)]),
+            [3],
+            array.array("B", [1, 1, 1, 1]),
+        )
+
+        # composite glyph with only XY offset
+        pen = TTGlyphPen(glyphSet)
+        pen.addComponent("a", (1, 0, 0, 1, 10, 20))
+        glyphSet["b"] = b = pen.glyph()
+
+        assert b.getCoordinates(glyphSet) == (
+            GlyphCoordinates([(10, 20), (110, 20), (110, 120), (10, 120)]),
+            [3],
+            array.array("B", [1, 1, 1, 1]),
+        )
+
+        # composite glyph with a scale (and referencing another composite glyph)
+        pen = TTGlyphPen(glyphSet)
+        pen.addComponent("b", (0.5, 0, 0, 0.5, 0, 0))
+        glyphSet["c"] = c = pen.glyph()
+
+        assert c.getCoordinates(glyphSet) == (
+            GlyphCoordinates([(5, 10), (55, 10), (55, 60), (5, 60)]),
+            [3],
+            array.array("B", [1, 1, 1, 1]),
+        )
+
+        # composite glyph with unscaled offset (MS-style)
+        pen = TTGlyphPen(glyphSet)
+        pen.addComponent("a", (0.5, 0, 0, 0.5, 10, 20))
+        glyphSet["d"] = d = pen.glyph()
+        d.components[0].flags |= UNSCALED_COMPONENT_OFFSET
+
+        assert d.getCoordinates(glyphSet) == (
+            GlyphCoordinates([(10, 20), (60, 20), (60, 70), (10, 70)]),
+            [3],
+            array.array("B", [1, 1, 1, 1]),
+        )
+
+        # composite glyph with a scaled offset (Apple-style)
+        pen = TTGlyphPen(glyphSet)
+        pen.addComponent("a", (0.5, 0, 0, 0.5, 10, 20))
+        glyphSet["e"] = e = pen.glyph()
+        e.components[0].flags |= SCALED_COMPONENT_OFFSET
+
+        assert e.getCoordinates(glyphSet) == (
+            GlyphCoordinates([(5, 10), (55, 10), (55, 60), (5, 60)]),
+            [3],
+            array.array("B", [1, 1, 1, 1]),
+        )
+
+        # composite glyph where the 2nd and 3rd components use anchor points
+        pen = TTGlyphPen(glyphSet)
+        pen.addComponent("a", (1, 0, 0, 1, 0, 0))
+        glyphSet["f"] = f = pen.glyph()
+
+        comp1 = GlyphComponent()
+        comp1.glyphName = "a"
+        # aling the new component's pt 0 to pt 2 of contour points added so far
+        comp1.firstPt = 2
+        comp1.secondPt = 0
+        comp1.flags = 0
+        f.components.append(comp1)
+
+        comp2 = GlyphComponent()
+        comp2.glyphName = "a"
+        # aling the new component's pt 0 to pt 6 of contour points added so far
+        comp2.firstPt = 6
+        comp2.secondPt = 0
+        comp2.transform = [[0.707107, 0.707107], [-0.707107, 0.707107]]  # rotate 45 deg
+        comp2.flags = WE_HAVE_A_TWO_BY_TWO
+        f.components.append(comp2)
+
+        coords, end_pts, flags = f.getCoordinates(glyphSet)
+        assert end_pts == [3, 7, 11]
+        assert flags == array.array("B", [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+        assert list(sum(coords, ())) == pytest.approx(
+            [
+                0, 0,
+                100, 0,
+                100, 100,
+                0, 100,
+                100, 100,
+                200, 100,
+                200, 200,
+                100, 200,
+                200, 200,
+                270.7107, 270.7107,
+                200.0, 341.4214,
+                129.2893, 270.7107,
+            ]
+        )
+
+    def test_getCompositeMaxpValues(self):
+        # https://github.com/fonttools/fonttools/issues/2044
+        glyphSet = {}
+        pen = TTGlyphPen(glyphSet)  # empty non-composite glyph
+        glyphSet["fraction"] = pen.glyph()
+        glyphSet["zero.numr"] = pen.glyph()
+        pen = TTGlyphPen(glyphSet)
+        pen.addComponent("zero.numr", (1, 0, 0, 1, 0, 0))
+        glyphSet["zero.dnom"] = pen.glyph()
+        pen = TTGlyphPen(glyphSet)
+        pen.addComponent("zero.numr", (1, 0, 0, 1, 0, 0))
+        pen.addComponent("fraction", (1, 0, 0, 1, 0, 0))
+        pen.addComponent("zero.dnom", (1, 0, 0, 1, 0, 0))
+        glyphSet["percent"] = pen.glyph()
+        pen = TTGlyphPen(glyphSet)
+        pen.addComponent("zero.numr", (1, 0, 0, 1, 0, 0))
+        pen.addComponent("fraction", (1, 0, 0, 1, 0, 0))
+        pen.addComponent("zero.dnom", (1, 0, 0, 1, 0, 0))
+        pen.addComponent("zero.dnom", (1, 0, 0, 1, 0, 0))
+        glyphSet["perthousand"] = pen.glyph()
+        assert glyphSet["zero.dnom"].getCompositeMaxpValues(glyphSet)[2] == 1
+        assert glyphSet["percent"].getCompositeMaxpValues(glyphSet)[2] == 2
+        assert glyphSet["perthousand"].getCompositeMaxpValues(glyphSet)[2] == 2
+
+
+class GlyphComponentTest:
+
+    def test_toXML_no_transform(self):
+        comp = GlyphComponent()
+        comp.glyphName = "a"
+        comp.flags = ARGS_ARE_XY_VALUES
+        comp.x, comp.y = 1, 2
+
+        assert getXML(comp.toXML) == [
+            '<component glyphName="a" x="1" y="2" flags="0x2"/>'
+        ]
+
+    def test_toXML_transform_scale(self):
+        comp = GlyphComponent()
+        comp.glyphName = "a"
+        comp.flags = ARGS_ARE_XY_VALUES | WE_HAVE_A_SCALE
+        comp.x, comp.y = 1, 2
+
+        comp.transform = [[0.2999878, 0], [0, 0.2999878]]
+        assert getXML(comp.toXML) == [
+            '<component glyphName="a" x="1" y="2" scale="0.3" flags="0xa"/>'
+        ]
+
+    def test_toXML_transform_xy_scale(self):
+        comp = GlyphComponent()
+        comp.glyphName = "a"
+        comp.flags = ARGS_ARE_XY_VALUES | WE_HAVE_AN_X_AND_Y_SCALE
+        comp.x, comp.y = 1, 2
+
+        comp.transform = [[0.5999756, 0], [0, 0.2999878]]
+        assert getXML(comp.toXML) == [
+            '<component glyphName="a" x="1" y="2" scalex="0.6" '
+            'scaley="0.3" flags="0x42"/>'
+        ]
+
+    def test_toXML_transform_2x2_scale(self):
+        comp = GlyphComponent()
+        comp.glyphName = "a"
+        comp.flags = ARGS_ARE_XY_VALUES | WE_HAVE_A_TWO_BY_TWO
+        comp.x, comp.y = 1, 2
+
+        comp.transform = [[0.5999756, -0.2000122], [0.2000122, 0.2999878]]
+        assert getXML(comp.toXML) == [
+            '<component glyphName="a" x="1" y="2" scalex="0.6" scale01="-0.2" '
+            'scale10="0.2" scaley="0.3" flags="0x82"/>'
+        ]
+
+    def test_fromXML_no_transform(self):
+        comp = GlyphComponent()
+        for name, attrs, content in parseXML(
+            ['<component glyphName="a" x="1" y="2" flags="0x2"/>']
+        ):
+            comp.fromXML(name, attrs, content, ttFont=None)
+
+        assert comp.glyphName == "a"
+        assert comp.flags & ARGS_ARE_XY_VALUES != 0
+        assert (comp.x, comp.y) == (1, 2)
+        assert not hasattr(comp, "transform")
+
+    def test_fromXML_transform_scale(self):
+        comp = GlyphComponent()
+        for name, attrs, content in parseXML(
+            ['<component glyphName="a" x="1" y="2" scale="0.3" flags="0xa"/>']
+        ):
+            comp.fromXML(name, attrs, content, ttFont=None)
+
+        assert comp.glyphName == "a"
+        assert comp.flags & ARGS_ARE_XY_VALUES != 0
+        assert comp.flags & WE_HAVE_A_SCALE != 0
+        assert (comp.x, comp.y) == (1, 2)
+        assert hasattr(comp, "transform")
+        for value, expected in zip(
+            itertools.chain(*comp.transform), [0.2999878, 0, 0, 0.2999878]
+        ):
+            assert value == pytest.approx(expected)
+
+    def test_fromXML_transform_xy_scale(self):
+        comp = GlyphComponent()
+        for name, attrs, content in parseXML(
+            [
+                '<component glyphName="a" x="1" y="2" scalex="0.6" '
+                'scaley="0.3" flags="0x42"/>'
+            ]
+        ):
+            comp.fromXML(name, attrs, content, ttFont=None)
+
+        assert comp.glyphName == "a"
+        assert comp.flags & ARGS_ARE_XY_VALUES != 0
+        assert comp.flags & WE_HAVE_AN_X_AND_Y_SCALE != 0
+        assert (comp.x, comp.y) == (1, 2)
+        assert hasattr(comp, "transform")
+        for value, expected in zip(
+            itertools.chain(*comp.transform), [0.5999756, 0, 0, 0.2999878]
+        ):
+            assert value == pytest.approx(expected)
+
+    def test_fromXML_transform_2x2_scale(self):
+        comp = GlyphComponent()
+        for name, attrs, content in parseXML(
+            [
+                '<component glyphName="a" x="1" y="2" scalex="0.6" scale01="-0.2" '
+                'scale10="0.2" scaley="0.3" flags="0x82"/>'
+            ]
+        ):
+            comp.fromXML(name, attrs, content, ttFont=None)
+
+        assert comp.glyphName == "a"
+        assert comp.flags & ARGS_ARE_XY_VALUES != 0
+        assert comp.flags & WE_HAVE_A_TWO_BY_TWO != 0
+        assert (comp.x, comp.y) == (1, 2)
+        assert hasattr(comp, "transform")
+        for value, expected in zip(
+            itertools.chain(*comp.transform),
+            [0.5999756, -0.2000122, 0.2000122, 0.2999878]
+        ):
+            assert value == pytest.approx(expected)
+
+    def test_toXML_reference_points(self):
+        comp = GlyphComponent()
+        comp.glyphName = "a"
+        comp.flags = 0
+        comp.firstPt = 1
+        comp.secondPt = 2
+
+        assert getXML(comp.toXML) == [
+            '<component glyphName="a" firstPt="1" secondPt="2" flags="0x0"/>'
+        ]
+
+    def test_fromXML_reference_points(self):
+        comp = GlyphComponent()
+        for name, attrs, content in parseXML(
+            ['<component glyphName="a" firstPt="1" secondPt="2" flags="0x0"/>']
+        ):
+            comp.fromXML(name, attrs, content, ttFont=None)
+
+        assert comp.glyphName == "a"
+        assert comp.flags == 0
+        assert (comp.firstPt, comp.secondPt) == (1, 2)
+        assert not hasattr(comp, "transform")
 
 
 if __name__ == "__main__":

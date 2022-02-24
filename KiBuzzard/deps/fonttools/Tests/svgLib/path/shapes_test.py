@@ -1,6 +1,3 @@
-from __future__ import print_function, absolute_import, division
-
-from fontTools.misc.py23 import *
 from fontTools.svgLib.path import shapes
 from fontTools.misc import etree
 import pytest

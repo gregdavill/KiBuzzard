@@ -5,14 +5,27 @@ pens
 .. toctree::
    :maxdepth: 1
 
+   areaPen
    basePen
    boundsPen
-   pointInsidePen
+   cocoaPen
+   cu2quPen
    filterPen
-   transformPen
-   t2CharStringPen
-   statisticsPen
-   recordingPen
-   teePen
-   areaPen
+   freetypePen
+   momentsPen
    perimeterPen
+   pointInsidePen
+   pointPen
+   qtPen
+   recordingPen
+   reportLabPen
+   reverseContourPen
+   roundingPen
+   statisticsPen
+   svgPathPen
+   t2CharStringPen
+   teePen
+   transformPen
+   ttGlyphPen
+   wxPen
+

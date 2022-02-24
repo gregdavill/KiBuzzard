@@ -1,10 +1,14 @@
 """Pen recording operations that can be accessed or replayed."""
-from __future__ import print_function, division, absolute_import
-from fontTools.misc.py23 import *
 from fontTools.pens.basePen import AbstractPen, DecomposingPen
+from fontTools.pens.pointPen import AbstractPointPen
 
 
-__all__ = ["replayRecording", "RecordingPen", "DecomposingRecordingPen"]
+__all__ = [
+	"replayRecording",
+	"RecordingPen",
+	"DecomposingRecordingPen",
+	"RecordingPointPen",
+]
 
 
 def replayRecording(recording, pen):
@@ -25,21 +29,21 @@ class RecordingPen(AbstractPen):
 	The recording can be accessed as pen.value; or replayed using
 	pen.replay(otherPen).
 
-	Usage example:
-	==============
-	from fontTools.ttLib import TTFont
-	from fontTools.pens.recordingPen import RecordingPen
+	:Example:
 
-	glyph_name = 'dollar'
-	font_path = 'MyFont.otf'
+		from fontTools.ttLib import TTFont
+		from fontTools.pens.recordingPen import RecordingPen
 
-	font = TTFont(font_path)
-	glyphset = font.getGlyphSet()
-	glyph = glyphset[glyph_name]
+		glyph_name = 'dollar'
+		font_path = 'MyFont.otf'
 
-	pen = RecordingPen()
-	glyph.draw(pen)
-	print(pen.value)
+		font = TTFont(font_path)
+		glyphset = font.getGlyphSet()
+		glyph = glyphset[glyph_name]
+
+		pen = RecordingPen()
+		glyph.draw(pen)
+		print(pen.value)
 	"""
 
 	def __init__(self):
@@ -68,30 +72,80 @@ class DecomposingRecordingPen(DecomposingPen, RecordingPen):
 
 	The constructor takes a single 'glyphSet' positional argument,
 	a dictionary of glyph objects (i.e. with a 'draw' method) keyed
-	by thir name.
+	by thir name::
 
-	>>> class SimpleGlyph(object):
-	...     def draw(self, pen):
-	...         pen.moveTo((0, 0))
-	...         pen.curveTo((1, 1), (2, 2), (3, 3))
-	...         pen.closePath()
-	>>> class CompositeGlyph(object):
-	...     def draw(self, pen):
-	...         pen.addComponent('a', (1, 0, 0, 1, -1, 1))
-	>>> glyphSet = {'a': SimpleGlyph(), 'b': CompositeGlyph()}
-	>>> for name, glyph in sorted(glyphSet.items()):
-	...     pen = DecomposingRecordingPen(glyphSet)
-	...     glyph.draw(pen)
-	...     print("{}: {}".format(name, pen.value))
-	a: [('moveTo', ((0, 0),)), ('curveTo', ((1, 1), (2, 2), (3, 3))), ('closePath', ())]
-	b: [('moveTo', ((-1, 1),)), ('curveTo', ((0, 2), (1, 3), (2, 4))), ('closePath', ())]
+		>>> class SimpleGlyph(object):
+		...     def draw(self, pen):
+		...         pen.moveTo((0, 0))
+		...         pen.curveTo((1, 1), (2, 2), (3, 3))
+		...         pen.closePath()
+		>>> class CompositeGlyph(object):
+		...     def draw(self, pen):
+		...         pen.addComponent('a', (1, 0, 0, 1, -1, 1))
+		>>> glyphSet = {'a': SimpleGlyph(), 'b': CompositeGlyph()}
+		>>> for name, glyph in sorted(glyphSet.items()):
+		...     pen = DecomposingRecordingPen(glyphSet)
+		...     glyph.draw(pen)
+		...     print("{}: {}".format(name, pen.value))
+		a: [('moveTo', ((0, 0),)), ('curveTo', ((1, 1), (2, 2), (3, 3))), ('closePath', ())]
+		b: [('moveTo', ((-1, 1),)), ('curveTo', ((0, 2), (1, 3), (2, 4))), ('closePath', ())]
 	"""
 	# raises KeyError if base glyph is not found in glyphSet
 	skipMissingComponents = False
 
 
+class RecordingPointPen(AbstractPointPen):
+	"""PointPen recording operations that can be accessed or replayed.
+
+	The recording can be accessed as pen.value; or replayed using
+	pointPen.replay(otherPointPen).
+
+	:Example:
+
+		from defcon import Font
+		from fontTools.pens.recordingPen import RecordingPointPen
+
+		glyph_name = 'a'
+		font_path = 'MyFont.ufo'
+
+		font = Font(font_path)
+		glyph = font[glyph_name]
+
+		pen = RecordingPointPen()
+		glyph.drawPoints(pen)
+		print(pen.value)
+
+		new_glyph = font.newGlyph('b')
+		pen.replay(new_glyph.getPointPen())
+	"""
+
+	def __init__(self):
+		self.value = []
+
+	def beginPath(self, identifier=None, **kwargs):
+		if identifier is not None:
+			kwargs["identifier"] = identifier
+		self.value.append(("beginPath", (), kwargs))
+
+	def endPath(self):
+		self.value.append(("endPath", (), {}))
+
+	def addPoint(self, pt, segmentType=None, smooth=False, name=None, identifier=None, **kwargs):
+		if identifier is not None:
+			kwargs["identifier"] = identifier
+		self.value.append(("addPoint", (pt, segmentType, smooth, name), kwargs))
+
+	def addComponent(self, baseGlyphName, transformation, identifier=None, **kwargs):
+		if identifier is not None:
+			kwargs["identifier"] = identifier
+		self.value.append(("addComponent", (baseGlyphName, transformation), kwargs))
+
+	def replay(self, pointPen):
+		for operator, args, kwargs in self.value:
+			getattr(pointPen, operator)(*args, **kwargs)
+
+
 if __name__ == "__main__":
-	from fontTools.pens.basePen import _TestPen
 	pen = RecordingPen()
 	pen.moveTo((0, 0))
 	pen.lineTo((0, 100))
