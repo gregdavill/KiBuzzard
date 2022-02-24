@@ -208,7 +208,7 @@ class Svg2ModExportv6PrettyUser( svg2mod.Svg2ModExportv6Pretty ):
                 int( round( #1
                     os.path.getctime( self.imported.file_name ) if self.imported.file_name else time.time()
                 ) ),
-                "Converted using: {}".format( cmdline.replace("\\", "\\\\") ), #2
+                "Generated with KiBuzzard", #2
                 self.params, #3
             )
         )
