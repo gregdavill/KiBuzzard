@@ -8,6 +8,15 @@ import wx
 import wx.aui
 from wx import FileConfig
 
+import os
+from .util import add_paths
+dir_path = os.path.dirname(os.path.realpath(__file__))
+paths = [
+    os.path.join(dir_path, 'deps'), 
+    os.path.join(dir_path, 'deps', 'fonttools', 'Lib'), 
+    os.path.join(dir_path, 'deps', 'svg2mod')
+]
+
 def check_for_bom_button():
     # From Miles McCoo's blog
     # https://kicad.mmccoo.com/2017/03/05/adding-your-own-command-buttons-to-the-pcbnew-gui/
@@ -42,8 +51,10 @@ def check_for_bom_button():
             top_tb.Bind(wx.EVT_TOOL, callback, id=button_wx_item_id)
             top_tb.Realize()
 
+
 try:
-    from .plugin import KiBuzzardPlugin
+    with add_paths(paths):
+        from .plugin import KiBuzzardPlugin
     plugin = KiBuzzardPlugin()
     plugin.register()
 except Exception as e:
