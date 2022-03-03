@@ -47,7 +47,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                 continue
             
             self.m_FontComboBox.Append(os.path.splitext(entry)[0])
-        
+            
+        self.m_FontComboBox.Append("System Font")
         self.m_FontComboBox.SetSelection(0)
 
         #for fnt in buzzard.SystemFonts:
@@ -60,7 +61,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.m_HeightUnits.SetLabel("mm")
         self.m_WidthUnits.SetLabel("mm")
         self.m_PaddingUnits.SetLabel("")
-        
 
         best_size = self.BestSize
         # hack for some gtk themes that incorrectly calculate best size
@@ -76,6 +76,11 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
 
         self.loadConfig()
+
+        if self.m_FontComboBox.GetValue() == "System Font":
+            self.m_fontPicker.Enable()
+        else:
+            self.m_fontPicker.Disable()
 
 
         self.buzzard = buzzard
@@ -122,7 +127,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             return
 
         # else load up last sessions config
-        params = self.config_defaults
+        params = {}
+        params.update(self.config_defaults)
         try:
             with open(self.config_file, 'r') as cf:
                 json_params = json.load(cf)
@@ -161,6 +167,23 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                     raise Exception("Invalid item")  
             except Exception as e:
                 pass
+
+        try:
+            if params['FontComboBox'] == "System Font":
+                font_info = wx.FontInfo(12).FaceName(params['FontPicker_name'])
+                try:
+                    if params['FontPicker_italic']:
+                        font_info = font_info.Italic()
+                except:
+                    pass
+                try:
+                    if params['FontPicker_weight']:
+                        font_info = font_info.Bold()
+                except:
+                    pass
+                self.m_fontPicker.SetSelectedFont(wx.Font(font_info))
+        except:
+            pass
         return params
 
     def CurrentSettings(self):
@@ -174,6 +197,12 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                 params.update({item: obj.GetStringSelection()})
             else:
                 raise Exception("Invalid item")    
+
+        if self.m_FontComboBox.GetValue() == "System Font":
+            SelectedFont = self.m_fontPicker.GetSelectedFont()
+            params.update({"FontPicker_name": SelectedFont.GetFaceName(), "FontPicker_italic": SelectedFont.GetStyle() == wx.FONTSTYLE_ITALIC, "FontPicker_weight": SelectedFont.GetWeight() == wx.FONTWEIGHT_BOLD})
+        else:
+            params.update({"FontPicker_name": "", "FontPicker_italic": False, "FontPicker_weight": False})
         return params
 
 
@@ -193,6 +222,15 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.polys = []
         self.buzzard.fontName = self.m_FontComboBox.GetValue()
 
+        if self.m_FontComboBox.GetValue() == "System Font":
+            font_name = self.m_fontPicker.GetSelectedFont()
+            self.buzzard.fontName = (font_name.GetFaceName(), font_name.GetStyle())
+
+        
+        if self.m_FontComboBox.GetValue() == "System Font":
+            SelectedFont = self.m_fontPicker.GetSelectedFont()
+            self.buzzard.fontName = (SelectedFont.GetFaceName(), SelectedFont.GetStyle() == wx.FONTSTYLE_ITALIC, SelectedFont.GetWeight() == wx.FONTWEIGHT_BOLD)
+            
         # Validate scale factor
         scale = ParseFloat(self.m_HeightCtrl.GetValue(), 1.0)
 
@@ -300,3 +338,9 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.saveConfig()
         
         self.func(self, self.buzzard)
+
+    def OnCombobox(self, event):
+        if self.m_FontComboBox.GetValue() == "System Font":
+            self.m_fontPicker.Enable()
+        else:
+            self.m_fontPicker.Disable()
