@@ -211,7 +211,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.buzzard.padding.bottom = ParseFloat(self.m_PaddingBottomCtrl.GetValue(), DefaultPadding) * 0.5
 
         self.buzzard.layer = self.m_LayerComboBox.GetValue()
-        self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0) *  7.75 * (1/scale)
+        self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0) *  7.55625 * (1/scale)
 
         self.buzzard.alignment = self.m_AlignmentChoice.GetStringSelection()
 
