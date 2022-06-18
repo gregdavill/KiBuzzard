@@ -77,10 +77,15 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         
                         pos = dlg.updateFootprint.GetPosition()
                         orient = dlg.updateFootprint.GetOrientation()
+                        wasOnBackLayer = ("B." in dlg.updateFootprint.GetLayerName())
+                        
                         io = pcbnew.PCB_PLUGIN()
                         new_fp = pcbnew.Cast_to_FOOTPRINT(io.Parse(footprint_string))
                         b.Add(new_fp)
                         new_fp.SetPosition(pos)
+                        # Flip before setting orientation
+                        if wasOnBackLayer:
+                            new_fp.Flip(pos, True)
                         new_fp.SetOrientation(orient)
 
                         b.Remove(dlg.updateFootprint)
