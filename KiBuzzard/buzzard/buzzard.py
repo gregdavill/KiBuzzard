@@ -2,6 +2,7 @@
 import os
 import time
 import copy
+from typing import Tuple
 
 from fontTools.ttLib import ttFont
 from fontTools.pens.recordingPen import RecordingPen
@@ -35,7 +36,7 @@ class Buzzard():
         self.svgText = None
         #self.SystemFonts = svg.Text._system_fonts
 
-        #svg.Text.load_system_fonts()
+        svg.Text.load_system_fonts()
 
         fnt_lib = svg.Text._system_fonts
         if fnt_lib is None:
@@ -70,7 +71,13 @@ class Buzzard():
         # t is an svg Text element
         t = svg.Text()
 
-        t.set_font(self.fontName)
+
+        if isinstance(self.fontName, Tuple):
+            font_name, italic, weight = self.fontName
+            print(self.fontName)
+            t.set_font(font_name, weight, italic)
+        else:
+            t.set_font(self.fontName)
         
         for i,s in enumerate(inString.split('\n')):
             t.add_text(s, origin=svg.Point(0, 15*i))

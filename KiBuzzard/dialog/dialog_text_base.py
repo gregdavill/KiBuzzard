@@ -111,6 +111,26 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_CapLeftChoice.SetSelection( 0 )
         fgSizerSetup.Add( self.m_CapLeftChoice, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
 
+
+        fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+        self.m_fontPicker = wx.FontPickerCtrl( self, wx.ID_ANY, wx.NullFont, wx.DefaultPosition, wx.DefaultSize, wx.FNTP_DEFAULT_STYLE )
+        self.m_fontPicker.SetMaxPointSize( 100 )
+        fgSizerSetup.Add( self.m_fontPicker, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+
+
+        fgSizerSetup.Add( ( 0, 0), 0, wx.EXPAND, 5 )
+
+        self.m_CapRightLabel = wx.StaticText( self, wx.ID_ANY, _(u"Cap Right:"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_CapRightLabel.Wrap( -1 )
+
+        fgSizerSetup.Add( self.m_CapRightLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
+
+        m_CapRightChoiceChoices = [ wx.EmptyString, _(u"]"), _(u")"), _(u"/"), _(u"\\"), _(u">"), _(u"<") ]
+        self.m_CapRightChoice = wx.Choice( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_CapRightChoiceChoices, 0 )
+        self.m_CapRightChoice.SetSelection( 0 )
+        fgSizerSetup.Add( self.m_CapRightChoice, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
+
         self.m_HeightLabel = wx.StaticText( self, wx.ID_ANY, _(u"Height:"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_HeightLabel.Wrap( -1 )
 
@@ -125,15 +145,15 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerSetup.Add( self.m_HeightUnits, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
 
-        self.m_CapRightLabel = wx.StaticText( self, wx.ID_ANY, _(u"Cap Right:"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_CapRightLabel.Wrap( -1 )
+        self.m_AlignmentLabel = wx.StaticText( self, wx.ID_ANY, _(u"Alignment:"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_AlignmentLabel.Wrap( -1 )
 
-        fgSizerSetup.Add( self.m_CapRightLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
+        fgSizerSetup.Add( self.m_AlignmentLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
 
-        m_CapRightChoiceChoices = [ wx.EmptyString, _(u"]"), _(u")"), _(u"/"), _(u"\\"), _(u">"), _(u"<") ]
-        self.m_CapRightChoice = wx.Choice( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_CapRightChoiceChoices, 0 )
-        self.m_CapRightChoice.SetSelection( 0 )
-        fgSizerSetup.Add( self.m_CapRightChoice, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
+        m_AlignmentChoiceChoices = [ _(u"Left"), _(u"Center"), _(u"Right") ]
+        self.m_AlignmentChoice = wx.Choice( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_AlignmentChoiceChoices, 0 )
+        self.m_AlignmentChoice.SetSelection( 0 )
+        fgSizerSetup.Add( self.m_AlignmentChoice, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
 
         self.m_WidthLabel = wx.StaticText( self, wx.ID_ANY, _(u"Width:"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_WidthLabel.Wrap( -1 )
@@ -148,25 +168,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_WidthUnits.Wrap( -1 )
 
         fgSizerSetup.Add( self.m_WidthUnits, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
-
-        self.m_AlignmentLabel = wx.StaticText( self, wx.ID_ANY, _(u"Alignment:"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_AlignmentLabel.Wrap( -1 )
-
-        fgSizerSetup.Add( self.m_AlignmentLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
-
-        m_AlignmentChoiceChoices = [ _(u"Left"), _(u"Center"), _(u"Right") ]
-        self.m_AlignmentChoice = wx.Choice( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_AlignmentChoiceChoices, 0 )
-        self.m_AlignmentChoice.SetSelection( 0 )
-        fgSizerSetup.Add( self.m_AlignmentChoice, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
-
-
-        fgSizerSetup.Add( ( 0, 0), 0, wx.EXPAND, 5 )
-
-
-        fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
-
-
-        fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
         self.m_LayerComboBox1 = wx.StaticText( self, wx.ID_ANY, _(u"Layer:"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_LayerComboBox1.Wrap( -1 )
@@ -286,6 +287,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         # Connect Events
         self.Bind( wx.EVT_INIT_DIALOG, self.OnInitDlg )
+        self.m_FontComboBox.Bind( wx.EVT_COMBOBOX, self.OnCombobox )
         self.m_HeightCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_WidthCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_PaddingTopCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
@@ -300,6 +302,9 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
     # Virtual event handlers, override them in your derived class
     def OnInitDlg( self, event ):
+        pass
+
+    def OnCombobox( self, event ):
         pass
 
     def OnOkClick( self, event ):
