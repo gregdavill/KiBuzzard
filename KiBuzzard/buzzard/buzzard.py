@@ -69,6 +69,16 @@ class Buzzard():
     def renderLabel(self, inString):
         # t is an svg Text element
         t = svg.Text()
+        isMultiline = len(inString.strip().split('\n')) > 1
+
+        # Make center alignment work with multiline input
+        if self.alignment == 'Center' and isMultiline:
+            padSize = len(max((line for line in inString.split('\n')), key=len))
+            newStr = ''
+            for line in inString.split('\n'):
+                newStr += f'{line.center(padSize)}\n'
+
+            inString = newStr
 
         t.set_font(self.fontName)
         
@@ -97,7 +107,7 @@ class Buzzard():
         alignmentOffset = 0
         if self.alignment == 'Left' or fixedWidth != width:
             alignmentOffset = 0
-        elif self.alignment == 'Center':
+        elif self.alignment == 'Center' and not isMultiline:
             alignmentOffset = (self.width - textWidth)/2
         elif self.alignment == 'Right':
             alignmentOffset = (self.width - textWidth)
