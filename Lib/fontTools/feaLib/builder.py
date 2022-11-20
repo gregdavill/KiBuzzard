@@ -230,8 +230,6 @@ class Builder(object):
                 self.font["GDEF"] = gdef
             elif "GDEF" in self.font:
                 del self.font["GDEF"]
-        elif self.varstorebuilder:
-            raise FeatureLibError("Must save GDEF when compiling a variable font")
         if "BASE" in tables:
             base = self.buildBASE()
             if base:
@@ -764,7 +762,7 @@ class Builder(object):
         gdef.Version = 0x00010002 if gdef.MarkGlyphSetsDef else 0x00010000
         if self.varstorebuilder:
             store = self.varstorebuilder.finish()
-            if store.VarData:
+            if store:
                 gdef.Version = 0x00010003
                 gdef.VarStore = store
                 varidx_map = store.optimize()
@@ -772,6 +770,7 @@ class Builder(object):
                 gdef.remap_device_varidxes(varidx_map)
                 if 'GPOS' in self.font:
                     self.font['GPOS'].table.remap_device_varidxes(varidx_map)
+            VariableScalar.clear_cache()
         if any(
             (
                 gdef.GlyphClassDef,

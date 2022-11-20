@@ -151,6 +151,7 @@ def test_script():
     assert unicodedata.script(chr(0x118CF)) == 'Wara'
     assert unicodedata.script(chr(0xA066)) == 'Yiii'
     assert unicodedata.script(chr(0x11A31)) == 'Zanb'
+    assert unicodedata.script(chr(0x11F00)) == 'Kawi'
 
 
 def test_script_extension():
@@ -199,6 +200,7 @@ def test_block():
     assert unicodedata.block("\x80") == "Latin-1 Supplement"
     assert unicodedata.block("\u1c90") == "Georgian Extended"
     assert unicodedata.block("\u0870") == "Arabic Extended-B"
+    assert unicodedata.block("\U00011B00") == "Devanagari Extended-A"
 
 
 def test_ot_tags_from_script():
@@ -208,6 +210,7 @@ def test_ot_tags_from_script():
     assert unicodedata.ot_tags_from_script("Deva") == ["dev2", "deva"]
     # exceptions
     assert unicodedata.ot_tags_from_script("Hira") == ["kana"]
+    assert unicodedata.ot_tags_from_script("Zmth") == ["math"]
     # special script codes map to DFLT
     assert unicodedata.ot_tags_from_script("Zinh") == ["DFLT"]
     assert unicodedata.ot_tags_from_script("Zyyy") == ["DFLT"]
@@ -230,6 +233,7 @@ def test_ot_tag_to_script():
     assert unicodedata.ot_tag_to_script("vai ") == "Vaii"
     assert unicodedata.ot_tag_to_script("lao ") == "Laoo"
     assert unicodedata.ot_tag_to_script("yi") == "Yiii"
+    assert unicodedata.ot_tag_to_script("math") == "Zmth"
     # both 'hang' and 'jamo' tags map to the Hangul script
     assert unicodedata.ot_tag_to_script("hang") == "Hang"
     assert unicodedata.ot_tag_to_script("jamo") == "Hang"

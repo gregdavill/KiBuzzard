@@ -7,6 +7,7 @@ from fontTools.misc.dictTools import hashdict
 from fontTools.misc.intTools import popCount
 from fontTools.ttLib import newTable
 from fontTools.ttLib.tables import otTables as ot
+from fontTools.ttLib.ttVisitor import TTVisitor
 from fontTools.otlLib.builder import buildLookup, buildSingleSubstSubtable
 from collections import OrderedDict
 
@@ -44,6 +45,10 @@ def addFeatureVariations(font, conditionalSubstitutions, featureTag='rvrn'):
     # >>> f.save(dstPath)
     """
 
+    _checkSubstitutionGlyphsExist(
+        glyphNames=set(font.getGlyphOrder()),
+        substitutions=conditionalSubstitutions,
+    )
 
     substitutions = overlayFeatureVariations(conditionalSubstitutions)
 
@@ -65,6 +70,18 @@ def addFeatureVariations(font, conditionalSubstitutions, featureTag='rvrn'):
     addFeatureVariationsRaw(font, font["GSUB"].table,
                             conditionsAndLookups,
                             featureTag)
+
+def _checkSubstitutionGlyphsExist(glyphNames, substitutions):
+    referencedGlyphNames = set()
+    for _, substitution in substitutions:
+        referencedGlyphNames |=  substitution.keys()
+        referencedGlyphNames |=  set(substitution.values())
+    missing = referencedGlyphNames - glyphNames
+    if missing:
+       raise VarLibValidationError(
+            "Missing glyphs are referenced in conditional substitution rules:"
+            f" {', '.join(missing)}"
+        )
 
 def overlayFeatureVariations(conditionalSubstitutions):
     """Compute overlaps between all conditional substitutions.
@@ -321,6 +338,7 @@ def addFeatureVariationsRaw(font, table, conditionalSubstitutions, featureTag='r
             langSystems = [lsr.LangSys for lsr in scriptRecord.Script.LangSysRecord]
             for langSys in [scriptRecord.Script.DefaultLangSys] + langSystems:
                 langSys.FeatureIndex.append(varFeatureIndex)
+                langSys.FeatureCount = len(langSys.FeatureIndex)
 
         varFeatureIndices = [varFeatureIndex]
 
@@ -339,7 +357,7 @@ def addFeatureVariationsRaw(font, table, conditionalSubstitutions, featureTag='r
         records = []
         for varFeatureIndex in varFeatureIndices:
             existingLookupIndices = table.FeatureList.FeatureRecord[varFeatureIndex].Feature.LookupListIndex
-            records.append(buildFeatureTableSubstitutionRecord(varFeatureIndex, existingLookupIndices + lookupIndices))
+            records.append(buildFeatureTableSubstitutionRecord(varFeatureIndex, lookupIndices + existingLookupIndices))
         featureVariationRecords.append(buildFeatureVariationRecord(conditionTable, records))
 
     table.FeatureVariations = buildFeatureVariations(featureVariationRecords)
@@ -367,6 +385,7 @@ def buildGSUB():
     srec.Script = ot.Script()
     srec.Script.DefaultLangSys = None
     srec.Script.LangSysRecord = []
+    srec.Script.LangSysCount = 0
 
     langrec = ot.LangSysRecord()
     langrec.LangSys = ot.LangSys()
@@ -396,19 +415,44 @@ def makeSubstitutionsHashable(conditionalSubstitutions):
         condSubst.append((conditionSet, substitutions))
     return condSubst, sorted(allSubstitutions)
 
+class ShifterVisitor(TTVisitor):
+    def __init__(self, shift):
+        self.shift = shift
+
+@ShifterVisitor.register_attr(ot.Feature, "LookupListIndex")  # GSUB/GPOS
+def visit(visitor, obj, attr, value):
+    shift = visitor.shift
+    value = [l + shift for l in value]
+    setattr(obj, attr, value)
+
+@ShifterVisitor.register_attr(
+    (ot.SubstLookupRecord, ot.PosLookupRecord),
+    "LookupListIndex"
+)
+def visit(visitor, obj, attr, value):
+    setattr(obj, attr, visitor.shift + value)
 
 def buildSubstitutionLookups(gsub, allSubstitutions):
     """Build the lookups for the glyph substitutions, return a dict mapping
     the substitution to lookup indices."""
-    firstIndex = len(gsub.LookupList.Lookup)
+
+    # Insert lookups at the beginning of the lookup vector
+    # https://github.com/googlefonts/fontmake/issues/950
+
     lookupMap = {}
     for i, substitutionMap in enumerate(allSubstitutions):
-        lookupMap[substitutionMap] = i + firstIndex
+        lookupMap[substitutionMap] = i
 
-    for subst in allSubstitutions:
+    # Shift all lookup indices in gsub by len(allSubstitutions)
+    shift = len(allSubstitutions)
+    visitor = ShifterVisitor(shift)
+    visitor.visit(gsub.FeatureList.FeatureRecord)
+    visitor.visit(gsub.LookupList.Lookup)
+
+    for i, subst in enumerate(allSubstitutions):
         substMap = dict(subst)
         lookup = buildLookup([buildSingleSubstSubtable(substMap)])
-        gsub.LookupList.Lookup.append(lookup)
+        gsub.LookupList.Lookup.insert(i, lookup)
         assert gsub.LookupList.Lookup[lookupMap[subst]] is lookup
     gsub.LookupList.LookupCount = len(gsub.LookupList.Lookup)
     return lookupMap
