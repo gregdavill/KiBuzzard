@@ -1,4 +1,5 @@
 # svg2mod
+
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/svg2mod/svg2mod/Python%20lint%20and%20test?logo=github&style=for-the-badge)](https://github.com/svg2mod/svg2mod/actions/workflows/python-package.yml)
 [![GitHub last commit](https://img.shields.io/github/last-commit/svg2mod/svg2mod?style=for-the-badge)](https://github.com/svg2mod/svg2mod/commits/main)
 
@@ -6,13 +7,15 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/svg2mod?style=for-the-badge)](https://pypi.org/project/svg2mod/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/svg2mod?style=for-the-badge)](https://pypi.org/project/svg2mod/)
 
-
-[![GitHub Sponsors](https://img.shields.io/github/sponsors/sodium-hydrogen?logo=github&style=for-the-badge)](https://github.com/sponsors/Sodium-Hydrogen)
 [![PyPI - License](https://img.shields.io/pypi/l/svg2mod?color=purple&style=for-the-badge)](https://pypi.org/project/svg2mod/)
+
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/sodium-hydrogen?logo=github&style=for-the-badge&color=red)](https://github.com/sponsors/Sodium-Hydrogen)
 
 This is a program / library to convert SVG drawings to KiCad footprint module files.
 
-It includes a modified version of [cjlano's python SVG parser and drawing module](https://github.com/cjlano/svg) to interpret drawings and approximate curves using straight line segments. Module files can be output in KiCad's legacy or s-expression (i.e., pretty) formats.
+It includes a modified version of [cjlano's python SVG parser and drawing module](https://github.com/cjlano/svg)
+to interpret drawings and approximate curves using straight line segments. Module files can be
+output in KiCad's legacy or s-expression (i.e., pretty) formats.
 
 ## Requirements
 
@@ -23,32 +26,44 @@ It includes a modified version of [cjlano's python SVG parser and drawing module
 
 ```pip install svg2mod```
 
+### Don't want to install the application?
+
+You can use a 3rd party web application instead:
+
+* [svg2mod.streamlitapp.com](https://inputblackboxoutput-streamlit-svg2mod-app-fszqih.streamlitapp.com/)
+* [svg2mod.com](https://svg2mod.com/)
+
 ## Showcase
 
 We'd love to see the amazing projects that use svg2mod.
 
 If you have a project you are proud of please post about it on our
-[github discussions board ](https://github.com/svg2mod/svg2mod/discussions/categories/show-and-tell)
+[github discussions board](https://github.com/svg2mod/svg2mod/discussions/categories/show-and-tell)
 
 [![GitHub Discussions](https://img.shields.io/github/discussions/svg2mod/svg2mod?logo=github&style=for-the-badge)](https://github.com/svg2mod/svg2mod/discussions/categories/show-and-tell)
 
 ## Example
 
-```svg2mod -i input.svg```
+```svg2mod input.svg```
 
 ## Usage
 
 ```text
-usage: svg2mod [-h] [-i FILENAME] [-o FILENAME] [-c] [-P] [-v] [--debug] [-x] [--force LAYER]
-[-d DPI] [-f FACTOR] [-p PRECISION] [--format FORMAT] [--name NAME] [--units UNITS]
-               [--value VALUE] [-F DEFAULT_FONT] [-l]
+usage: svg2mod [-h] [-i FILENAME] [-o FILENAME] [-c] [-P] [-v] [--debug] [-x]
+               [--force LAYER] [-d DPI] [-f FACTOR] [-p PRECISION]
+               [--format FORMAT] [--name NAME] [--units UNITS] [--value VALUE]
+               [-F DEFAULT_FONT] [-l]
+               [IN_FILENAME]
 
 Convert Inkscape SVG drawings to KiCad footprint modules.
+
+positional arguments:
+  IN_FILENAME           Name of the SVG file
 
 optional arguments:
   -h, --help            show this help message and exit
   -i FILENAME, --input-file FILENAME
-                        Name of the SVG file
+                        Name of the SVG file, but specified with a flag.
   -o FILENAME, --output-file FILENAME
                         Name of the module file
   -c, --center          Center the module to the center of the bounding box
@@ -62,34 +77,45 @@ optional arguments:
   -f FACTOR, --factor FACTOR
                         Scale paths by this factor
   -p PRECISION, --precision PRECISION
-                        Smoothness for approximating curves with line segments. Input is the
-                        approximate length for each line segment in SVG pixels (float)
-  --format FORMAT       Output module file format (legacy|pretty|latest). 'latest' introduces
-                        features used in kicad >= 6
+                        Smoothness for approximating curves with line
+                        segments. Input is the approximate length for each
+                        line segment in SVG pixels (float)
+  --format FORMAT       Output module file format (legacy|pretty|latest).
+                        'latest' introduces features used in kicad >= 6
   --name NAME, --module-name NAME
                         Base name of the module
   --units UNITS         Output units, if output format is legacy (decimal|mm)
   --value VALUE, --module-value VALUE
                         Value of the module
   -F DEFAULT_FONT, --default-font DEFAULT_FONT
-                        Default font to use if the target font in a text element cannot be found
+                        Default font to use if the target font in a text
+                        element cannot be found
   -l, --list-fonts      List all fonts that can be found in common locations
 ```
 
 ## SVG Files
 
-svg2mod expects images saved in the uncompressed Inkscape SVG (i.e., not "plain SVG") format. This is so it can associate inkscape layers with kicad layers
+svg2mod expects images saved in the uncompressed Inkscape SVG (i.e., not "plain SVG") format. This
+is so it can associate inkscape layers with kicad layers
 
-* Drawings should be to scale (1 mm in Inscape will be 1 mm in KiCad).  Use the --factor option to resize the resulting module(s) up or down from there.
+* Drawings should be to scale (1 mm in Inkscape will be 1 mm in KiCad).  Use the --factor option to
+resize the resulting module(s) up or down from there.
+
 * Most elements are fully supported.
   * A path may have an outline and a fill.  (Colors will be ignored.)
   * A path may have holes, defined by interior segments within the path (see included examples).
   * 100% Transparent fills and strokes with be ignored.
   * Text Elements are partially supported
-* Groups may be used. Styles applied to groups (e.g., stroke-width) are applied to contained drawing elements.
-* Layers must be named to match the target in kicad. The supported layers are listed below. They will be ignored otherwise.
+* Groups may be used. Styles applied to groups (e.g., stroke-width) are applied to contained drawing
+  elements.
+
+* Layers or items must be named to match the target in kicad. The supported layers are listed below.
+  They will be ignored otherwise.
+  * These are pulled from `inkscape:label` but will pull from `id` if the label isn't set.
+
 * __If there is an issue parsing an inkscape object or stroke convert it to a path.__
-  * __Use Inkscape's "Path->Object To Path" and "Path->Stroke To Path" menu options to convert these elements into paths that will work.__
+  * __Use Inkscape's "Path->Object To Path" and "Path->Stroke To Path" menu options to convert these__
+    __elements into paths that will work.__
 
 ### Layers
 
@@ -120,19 +146,20 @@ This supports the layers listed below. They are the same in inkscape and kicad:
 | Drill.Mech [^1] [^2] | --           | Yes          |
 | *.Keepout [^1] [^4]  | --           | Yes [^3]     |
 
-Note: If you have a layer `F.Cu`, all of its sub-layers will be treated as `F.Cu` regardless of their names.
+Note: If you have a layer `F.Cu`, all of its sub-layers will be treated as `F.Cu` regardless of their
+names.
 
 ### Layer Options
 
 Some layers can have options when saving to the newer 'pretty' format.
 
-The options are seperated from the layer name by `:`. Ex `F.Cu:...`
+The options are separated from the layer name by `:`. Ex `F.Cu:...`
 
-Some options can have arguments which are also seperated from
+Some options can have arguments which are also separated from
 the option key by `:`. If an option has more than one argument they
-are seperated by a comma. Ex: `F.Cu:Pad:1,mask`.
+are separated by a comma. Ex: `F.Cu:Pad:1,mask`.
 
-If a layer has more than one option they will be seperated by `;`
+If a layer has more than one option they will be separated by `;`
 Ex: `F.Cu:pad;...`
 
 Supported Arguments:
@@ -143,27 +170,29 @@ Supported Arguments:
   The pad option can be used solo (`F.Cu:Pad`) or it can also have it's own arguments.
   The arguments are:
 
-  * Number 
+  * Number
     If it is set it will specify the number of the pad. Ex: `Pad:1`
 
-  * Paste _(Not avalable for `Drill.Cu`)_
-  * Mask _(Not avalable for `Drill.Cu`)_
-
+  * Paste _(Not available for `Drill.Cu`)_
+  * Mask _(Not available for `Drill.Cu`)_
 
 * Allowed
   
   Keepout areas will prevent anything from being placed inside them.
-  To allow some things to be placed inside the keepout zone a comma 
-  seperated list of any of the following options can be used:
+  To allow some things to be placed inside the keepout zone a comma
+  separated list of any of the following options can be used:
   `tracks`,`vias`,`pads`,`copperpour`,`footprints`
   
+* Hatch
 
-
-
+  Keepout areas have different hatching styles. This allows customization
+  of the appearance of hatching when converting from an svg, Ex: `F.Keepout:Hatch:edge`.
+  All available hatch options are `none`, `edge`, `full`.
+  
 [^1]: These layers can have arguments when svg2mod is in pretty mode
 
 [^2]: Drills can only be svg circle objects. The stroke width in `Drill.Cu` is the pad size and the fill is the drill size.
 
 [^3]: Only works in Kicad versions >= v6 (`--format latest`).
 
-[^4]: The * can be { *, F, B, I } or any combination like FB or BI. These options are for Front, Back, and Internal.
+[^4]: The \* can be { \*, F, B, I } or any combination like FB or BI. These options are for Front, Back, and Internal.

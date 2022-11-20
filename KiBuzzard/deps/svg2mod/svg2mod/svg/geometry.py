@@ -128,9 +128,9 @@ class Point:
         new_y = ((self.x-x) * angle.sin) + ((self.y-y) * angle.cos) + y
         return Point(new_x,new_y)
 
-    def round(self, ndigits=None):
+    def round(self, num_digits=None):
         '''Round x and y to number of decimal points'''
-        return Point( round(self.x, ndigits), round(self.y, ndigits))
+        return Point( round(self.x, num_digits), round(self.y, num_digits))
 
 
 class Angle:
@@ -237,7 +237,7 @@ class Bezier:
             raise LookupError('Index is larger than Bezier curve dimension')
         return self.pts[n]
 
-    def rlength(self):
+    def r_length(self):
         '''Rough Bezier length: length of control point segments'''
         pts = list(self.pts)
         l = 0.0
@@ -250,9 +250,9 @@ class Bezier:
 
     def bbox(self):
         '''This returns the rough bounding box '''
-        return self.rbbox()
+        return self.r_bbox()
 
-    def rbbox(self):
+    def r_bbox(self):
         '''Rough bounding box: return the bounding box (P1,P2) of the Bezier
         _control_ points'''
         xmin = min([p.x for p in self.pts])
@@ -268,7 +268,7 @@ class Bezier:
         segments = []
         # n is the number of Bezier points to draw according to precision
         if precision != 0:
-            n = int(self.rlength() / precision) + 1
+            n = int(self.r_length() / precision) + 1
         else:
             n = 1000
         #if n < 10: n = 10

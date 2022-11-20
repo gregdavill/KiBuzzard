@@ -84,22 +84,22 @@ class Formatter(logging.Formatter):
 
 #----------------------------------------------------------------------------
 
-def split_logger(logger, formatter=Formatter(), brkpoint=logging.WARNING):
+def split_logger(logger, formatter=Formatter(), break_point=logging.WARNING):
     '''This will split logging messages at the specified break point. Anything higher
     will be sent to sys.stderr and everything else to sys.stdout
     '''
-    for hndl in logger.handlers:
-        logger.removeHandler(hndl)
+    for handler in logger.handlers:
+        logger.removeHandler(handler)
 
-    hdlrerr = logging.StreamHandler(sys.stderr)
-    hdlrerr.addFilter(lambda msg: brkpoint <= msg.levelno)
+    handler_error = logging.StreamHandler(sys.stderr)
+    handler_error.addFilter(lambda msg: break_point <= msg.levelno)
 
-    hdlrout = logging.StreamHandler(sys.stdout)
-    hdlrout.addFilter(lambda msg: brkpoint > msg.levelno)
+    handler_out = logging.StreamHandler(sys.stdout)
+    handler_out.addFilter(lambda msg: break_point > msg.levelno)
 
-    hdlrerr.setFormatter(formatter)
-    hdlrout.setFormatter(formatter)
-    logger.addHandler(hdlrerr)
-    logger.addHandler(hdlrout)
+    handler_error.setFormatter(formatter)
+    handler_out.setFormatter(formatter)
+    logger.addHandler(handler_error)
+    logger.addHandler(handler_out)
 
 #----------------------------------------------------------------------------
