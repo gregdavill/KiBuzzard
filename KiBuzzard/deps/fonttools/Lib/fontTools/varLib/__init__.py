@@ -18,6 +18,7 @@ Then you can make a variable-font this way:
 
 API *will* change in near future.
 """
+from typing import List
 from fontTools.misc.vector import Vector
 from fontTools.misc.roundTools import noRound, otRound
 from fontTools.misc.textTools import Tag, tostr
@@ -29,11 +30,15 @@ from fontTools.ttLib.tables.TupleVariation import TupleVariation
 from fontTools.ttLib.tables import otTables as ot
 from fontTools.ttLib.tables.otBase import OTTableWriter
 from fontTools.varLib import builder, models, varStore
-from fontTools.varLib.merger import VariationMerger
+from fontTools.varLib.merger import VariationMerger, COLRVariationMerger
 from fontTools.varLib.mvar import MVAR_ENTRIES
 from fontTools.varLib.iup import iup_delta_optimize
 from fontTools.varLib.featureVars import addFeatureVariations
-from fontTools.designspaceLib import DesignSpaceDocument
+from fontTools.designspaceLib import DesignSpaceDocument, InstanceDescriptor
+from fontTools.designspaceLib.split import splitInterpolable, splitVariableFonts
+from fontTools.varLib.stat import buildVFStatTable
+from fontTools.colorLib.builder import buildColrV1
+from fontTools.colorLib.unbuilder import unbuildColrV1
 from functools import partial
 from collections import OrderedDict, namedtuple
 import os.path
@@ -53,7 +58,7 @@ FEAVAR_FEATURETAG_LIB_KEY = "com.github.fonttools.varLib.featureVarsFeatureTag"
 # Creation routines
 #
 
-def _add_fvar(font, axes, instances):
+def _add_fvar(font, axes, instances: List[InstanceDescriptor]):
 	"""
 	Add 'fvar' table to font.
 
@@ -81,7 +86,8 @@ def _add_fvar(font, axes, instances):
 		fvar.axes.append(axis)
 
 	for instance in instances:
-		coordinates = instance.location
+		# Filter out discrete axis locations
+		coordinates = {name: value for name, value in instance.location.items() if name in axes}
 
 		if "en" not in instance.localisedStyleName:
 			if not instance.styleName:
@@ -198,11 +204,10 @@ def _add_avar(font, axes):
 
 	return avar
 
-def _add_stat(font, axes):
-	# for now we just get the axis tags and nameIDs from the fvar,
-	# so we can reuse the same nameIDs which were defined in there.
-	# TODO make use of 'axes' once it adds style attributes info:
-	# https://github.com/LettError/designSpaceDocument/issues/8
+def _add_stat(font):
+	# Note: this function only gets called by old code that calls `build()`
+	# directly. Newer code that wants to benefit from STAT data from the
+	# designspace should call `build_many()`
 
 	if "STAT" in font:
 		return
@@ -230,7 +235,7 @@ def _add_gvar(font, masterModel, master_ttfs, tolerance=0.5, optimize=True):
 			for m in master_ttfs]
 
 	for glyph in font.getGlyphOrder():
-
+		log.debug("building gvar for glyph '%s'", glyph)
 		isComposite = glyf[glyph].isComposite()
 
 		allData = [
@@ -483,7 +488,7 @@ def _get_advance_metrics(font, masterModel, master_ttfs,
 			vOrigMap[glyphName] = storeBuilder.storeDeltas(deltas, round=noRound)
 
 	indirectStore = storeBuilder.finish()
-	mapping2 = indirectStore.optimize()
+	mapping2 = indirectStore.optimize(use_NO_VARIATION_INDEX=False)
 	advMapping = [mapping2[advMapping[g]] for g in glyphOrder]
 	advanceMapping = builder.buildVarIdxMap(advMapping, glyphOrder)
 
@@ -603,7 +608,7 @@ def _add_BASE(font, masterModel, master_ttfs, axisTags):
 	merger.mergeTables(font, master_ttfs, ['BASE'])
 	store = merger.store_builder.finish()
 
-	if not store.VarData:
+	if not store:
 		return
 	base = font['BASE'].table
 	assert base.Version == 0x00010000
@@ -618,7 +623,7 @@ def _merge_OTL(font, model, master_fonts, axisTags):
 
 	merger.mergeTables(font, master_fonts, ['GSUB', 'GDEF', 'GPOS'])
 	store = merger.store_builder.finish()
-	if not store.VarData:
+	if not store:
 		return
 	try:
 		GDEF = font['GDEF'].table
@@ -708,6 +713,22 @@ def _add_CFF2(varFont, model, master_fonts):
 	merge_region_fonts(varFont, model, ordered_fonts_list, glyphOrder)
 
 
+def _add_COLR(font, model, master_fonts, axisTags, colr_layer_reuse=True):
+	merger = COLRVariationMerger(model, axisTags, font, allowLayerReuse=colr_layer_reuse)
+	merger.mergeTables(font, master_fonts)
+	store = merger.store_builder.finish()
+
+	colr = font["COLR"].table
+	if store:
+		mapping = store.optimize()
+		colr.VarStore = store
+		# don't add DeltaSetIndexMap for identity mapping
+		colr.VarIndexMap = None
+		varIdxes = [mapping[v] for v in merger.varIdxes]
+		if any(i != varIdxes[i] for i in range(len(varIdxes))):
+			colr.VarIndexMap = builder.buildDeltaSetIndexMap(varIdxes)
+
+
 def load_designspace(designspace):
 	# TODO: remove this and always assume 'designspace' is a DesignSpaceDocument,
 	# never a file path, as that's already handled by caller
@@ -759,7 +780,8 @@ def load_designspace(designspace):
 	# Check all master and instance locations are valid and fill in defaults
 	for obj in masters+instances:
 		obj_name = obj.name or obj.styleName or ''
-		loc = obj.location
+		loc = obj.getFullDesignLocation(ds)
+		obj.designLocation = loc
 		if loc is None:
 			raise VarLibValidationError(
 				f"Source or instance '{obj_name}' has no location."
@@ -770,22 +792,18 @@ def load_designspace(designspace):
 					f"Location axis '{axis_name}' unknown for '{obj_name}'."
 				)
 		for axis_name,axis in axes.items():
-			if axis_name not in loc:
-				# NOTE: `axis.default` is always user-space, but `obj.location` always design-space.
-				loc[axis_name] = axis.map_forward(axis.default)
-			else:
-				v = axis.map_backward(loc[axis_name])
-				if not (axis.minimum <= v <= axis.maximum):
-					raise VarLibValidationError(
-						f"Source or instance '{obj_name}' has out-of-range location "
-						f"for axis '{axis_name}': is mapped to {v} but must be in "
-						f"mapped range [{axis.minimum}..{axis.maximum}] (NOTE: all "
-						"values are in user-space)."
-					)
+			v = axis.map_backward(loc[axis_name])
+			if not (axis.minimum <= v <= axis.maximum):
+				raise VarLibValidationError(
+					f"Source or instance '{obj_name}' has out-of-range location "
+					f"for axis '{axis_name}': is mapped to {v} but must be in "
+					f"mapped range [{axis.minimum}..{axis.maximum}] (NOTE: all "
+					"values are in user-space)."
+				)
 
 	# Normalize master locations
 
-	internal_master_locs = [o.location for o in masters]
+	internal_master_locs = [o.getFullDesignLocation(ds) for o in masters]
 	log.info("Internal master locations:\n%s", pformat(internal_master_locs))
 
 	# TODO This mapping should ideally be moved closer to logic in _add_fvar/avar
@@ -865,7 +883,53 @@ def set_default_weight_width_slant(font, location):
 			font["post"].italicAngle = italicAngle
 
 
-def build(designspace, master_finder=lambda s:s, exclude=[], optimize=True):
+def build_many(
+	designspace: DesignSpaceDocument,
+	master_finder=lambda s:s,
+	exclude=[],
+	optimize=True,
+	skip_vf=lambda vf_name: False,
+	colr_layer_reuse=True,
+):
+	"""
+	Build variable fonts from a designspace file, version 5 which can define
+	several VFs, or version 4 which has implicitly one VF covering the whole doc.
+
+	If master_finder is set, it should be a callable that takes master
+	filename as found in designspace file and map it to master font
+	binary as to be opened (eg. .ttf or .otf).
+
+	skip_vf can be used to skip building some of the variable fonts defined in
+	the input designspace. It's a predicate that takes as argument the name
+	of the variable font and returns `bool`.
+
+	Always returns a Dict[str, TTFont] keyed by VariableFontDescriptor.name
+	"""
+	res = {}
+	for _location, subDoc in splitInterpolable(designspace):
+		for name, vfDoc in splitVariableFonts(subDoc):
+			if skip_vf(name):
+				log.debug(f"Skipping variable TTF font: {name}")
+				continue
+			vf = build(
+				vfDoc,
+				master_finder,
+				exclude=list(exclude) + ["STAT"],
+				optimize=optimize,
+				colr_layer_reuse=colr_layer_reuse,
+			)[0]
+			if "STAT" not in exclude:
+				buildVFStatTable(vf, designspace, name)
+			res[name] = vf
+	return res
+
+def build(
+	designspace,
+	master_finder=lambda s:s,
+	exclude=[],
+	optimize=True,
+	colr_layer_reuse=True,
+):
 	"""
 	Build variation font from a designspace file.
 
@@ -895,10 +959,13 @@ def build(designspace, master_finder=lambda s:s, exclude=[], optimize=True):
 	# Copy the base master to work from it
 	vf = deepcopy(master_fonts[ds.base_idx])
 
+	if "DSIG" in vf:
+		del vf["DSIG"]
+
 	# TODO append masters as named-instances as well; needs .designspace change.
 	fvar = _add_fvar(vf, ds.axes, ds.instances)
 	if 'STAT' not in exclude:
-		_add_stat(vf, ds.axes)
+		_add_stat(vf)
 	if 'avar' not in exclude:
 		_add_avar(vf, ds.axes)
 
@@ -943,6 +1010,8 @@ def build(designspace, master_finder=lambda s:s, exclude=[], optimize=True):
 				post.formatType = 2.0
 				post.extraNames = []
 				post.mapping = {}
+	if 'COLR' not in exclude and 'COLR' in vf and vf['COLR'].version > 0:
+		_add_COLR(vf, model, master_fonts, axisTags, colr_layer_reuse)
 
 	set_default_weight_width_slant(
 		vf, location={axis.axisTag: axis.defaultValue for axis in vf["fvar"].axes}
@@ -1051,6 +1120,12 @@ def main(args=None):
 		help='do not perform IUP optimization'
 	)
 	parser.add_argument(
+		'--no-colr-layer-reuse',
+		dest='colr_layer_reuse',
+		action='store_false',
+		help='do not rebuild variable COLR table to optimize COLR layer reuse',
+	)
+	parser.add_argument(
 		'--master-finder',
 		default='master_ttf_interpolatable/{stem}.ttf',
 		help=(
@@ -1088,7 +1163,8 @@ def main(args=None):
 		designspace_filename,
 		finder,
 		exclude=options.exclude,
-		optimize=options.optimize
+		optimize=options.optimize,
+		colr_layer_reuse=options.colr_layer_reuse,
 	)
 
 	outfile = options.outfile

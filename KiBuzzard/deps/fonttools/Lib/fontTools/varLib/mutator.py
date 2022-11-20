@@ -143,7 +143,7 @@ def interpolate_cff2_metrics(varfont, topDict, glyphOrder, loc):
 
 		if lsb_delta or width_delta:
 			if width_delta:
-				entry[0] += width_delta
+				entry[0] = max(0, entry[0] + width_delta)
 			if lsb_delta:
 				entry[1] = lsb
 			hmtx[gname] = tuple(entry)
@@ -210,6 +210,9 @@ def instantiateVariableFont(varfont, location, inplace=False, overlap=True):
 			glyf._setCoordinates(glyphname, coordinates, hMetrics, vMetrics)
 	else:
 		glyf = None
+
+	if 'DSIG' in varfont:
+		del varfont['DSIG']
 
 	if 'cvar' in varfont:
 		log.info("Mutating cvt/cvar tables")
@@ -412,6 +415,9 @@ def main(args=None):
 	parser.add_argument(
 		"-o", "--output", metavar="OUTPUT.ttf", default=None,
 		help="Output instance TTF file (default: INPUT-instance.ttf).")
+	parser.add_argument(
+		"--no-recalc-timestamp", dest="recalc_timestamp", action='store_false',
+		help="Don't set the output font's timestamp to the current time.")
 	logging_group = parser.add_mutually_exclusive_group(required=False)
 	logging_group.add_argument(
 		"-v", "--verbose", action="store_true", help="Run more verbosely.")
@@ -445,7 +451,7 @@ def main(args=None):
 	log.info("Location: %s", loc)
 
 	log.info("Loading variable font")
-	varfont = TTFont(varfilename)
+	varfont = TTFont(varfilename, recalcTimestamp=options.recalc_timestamp)
 
 	instantiateVariableFont(varfont, loc, inplace=True, overlap=options.overlap)
 

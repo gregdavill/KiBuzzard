@@ -12,8 +12,7 @@ from fontTools.ttLib.tables.otBase import (
 from fontTools.ttLib.tables import otBase
 from fontTools.feaLib.ast import STATNameStatement
 from fontTools.otlLib.optimize.gpos import (
-    GPOS_COMPACT_MODE_DEFAULT,
-    GPOS_COMPACT_MODE_ENV_KEY,
+    _compression_level_from_env,
     compact_lookup,
 )
 from fontTools.otlLib.error import OpenTypeLibError
@@ -367,9 +366,15 @@ class ChainContextualBuilder(LookupBuilder):
             contextual positioning lookup.
         """
         subtables = []
-        chaining = False
+
         rulesets = self.rulesets()
         chaining = any(ruleset.hasPrefixOrSuffix for ruleset in rulesets)
+        # Unfortunately, as of 2022-03-07, Apple's CoreText renderer does not
+        # correctly process GPOS7 lookups, so for now we force contextual
+        # positioning lookups to be chaining (GPOS8).
+        if self.subtable_type == "Pos":  # horrible separation of concerns breach
+            chaining = True
+
         for ruleset in rulesets:
             # Determine format strategy. We try to build formats 1, 2 and 3
             # subtables and then work out which is best. candidates list holds
@@ -1382,36 +1387,29 @@ class PairPosBuilder(LookupBuilder):
             lookup.
         """
         builders = {}
-        builder = None
+        builder = ClassPairPosSubtableBuilder(self)
         for glyphclass1, value1, glyphclass2, value2 in self.pairs:
             if glyphclass1 is self.SUBTABLE_BREAK_:
-                if builder is not None:
-                    builder.addSubtableBreak()
+                builder.addSubtableBreak()
                 continue
-            valFormat1, valFormat2 = 0, 0
-            if value1:
-                valFormat1 = value1.getFormat()
-            if value2:
-                valFormat2 = value2.getFormat()
-            builder = builders.get((valFormat1, valFormat2))
-            if builder is None:
-                builder = ClassPairPosSubtableBuilder(self)
-                builders[(valFormat1, valFormat2)] = builder
             builder.addPair(glyphclass1, value1, glyphclass2, value2)
         subtables = []
         if self.glyphPairs:
             subtables.extend(buildPairPosGlyphs(self.glyphPairs, self.glyphMap))
-        for key in sorted(builders.keys()):
-            subtables.extend(builders[key].subtables())
+        subtables.extend(builder.subtables())
         lookup = self.buildLookup_(subtables)
 
         # Compact the lookup
         # This is a good moment to do it because the compaction should create
         # smaller subtables, which may prevent overflows from happening.
-        mode = os.environ.get(GPOS_COMPACT_MODE_ENV_KEY, GPOS_COMPACT_MODE_DEFAULT)
-        if mode and mode != "0":
+        # Keep reading the value from the ENV until ufo2ft switches to the config system
+        level = self.font.cfg.get(
+            "fontTools.otlLib.optimize.gpos:COMPRESSION_LEVEL",
+            default=_compression_level_from_env(),
+        )
+        if level != 0:
             log.info("Compacting GPOS...")
-            compact_lookup(self.font, mode, lookup)
+            compact_lookup(self.font, level, lookup)
 
         return lookup
 
@@ -2783,6 +2781,7 @@ def buildStatTable(
             locations, axes, nameTable, windowsNames=windowsNames, macNames=macNames
         )
         axisValues = multiAxisValues + axisValues
+    nameTable.names.sort()
 
     # Store AxisRecords
     axisRecordArray = ot.AxisRecordArray()
@@ -2792,6 +2791,8 @@ def buildStatTable(
     statTable.DesignAxisRecord = axisRecordArray
     statTable.DesignAxisCount = len(axisRecords)
 
+    statTable.AxisValueCount = 0
+    statTable.AxisValueArray = None
     if axisValues:
         # Store AxisValueRecords
         axisValueArray = ot.AxisValueArray()

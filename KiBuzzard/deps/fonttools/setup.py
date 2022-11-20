@@ -68,6 +68,15 @@ if with_cython is True or (with_cython is None and has_cython):
 	ext_modules.append(
 		Extension("fontTools.cu2qu.cu2qu", ["Lib/fontTools/cu2qu/cu2qu.py"]),
 	)
+	ext_modules.append(
+		Extension("fontTools.pens.momentsPen", ["Lib/fontTools/pens/momentsPen.py"]),
+	)
+	ext_modules.append(
+		Extension("fontTools.varLib.iup", ["Lib/fontTools/varLib/iup.py"]),
+	)
+	ext_modules.append(
+		Extension("fontTools.feaLib.lexer", ["Lib/fontTools/feaLib/lexer.py"]),
+	)
 
 extras_require = {
 	# for fontTools.ufoLib: to read/write UFO fonts
@@ -90,9 +99,9 @@ extras_require = {
 	# of the Unicode Character Database instead of the built-in unicodedata
 	# which varies between python versions and may be outdated.
 	"unicode": [
-		# Python 3.11 already has Unicode 14.0, so the backport is not needed.
+		# Python 3.12 will have Unicode 15.0, so the backport is not needed.
 		(
-			"unicodedata2 >= 14.0.0; python_version < '3.11'"
+			"unicodedata2 >= 15.0.0; python_version <= '3.11'"
 		),
 	],
 	# for graphite type tables in ttLib/tables (Silf, Glat, Gloc)
@@ -124,6 +133,10 @@ extras_require = {
 	"pathops": [
 		"skia-pathops >= 0.5.0",
 	],
+	# for packing GSUB/GPOS tables with Harfbuzz repacker
+	"repacker": [
+		"uharfbuzz >= 0.23.0",
+	],
 }
 # use a special 'all' key as shorthand to includes all the extra dependencies
 extras_require["all"] = sum(extras_require.values(), [])
@@ -140,7 +153,11 @@ classifiers = {"classifiers": [
 	"Natural Language :: English",
 	"Operating System :: OS Independent",
 	"Programming Language :: Python",
-	"Programming Language :: Python :: 2",
+	"Programming Language :: Python :: 3.7",
+	"Programming Language :: Python :: 3.8",
+	"Programming Language :: Python :: 3.9",
+	"Programming Language :: Python :: 3.10",
+	"Programming Language :: Python :: 3.11",
 	"Programming Language :: Python :: 3",
 	"Topic :: Text Processing :: Fonts",
 	"Topic :: Multimedia :: Graphics",
@@ -439,7 +456,7 @@ if ext_modules:
 
 setup_params = dict(
 	name="fonttools",
-	version="4.29.2.dev0",
+	version="4.38.1.dev0",
 	description="Tools to manipulate font files",
 	author="Just van Rossum",
 	author_email="just@letterror.com",
