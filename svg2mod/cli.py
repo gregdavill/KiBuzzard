@@ -56,6 +56,9 @@ def main():
     else:
         logger.setLevel(logging.WARNING)
 
+    if args.input_file_name_flag and not args.input_file_name:
+        args.input_file_name = args.input_file_name_flag
+
     if args.list_fonts:
         fonts = svg.Text.load_system_fonts()
         unfiltered_logger.info("Font Name: list of supported styles.")
@@ -174,11 +177,19 @@ def get_arguments():
     mux = parser.add_mutually_exclusive_group(required=True)
 
     mux.add_argument(
-        '-i', '--input-file',
+        nargs="?",
         type = str,
         dest = 'input_file_name',
-        metavar = 'FILENAME',
+        metavar = 'IN_FILENAME',
         help = "Name of the SVG file",
+    )
+
+    mux.add_argument(
+        '-i', '--input-file',
+        type = str,
+        dest = 'input_file_name_flag',
+        metavar = 'FILENAME',
+        help = "Name of the SVG file, but specified with a flag.",
     )
 
     parser.add_argument(

@@ -227,8 +227,9 @@ class Svg2ModExport(ABC):
 
         for item in items:
 
-            if not isinstance( item, svg.Group ):
+            if not hasattr(item, 'name'):
                 continue
+
             i_name = item.name.split(":", 1)
 
             for name in self.layers.keys():
@@ -243,6 +244,14 @@ class Svg2ModExport(ABC):
                     else:
                         kept_layers[i_name[0]] = [item.name]
 
+                    # Item isn't a group so make it one
+                    if not isinstance(item, svg.Group):
+                        grp = svg.Group()
+                        grp.name = item.name
+                        grp.items.append( item )
+                        item = grp
+
+                    # save valid groups
                     self.imported.svg.items.append( item )
                     self.layers[name].append((i_name, item))
                     break
@@ -259,6 +268,7 @@ class Svg2ModExport(ABC):
                 if self.layers[name]:
                     break
             else:
+                logger.warning("No valid items found. Maybe try --force Layer.Name")
                 raise Exception("Not writing empty file. No valid items found.")
 
     #------------------------------------------------------------------------
@@ -272,12 +282,12 @@ class Svg2ModExport(ABC):
                 continue
 
             if re.match(r"^Drill\.\w+", str(layer)):
-                if isinstance(item, svg.Circle):
+                if isinstance(item, (svg.Circle, svg.Ellipse)):
                     self._write_thru_hole(item, layer)
                 else:
                     logger.warning( "Non Circle SVG element in drill layer: {}".format(item.__class__.__name__))
 
-            elif isinstance( item, (svg.Path, svg.Ellipse, svg.Rect, svg.Text)):
+            elif isinstance( item, (svg.Path, svg.Ellipse, svg.Rect, svg.Text, svg.Polygon)):
 
                 segments = [
                     PolygonSegment( segment )
@@ -1015,7 +1025,9 @@ class Svg2ModExportPretty( Svg2ModExport ):
         if len(item_name) == 2 and item_name[1]:
             for arg in item_name[1].split(';'):
                 arg = arg.strip(' ,:')
+
                 # This is used in Svg2ModExportLatest as it is a breaking change
+                # Keepout allowed items
                 if name == "Keepout" and re.match(r'^allowed:\w+', arg, re.I):
                     attrs["allowed"] = []
                     for allowed in arg.lower().split(":", 1)[1].split(','):
@@ -1023,6 +1035,11 @@ class Svg2ModExportPretty( Svg2ModExport ):
                             attrs["allowed"].append(allowed)
                         else:
                             logger.warning("Invalid allowed option in keepout: {} in {}".format(allowed, arg))
+                # Zone hatch patterns
+                elif name == "Keepout" and re.match(r'^hatch:(none|edge|full)$', arg, re.I):
+                    attrs["hatch"] = arg.split(":", 1)[1]
+
+                #Copper pad attributes
                 elif re.match(r'^\w+\.Cu', name) and re.match(r'^pad(:(\d+|mask|paste))?', arg, re.I):
                     if arg.lower() == "pad":
                         attrs["copper_pad"] = True
@@ -1175,21 +1192,22 @@ class Svg2ModExportPretty( Svg2ModExport ):
                 layers = options["layers"][:] + ['In{}'.format(i) for i in range(1,31)]
 
 
-            self.output_file.write( '''\n  (zone (net 0) (net_name "") (layers "{0}.Cu") (hatch edge {1:.6f})
+            self.output_file.write( '''\n  (zone (net 0) (net_name "") (layers "{0}.Cu") (hatch {1} {2:.6f})
     (connect_pads (clearance 0))
-    (min_thickness {2:.6f})
-    (keepout ({3}allowed))
-    (fill (thermal_gap {1:.6f}) (thermal_bridge_width {1:.6f}))
+    (min_thickness {3:.6f})
+    (keepout ({4}allowed))
+    (fill (thermal_gap {2:.6f}) (thermal_bridge_width {2:.6f}))
     (polygon
       (pts\n'''.format(
                     '.Cu" "'.join(layers), #0
-                    stroke_width, #1
-                    stroke_width/2, #2
+                    options["hatch"] if options.get("hatch") else "full", #1
+                    stroke_width, #2
+                    stroke_width/2, #3
                     "allowed) (".join(
                         [i+" "+(
                             "not_" if not options.get("allowed") or i not in options["allowed"] else ""
                         ) for i in self.keepout_allowed]
-                    ), #3
+                    ), #4
                 )
             )
             self._special_footer = "      )\n    )\n  )"
@@ -1219,11 +1237,11 @@ class Svg2ModExportPretty( Svg2ModExport ):
                 self.output_file.write('''\n    (primitives\n      (gr_poly (pts \n''')
                 self._special_footer = "      )\n    (width {}){{2}})\n  ))".format(stroke_width)
 
-                originx = points[0].x
-                originy = points[0].y
+                origin_x = points[0].x
+                origin_y = points[0].y
                 for point in points:
-                    point.x = point.x-originx
-                    point.y = point.y-originy
+                    point.x = point.x-origin_x
+                    point.y = point.y-origin_y
             else:
                 for point in points[:]:
                     points.remove(point)
@@ -1298,6 +1316,10 @@ class Svg2ModExportPretty( Svg2ModExport ):
     #------------------------------------------------------------------------
 
     def _write_thru_hole( self, circle, layer ):
+
+        if not isinstance(circle, svg.Circle):
+            logger.info("Found an ellipse in Drill layer. Using an average of rx and ry.")
+            circle.rx = (circle.rx + circle.ry ) / 2
 
         l_name = layer
         options = {}

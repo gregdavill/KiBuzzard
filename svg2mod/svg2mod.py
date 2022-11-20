@@ -238,7 +238,33 @@ class PolygonSegment:
 
         if best[2] != best[1][0] and best[2] != best[1][1]:
             p = best[0].points.index(best[1][0])
+            p_cnt = best[0].points.count(best[1][0])
+
             q = best[0].points.index(best[1][1])
+            q_cnt = best[0].points.count(best[1][1])
+
+            best_len = len(best[0].points)
+
+            tried = [[p],[q]]
+            # The same point can be present multiple times without being part of the
+            # desired segment. The points are also not next to each other.
+            while (
+               (p_cnt > 1 or q_cnt > 1) and
+               (p + 1)%best_len != q and
+               (p - 1)%best_len != q
+            ):
+                if len(tried[0]) < p_cnt:
+                    p = best[0].points.index(best[1][0], p+1)
+                    tried[0].append(p)
+                elif len(tried[1]) < q_cnt:
+                    p = tried[0][0]
+                    tried[0] = [p]
+                    q = best[0].points.index(best[1][1], q+1)
+                    tried[1].append(q)
+                else:
+                    logger.error("Unable to find segment for inlining.")
+                    break
+
             ip = p if p < q else q
             best[0]._set_points(best[0].points[:ip+1] + [best[2]] + best[0].points[ip+1:])
 
@@ -285,9 +311,8 @@ class PolygonSegment:
         # Find the insertion point for each hole:
         for hole in segments:
 
-            insertion = self._find_insertion_point(
-                hole, all_segments, insertions
-            )
+            insertion = self._find_insertion_point( hole, all_segments, insertions)
+
             if insertion is not None:
                 insertions.append( insertion )
 
@@ -332,8 +357,8 @@ class PolygonSegment:
         hole_segment = LineSegment()
 
         intersections = 0
-        intersect_segs = []
-        virt_line = LineSegment()
+        intersect_segments = []
+        virtual_line = LineSegment()
 
         # Check each segment of other hole for intersection:
         for point in self.points:
@@ -349,7 +374,7 @@ class PolygonSegment:
 
                     if count_intersections:
                         if get_points:
-                            intersect_segs.append((hole_segment.p, hole_segment.q))
+                            intersect_segments.append((hole_segment.p, hole_segment.q))
                         else:
                             # If a point is on the line segment we need to see if the
                             # simplified "virtual" line crosses the line segment.
@@ -357,20 +382,20 @@ class PolygonSegment:
                             # Set the endpoints if they are of the line segment
                             if line_segment.on_line(hole_segment.q):
                                 if not line_segment.on_line(hole_segment.p):
-                                    virt_line.p = hole_segment.p
+                                    virtual_line.p = hole_segment.p
                             elif line_segment.on_line(hole_segment.p):
-                                virt_line.q = hole_segment.q
+                                virtual_line.q = hole_segment.q
 
                             # No points are on the line segment
                             else:
                                 intersections += 1
-                                virt_line = LineSegment()
+                                virtual_line = LineSegment()
 
                             # The virtual line is complete check for intersections
-                            if virt_line.p and virt_line.q:
-                                if virt_line.intersects(line_segment):
+                            if virtual_line.p and virtual_line.q:
+                                if virtual_line.intersects(line_segment):
                                     intersections += 1
-                                virt_line = LineSegment()
+                                virtual_line = LineSegment()
 
                     elif get_points:
                         return hole_segment.p, hole_segment.q
@@ -378,7 +403,7 @@ class PolygonSegment:
                         return True
 
         if count_intersections:
-            return intersect_segs if get_points else intersections
+            return intersect_segments if get_points else intersections
         if get_points and not check_connects:
             return ()
         return False
@@ -447,8 +472,8 @@ class PolygonSegment:
         # Check number of horizontal intersections. If the number is odd then it the smaller polygon
         # is contained. If the number is even then the polygon is outside of the larger polygon
         if not distinct:
-            tline = LineSegment(smaller.points[0], svg.Point(larger.bbox[1].x+1, smaller.points[0].y))
-            distinct = bool((larger.intersects(tline, False, True) + 1)%2)
+            test_line = LineSegment(smaller.points[0], svg.Point(larger.bbox[1].x+1, smaller.points[0].y))
+            distinct = bool((larger.intersects(test_line, False, True) + 1)%2)
 
         return distinct
     #------------------------------------------------------------------------
