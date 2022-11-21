@@ -90,6 +90,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.timer = wx.Timer(self, 0)
         self.timer.Start(milliseconds=250, oneShot=True)
 
+        self.m_MultiLineText.SelectAll()
+
     def Cancel(self, e):
         self.timer.Stop()
 
