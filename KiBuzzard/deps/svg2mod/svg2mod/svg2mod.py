@@ -303,7 +303,7 @@ class PolygonSegment:
 
         logger.debug( "  Inlining {} segments...".format( len( segments ) ) )
 
-        segments.sort(reverse=True, key=lambda h: h.bbox[1].y)
+        segments.sort(reverse=False, key=lambda h: h.bbox[1].y)
 
         all_segments = segments[ : ] + [ self ]
         insertions = []
