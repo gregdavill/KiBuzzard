@@ -1355,7 +1355,7 @@ class Text(Transformable):
                     #txt = txt.replace(char, "")
                     continue
 
-                pen = SVGPathPen(ttf.getGlyphSet)
+                pen = SVGPathPen(ttf.getGlyphSet())
                 glf.draw(pen)
 
                 for cmd in pen._commands:
