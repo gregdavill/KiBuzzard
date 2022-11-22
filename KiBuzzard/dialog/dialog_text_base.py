@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
+## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -286,6 +286,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         # Connect Events
         self.Bind( wx.EVT_INIT_DIALOG, self.OnInitDlg )
+        self.m_MultiLineText.Bind( wx.EVT_CHAR_HOOK, self.OnCharHook )
         self.m_HeightCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_WidthCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_PaddingTopCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
@@ -300,6 +301,9 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
     # Virtual event handlers, override them in your derived class
     def OnInitDlg( self, event ):
+        pass
+
+    def OnCharHook( self, event ):
         pass
 
     def OnOkClick( self, event ):

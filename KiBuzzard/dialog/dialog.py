@@ -187,6 +187,14 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.timer.Start(milliseconds=250, oneShot=True)
         event.Skip()
 
+    
+    def OnCharHook( self, event ):
+        if (event.GetKeyCode() == wx.WXK_RETURN) & (event.ShiftDown() | event.ControlDown()):
+            self.OnOkClick(event)
+            wx.PostEvent(self, wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, wx.ID_OK))
+            return
+        event.Skip()
+
     def ReGenerateFlag(self, e):
         self.label_params = {}
 
