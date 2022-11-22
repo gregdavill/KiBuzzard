@@ -153,7 +153,7 @@ class Buzzard():
             print(self.svgText)
             mod.add_svg_element(self.svgText, layer="F.Cu")
             offset_text = copy.copy(self.svgText)
-            offset_text.style += "stroke-width:0.2;"
+            offset_text.style["stroke-width"] = 0.2
             mod.add_svg_element(offset_text, layer="F.Mask")
         else:
             mod.add_svg_element(self.svgText, layer=self.layer)

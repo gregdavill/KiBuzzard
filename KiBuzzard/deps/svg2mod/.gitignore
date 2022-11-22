@@ -13,3 +13,6 @@ __pycache__
 Pipfile
 Pipfile.lock
 .vscode
+*.zip
+*.cmd
+*.sh

@@ -2,15 +2,19 @@
 #
 # Google Author(s): Behdad Esfahbod
 
+from fontTools import config
 from fontTools.misc.roundTools import otRound
 from fontTools import ttLib
 from fontTools.ttLib.tables import otTables
+from fontTools.ttLib.tables.otBase import USE_HARFBUZZ_REPACKER
 from fontTools.otlLib.maxContextCalc import maxCtxFont
 from fontTools.pens.basePen import NullPen
 from fontTools.misc.loggingTools import Timer
+from fontTools.misc.cliTools import makeOutputFileName
 from fontTools.subset.util import _add_method, _uniq_sort
 from fontTools.subset.cff import *
 from fontTools.subset.svg import *
+from fontTools.varLib import varStore  # for subset_varidxes
 import sys
 import struct
 import array
@@ -143,6 +147,15 @@ Output options
   smaller than pure zlib, but the compression speed is much slower.
   The Zopfli Python bindings are available at:
   https://pypi.python.org/pypi/zopfli
+
+--harfbuzz-repacker
+  By default, we serialize GPOS/GSUB using the HarfBuzz Repacker when
+  uharfbuzz can be imported and is successful, otherwise fall back to
+  the pure-python serializer. Set the option to force using the HarfBuzz
+  Repacker (raises an error if uharfbuzz can't be found or fails).
+
+--no-harfbuzz-repacker
+  Always use the pure-python serializer even if uharfbuzz is available.
 
 Glyph set expansion
 ^^^^^^^^^^^^^^^^^^^
@@ -625,10 +638,16 @@ def prune_post_subset(self, font, options):
 			self.Value.prune_hints()
 		self.ValueFormat = self.Value.getEffectiveFormat()
 	elif self.Format == 2:
-		if not options.hinting:
-			for v in self.Value:
-				v.prune_hints()
-		self.ValueFormat = reduce(int.__or__, [v.getEffectiveFormat() for v in self.Value], 0)
+		if None in self.Value:
+			assert self.ValueFormat == 0
+			assert all(v is None for v in self.Value)
+		else:
+			if not options.hinting:
+				for v in self.Value:
+					v.prune_hints()
+			self.ValueFormat = reduce(
+				int.__or__, [v.getEffectiveFormat() for v in self.Value], 0
+			)
 
 	# Downgrade to Format 1 if all ValueRecords are the same
 	if self.Format == 2 and all(v == self.Value[0] for v in self.Value):
@@ -2188,6 +2207,14 @@ def subset_glyphs(self, s):
 
 @_add_method(ttLib.getTableClass('CPAL'))
 def prune_post_subset(self, font, options):
+	# Keep whole "CPAL" if "SVG " is present as it may be referenced by the latter
+	# via 'var(--color{palette_entry_index}, ...)' CSS color variables.
+	# For now we just assume this is the case by the mere presence of "SVG " table,
+	# for parsing SVG to collect all the used indices is too much work...
+	# TODO(anthrotype): Do The Right Thing (TM).
+	if "SVG " in font:
+		return True
+
 	colr = font.get("COLR")
 	if not colr:  # drop CPAL if COLR was subsetted to empty
 		return False
@@ -2231,8 +2258,24 @@ def prune_post_subset(self, font, options):
 	self.numPaletteEntries = len(self.palettes[0])
 
 	if self.version == 1:
-		self.paletteEntryLabels = [
-			label for i, label in self.paletteEntryLabels if i in retained_palette_indices
+		kept_labels = []
+		dropped_labels = []
+		for i, label in enumerate(self.paletteEntryLabels):
+			if i in retained_palette_indices:
+				kept_labels.append(label)
+			else:
+				dropped_labels.append(label)
+		self.paletteEntryLabels = kept_labels
+		# Remove dropped labels from the name table.
+		name_table = font["name"]
+		name_table.names = [
+			n for n in name_table.names
+			if (
+				n.nameID not in dropped_labels
+				# Only remove nameIDs in the user range and if they're not explicitly kept
+				or n.nameID < 256
+				or n.nameID in options.name_IDs
+			)
 		]
 	return bool(self.numPaletteEntries)
 
@@ -2526,6 +2569,10 @@ def prune_pre_subset(self, font, options):
 		if stat.table.AxisValueArray:
 			nameIDs.update([val_rec.ValueNameID for val_rec in stat.table.AxisValueArray.AxisValue])
 		nameIDs.update([axis_rec.AxisNameID for axis_rec in stat.table.DesignAxisRecord.Axis])
+	cpal = font.get('CPAL')
+	if cpal and cpal.version == 1:
+		nameIDs.update(cpal.paletteLabels)
+		nameIDs.update(cpal.paletteEntryLabels)
 	if '*' not in options.name_IDs:
 		self.names = [n for n in self.names if n.nameID in nameIDs]
 	if not options.name_legacy:
@@ -2597,6 +2644,9 @@ class Options(object):
 		'vertical': ['valt', 'vert', 'vkrn', 'vpal', 'vrt2'],
 		'ltr': ['ltra', 'ltrm'],
 		'rtl': ['rtla', 'rtlm'],
+		'rand': ['rand'],
+		'justify': ['jalt'],
+		'private': ['Harf', 'HARF', 'Buzz', 'BUZZ'],
 		# Complex shapers
 		'arabic': ['init', 'medi', 'fina', 'isol', 'med2', 'fin2', 'fin3',
 			   'cswh', 'mset', 'stch'],
@@ -2642,11 +2692,13 @@ class Options(object):
 		self.flavor = None  # May be 'woff' or 'woff2'
 		self.with_zopfli = False  # use zopfli instead of zlib for WOFF 1.0
 		self.desubroutinize = False # Desubroutinize CFF CharStrings
+		self.harfbuzz_repacker = USE_HARFBUZZ_REPACKER.default
 		self.verbose = False
 		self.timing = False
 		self.xml = False
 		self.font_number = -1
 		self.pretty_svg = False
+		self.lazy = True
 
 		self.set(**kwargs)
 
@@ -2964,11 +3016,10 @@ class Subsetter(object):
 				if old_uniranges != new_uniranges:
 					log.info("%s Unicode ranges pruned: %s", tag, sorted(new_uniranges))
 				if self.options.recalc_average_width:
-					widths = [m[0] for m in font["hmtx"].metrics.values() if m[0] > 0]
-					avg_width = otRound(sum(widths) / len(widths))
-					if avg_width != font[tag].xAvgCharWidth:
-						font[tag].xAvgCharWidth = avg_width
-						log.info("%s xAvgCharWidth updated: %d", tag, avg_width)
+					old_avg_width = font[tag].xAvgCharWidth
+					new_avg_width = font[tag].recalcAvgCharWidth(font)
+					if old_avg_width != new_avg_width:
+						log.info("%s xAvgCharWidth updated: %d", tag, new_avg_width)
 				if self.options.recalc_max_context:
 					max_context = maxCtxFont(font)
 					if max_context != font[tag].usMaxContext:
@@ -3038,6 +3089,7 @@ def save_font(font, outfile, options):
 		from fontTools.ttLib import sfnt
 		sfnt.USE_ZOPFLI = True
 	font.flavor = options.flavor
+	font.cfg[USE_HARFBUZZ_REPACKER] = options.harfbuzz_repacker
 	font.save(outfile, reorderTables=options.canonical_order)
 
 def parse_unicodes(s):
@@ -3165,15 +3217,11 @@ def main(args=None):
 		glyphs.append(g)
 
 	dontLoadGlyphNames = not options.glyph_names and not glyphs
-	font = load_font(fontfile, options, dontLoadGlyphNames=dontLoadGlyphNames)
+	lazy = options.lazy
+	font = load_font(fontfile, options, dontLoadGlyphNames=dontLoadGlyphNames, lazy=lazy)
 
 	if outfile is None:
-		basename, _ = splitext(fontfile)
-		if options.flavor is not None:
-			ext = "." + options.flavor.lower()
-		else:
-			ext = ".ttf" if font.sfntVersion == "\0\1\0\0" else ".otf"
-		outfile = basename + ".subset" + ext
+		outfile = makeOutputFileName(fontfile, overWrite=True, suffix=".subset")
 
 	with timer("compile glyph list"):
 		if wildcard_glyphs:

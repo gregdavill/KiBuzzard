@@ -337,7 +337,7 @@ class CFFFontSet(object):
 				topDict = TopDict(
 					GlobalSubrs=self.GlobalSubrs,
 					cff2GetGlyphOrder=cff2GetGlyphOrder)
-				self.topDictIndex = TopDictIndex(None, cff2GetGlyphOrder, None)
+				self.topDictIndex = TopDictIndex(None, cff2GetGlyphOrder)
 			self.topDictIndex.append(topDict)
 			for element in content:
 				if isinstance(element, str):
@@ -375,7 +375,7 @@ class CFFFontSet(object):
 		filled via :meth:`decompile`.)"""
 		self.major = 2
 		cff2GetGlyphOrder = self.otFont.getGlyphOrder
-		topDictData = TopDictIndex(None, cff2GetGlyphOrder, None)
+		topDictData = TopDictIndex(None, cff2GetGlyphOrder)
 		topDictData.items = self.topDictIndex.items
 		self.topDictIndex = topDictData
 		topDict = topDictData[0]
@@ -1004,11 +1004,6 @@ class VarStoreData(object):
 
 	def decompile(self):
 		if self.file:
-			class GlobalState(object):
-				def __init__(self, tableType, cachingStats):
-					self.tableType = tableType
-					self.cachingStats = cachingStats
-			globalState = GlobalState(tableType="VarStore", cachingStats={})
 			# read data in from file. Assume position is correct.
 			length = readCard16(self.file)
 			self.data = self.file.read(length)
@@ -1042,6 +1037,8 @@ class VarStoreData(object):
 		return len(self.data)
 
 	def getNumRegions(self, vsIndex):
+		if vsIndex is None:
+			vsIndex = 0
 		varData = self.otVarStore.VarData[vsIndex]
 		numRegions = varData.VarRegionCount
 		return numRegions
@@ -1128,8 +1125,9 @@ class CharStrings(object):
 	"""
 
 	def __init__(self, file, charset, globalSubrs, private, fdSelect, fdArray,
-			isCFF2=None):
+			isCFF2=None, varStore=None):
 		self.globalSubrs = globalSubrs
+		self.varStore = varStore
 		if file is not None:
 			self.charStringsIndex = SubrsIndex(
 				file, globalSubrs, private, fdSelect, fdArray, isCFF2=isCFF2)
@@ -1519,6 +1517,7 @@ class CharStringsConverter(TableConverter):
 		file = parent.file
 		isCFF2 = parent._isCFF2
 		charset = parent.charset
+		varStore = getattr(parent, "VarStore", None)
 		globalSubrs = parent.GlobalSubrs
 		if hasattr(parent, "FDArray"):
 			fdArray = parent.FDArray
@@ -1532,7 +1531,7 @@ class CharStringsConverter(TableConverter):
 			private = parent.Private
 		file.seek(value)  # Offset(0)
 		charStrings = CharStrings(
-			file, charset, globalSubrs, private, fdSelect, fdArray, isCFF2=isCFF2)
+			file, charset, globalSubrs, private, fdSelect, fdArray, isCFF2=isCFF2, varStore=varStore)
 		return charStrings
 
 	def write(self, parent, value):
@@ -1554,7 +1553,7 @@ class CharStringsConverter(TableConverter):
 			# there is no fdArray.
 			private, fdSelect, fdArray = parent.Private, None, None
 		charStrings = CharStrings(
-			None, None, parent.GlobalSubrs, private, fdSelect, fdArray)
+			None, None, parent.GlobalSubrs, private, fdSelect, fdArray, varStore=getattr(parent, "VarStore", None))
 		charStrings.fromXML(name, attrs, content)
 		return charStrings
 
