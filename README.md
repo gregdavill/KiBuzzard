@@ -17,6 +17,14 @@ This plugin has been designed to work on all platforms (Win, Linux, Mac) and wit
     With Nightly they are copied to the clipboard and can be placed interactively.
 
 ## Installation
+
+### KiCad Plugin and Content Manager (v6+)
+
+Find KiBuzzard in the PCM, from the main KiCad window.
+If you desire a newer release than what is currently available in the PCM, then follow the steps below.
+
+### Manual install
+
 Install the script in your KiCad scripting directory
 You can find the location of scripting directories by opening a KiCad scripting terminal and running the following:
 
@@ -75,3 +83,5 @@ Plugin code licensed under MIT, see `LICENSE` for more info.
 
  - [Buzzard](https://github.com/sparkfunX/Buzzard) From SparkFun
  - KiCad Plugin/wx Dialog inspiration from [Interactive HTML BOM](https://github.com/openscopeproject/InteractiveHtmlBom/)
+ - Python based font parser: [fonttools](https://github.com/fonttools/fonttools)
+ - Python based SVG to KiCad: [svg2mod](https://github.com/svg2mod/svg2mod)
