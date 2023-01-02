@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+## Python code generated with wxFormBuilder (version 3.10.1-88b0f50)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -116,8 +116,8 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerSetup.Add( self.m_HeightLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
 
-        self.m_HeightCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
-        self.m_HeightCtrl.SetMaxLength( 0 )
+        self.m_HeightCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0, 0.25 )
+        self.m_HeightCtrl.SetDigits( 3 )
         fgSizerSetup.Add( self.m_HeightCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
         self.m_HeightUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
@@ -140,8 +140,8 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerSetup.Add( self.m_WidthLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
 
-        self.m_WidthCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
-        self.m_WidthCtrl.SetMaxLength( 0 )
+        self.m_WidthCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0, 0.25 )
+        self.m_WidthCtrl.SetDigits( 3 )
         fgSizerSetup.Add( self.m_WidthCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
         self.m_WidthUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
@@ -199,6 +199,21 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerPadding.Add( self.m_PaddingLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
 
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
         self.m_PaddingTopLabel = wx.StaticText( self, wx.ID_ANY, _(u"Top"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_PaddingTopLabel.Wrap( -1 )
 
@@ -225,34 +240,29 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
-        self.m_PaddingTopCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
-        self.m_PaddingTopCtrl.SetMaxLength( 0 )
-        self.m_PaddingTopCtrl.SetMinSize( wx.Size( 64,-1 ) )
+        self.m_PaddingTopCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
+        self.m_PaddingTopCtrl.SetDigits( 3 )
+        fgSizerPadding.Add( self.m_PaddingTopCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
-        fgSizerPadding.Add( self.m_PaddingTopCtrl, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+        self.m_PaddingLeftCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
+        self.m_PaddingLeftCtrl.SetDigits( 3 )
+        fgSizerPadding.Add( self.m_PaddingLeftCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
-        self.m_PaddingLeftCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
-        self.m_PaddingLeftCtrl.SetMaxLength( 0 )
-        self.m_PaddingLeftCtrl.SetMinSize( wx.Size( 64,-1 ) )
+        self.m_PaddingRightCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
+        self.m_PaddingRightCtrl.SetDigits( 3 )
+        fgSizerPadding.Add( self.m_PaddingRightCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
-        fgSizerPadding.Add( self.m_PaddingLeftCtrl, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
-
-        self.m_PaddingRightCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
-        self.m_PaddingRightCtrl.SetMaxLength( 0 )
-        self.m_PaddingRightCtrl.SetMinSize( wx.Size( 64,-1 ) )
-
-        fgSizerPadding.Add( self.m_PaddingRightCtrl, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
-
-        self.m_PaddingBottomCtrl = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
-        self.m_PaddingBottomCtrl.SetMaxLength( 0 )
-        self.m_PaddingBottomCtrl.SetMinSize( wx.Size( 64,-1 ) )
-
-        fgSizerPadding.Add( self.m_PaddingBottomCtrl, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+        self.m_PaddingBottomCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
+        self.m_PaddingBottomCtrl.SetDigits( 3 )
+        fgSizerPadding.Add( self.m_PaddingBottomCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
         self.m_PaddingUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_PaddingUnits.Wrap( -1 )
 
         fgSizerPadding.Add( self.m_PaddingUnits, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
+
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
 
         bMainSizer.Add( fgSizerPadding, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 10 )
@@ -287,12 +297,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         # Connect Events
         self.Bind( wx.EVT_INIT_DIALOG, self.OnInitDlg )
         self.m_MultiLineText.Bind( wx.EVT_CHAR_HOOK, self.OnCharHook )
-        self.m_HeightCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
-        self.m_WidthCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
-        self.m_PaddingTopCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
-        self.m_PaddingLeftCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
-        self.m_PaddingRightCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
-        self.m_PaddingBottomCtrl.Bind( wx.EVT_TEXT_ENTER, self.OnOkClick )
         self.m_sdbSizerOK.Bind( wx.EVT_BUTTON, self.OnOkClick )
 
     def __del__( self ):
@@ -308,11 +312,5 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
     def OnOkClick( self, event ):
         pass
-
-
-
-
-
-
 
 
