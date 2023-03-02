@@ -54,8 +54,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 pass
 
         def run_buzzard(dlg, p_buzzard): 
+            self.logger.log(logging.DEBUG, "Running KiBuzzard")
 
             if len(dlg.polys) == 0:
+                self.logger.log(logging.DEBUG, "No polygons to render")
                 dlg.EndModal(wx.ID_OK)
                 return
 
@@ -66,18 +68,27 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
                 if dlg.updateFootprint is None:
                     # New footprint
+                    self.logger.log(logging.DEBUG, "Loading label onto clipboard")
                     clipboard = wx.Clipboard.Get()
                     if clipboard.Open():
                         clipboard.SetData(wx.TextDataObject(footprint_string))
                         clipboard.Close()
+                    else:                    
+                        self.logger.log(logging.DEBUG, "Clipboard error")
+    
                 else:
                     # Create new footprint, and replace old ones place
+                    self.logger.log(logging.DEBUG, "Updating selected footprint {}".format(dlg.updateFootprint))
                     try:
                         b = pcbnew.GetBoard()
                         
                         pos = dlg.updateFootprint.GetPosition()
                         orient = dlg.updateFootprint.GetOrientationDegrees()
                         wasOnBackLayer = ("B." in dlg.updateFootprint.GetLayerName())
+
+                        self.logger.log(logging.DEBUG, " pos: {}".format(pos))
+                        self.logger.log(logging.DEBUG, " orient: {}".format(orient))
+                        self.logger.log(logging.DEBUG, " need_flip: {}".format(wasOnBackLayer))
                         
                         io = pcbnew.PCB_PLUGIN()
                         new_fp = pcbnew.Cast_to_FOOTPRINT(io.Parse(footprint_string))
@@ -92,7 +103,8 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                     except:
                         import traceback
                         wx.LogError(traceback.format_exc())
-                    
+            else:
+                self.logger.log(logging.ERROR, "Version check failed \"{}\" not in version list".format(self.kicad_build_version))
             dlg.EndModal(wx.ID_OK)
 
         dlg = Dialog(self._pcbnew_frame, self.config_file, Buzzard(), run_buzzard)
@@ -113,13 +125,15 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                             evt.SetKeyCode(ord('V'))
                             #evt.SetUnicodeKey(ord('V'))
                             evt.SetControlDown(True)
+                            self.logger.log(logging.INFO, "Using wx.KeyEvent for paste")
                     
                             wnd = [i for i in self._pcbnew_frame.Children if i.ClassName == 'wxWindow'][0]
-                            #print(wnd)
-                            #print(evt)
+
+                            self.logger.log(logging.INFO, " Injecting event: {} into window: {}".format(evt, wnd))
                             wx.PostEvent(wnd, evt)
                         except:
                             # Likely on Linux with old wx python support :(
+                            self.logger.log(logging.INFO, "Using wx.UIActionSimulator for paste")
                             keyinput = wx.UIActionSimulator()
                             self._pcbnew_frame.Raise()
                             self._pcbnew_frame.SetFocus()
@@ -128,6 +142,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                             # Press and release CTRL + V
                             keyinput.Char(ord("V"), wx.MOD_CONTROL)
                             wx.MilliSleep(100)
+                    else:
+                        self.logger.log(logging.ERROR, "No pcbnew window found")
+                else:
+                    self.logger.log(logging.ERROR, "Version check failed \"{}\" not in version list".format(self.kicad_build_version))
         finally:
             dlg.Destroy()
                         
