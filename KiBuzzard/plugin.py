@@ -76,7 +76,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         b = pcbnew.GetBoard()
                         
                         pos = dlg.updateFootprint.GetPosition()
-                        orient = dlg.updateFootprint.GetOrientation()
+                        orient = dlg.updateFootprint.GetOrientationDegrees()
                         wasOnBackLayer = ("B." in dlg.updateFootprint.GetLayerName())
                         
                         io = pcbnew.PCB_PLUGIN()
@@ -86,7 +86,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         # Flip before setting orientation
                         if wasOnBackLayer:
                             new_fp.Flip(pos, True)
-                        new_fp.SetOrientation(orient)
+                        new_fp.SetOrientationDegrees(orient)
 
                         b.Remove(dlg.updateFootprint)
                     except:
