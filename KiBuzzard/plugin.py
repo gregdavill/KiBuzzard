@@ -84,7 +84,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         
                         pos = dlg.updateFootprint.GetPosition()
                         orient = dlg.updateFootprint.GetOrientationDegrees()
-                        wasOnBackLayer = ("B." in dlg.updateFootprint.GetLayerName())
+                        wasOnBackLayer = dlg.updateFootprint.GetLayer() == pcbnew.B_Cu
 
                         self.logger.log(logging.DEBUG, " pos: {}".format(pos))
                         self.logger.log(logging.DEBUG, " orient: {}".format(orient))
