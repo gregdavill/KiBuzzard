@@ -46,7 +46,7 @@ class Buzzard():
         for entry in os.listdir(typeface_path):
             entry_path = os.path.join(typeface_path, entry)
             
-            if not entry_path.endswith('.ttf'):
+            if not (entry_path.endswith('.ttf') or entry_path.endswith('.otf')):
                 continue
 
             fnt_lib[os.path.splitext(os.path.basename(entry_path))[0]] = {'Path':entry_path}

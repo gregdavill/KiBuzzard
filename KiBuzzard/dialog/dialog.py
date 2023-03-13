@@ -43,7 +43,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         for entry in os.listdir(typeface_path):
             entry_path = os.path.join(typeface_path, entry)
             
-            if not entry_path.endswith('.ttf'):
+            if not (entry_path.endswith('.ttf') or entry_path.endswith('.otf')):
                 continue
             
             self.m_FontComboBox.Append(os.path.splitext(entry)[0])
