@@ -2,6 +2,8 @@
 import os
 import time
 import copy
+import re
+import wx
 
 from fontTools.ttLib import ttFont
 from fontTools.pens.recordingPen import RecordingPen
@@ -18,7 +20,6 @@ class Padding():
         self.top = 0.001
         self.bottom = 0.001        
 
-
 class Buzzard():
     def __init__(self):
         self.fontName = 'FredokaOne'
@@ -34,6 +35,9 @@ class Buzzard():
         self.leftCap = ''                # Used to store cap shape for left side of tag
         self.rightCap = ''               # Used to store cap shape for right side of tag-
         self.svgText = None
+        self.inlineFormat = False
+        self.lineOverThickness = 2
+        self.lineOverStyle = 'Square'
         #self.SystemFonts = svg.Text._system_fonts
 
         #svg.Text.load_system_fonts()
@@ -72,13 +76,15 @@ class Buzzard():
         t = svg.Text()
 
         t.set_font(self.fontName)
-        
-        for i,s in enumerate(inString.split('\n')):
-            t.add_text(s, origin=svg.Point(0, 15*i))
-        
-        # This needs to be called to convert raw text to useable path elements
-        t.convert_to_path()
-    
+
+        if self.inlineFormat == True:
+            t = self.formatString(inString, self.fontName)       
+        else:
+            for i,s in enumerate(inString.split('\n')):
+                t.add_text(s, origin=svg.Point(0, 15*i))
+            # This needs to be called to convert raw text to useable path elements    
+            t.convert_to_path()    
+
         # bounds check padding
         padding = self.padding
 
@@ -88,7 +94,6 @@ class Buzzard():
         height += padding.top + padding.bottom
         width = bbox[1].x - bbox[0].x
         textWidth = (width + (self.padding.left + self.padding.right))
-
 
         fixedWidth = max(0, self.width - (self.padding.left + self.padding.right))
         width = max(width, fixedWidth)
@@ -158,7 +163,138 @@ class Buzzard():
             mod.add_svg_element(self.svgText, layer=self.layer)
         mod.write()
         return mod.raw_file_data
+    
+    # ******************************************************************************
+    #
+    #   Inline formatting brought over from Buzzard Classic
+    #   - Supports lineover denoted by ~{} 
+    #   - Lineover has selectable thickness and style
+    #   - Supports tag cap shapes denoted by ()[]<>/\
+    #   
+    def formatString(self, inString, fontName):
 
+        formattedText = []
+        horizontalOffset = 0
+        # Get the width of a space for this typeface
+        spaceWidth = self.getSpaceWidth(fontName)
+
+        # In case lineover thickness gets set to 0
+        if self.lineOverThickness == 0:
+            self.lineOverThickness = 1
+
+        # Detect endcap characters and remove them
+        inString = self.extractEndcaps(inString)
+
+        for lineIndex,lineString in enumerate(inString.split('\n')):
+
+            for chunkIndex,chunk in enumerate(re.split(r"(~{.*?})", lineString)):
+
+                chunkPath = svg.Text()
+                chunkPath.set_font(fontName)
+                bbox = any
+
+                # Weed out empty matches from the split
+                if len(chunk) > 0 and chunk.isspace() == False:
+
+                    # If this chunk is marked up for overlining...
+                    if chunk.startswith("~{") and chunk.endswith("}"):
+                        chunk = chunk.removeprefix("~{") 
+                        chunk = chunk.removesuffix("}")
+                        preSpaces = 0
+                        # Count up leading spaces, remove them from the string, and add to the offset
+                        while chunk.startswith(" "):
+                            chunk = chunk.removeprefix(" ")
+                            horizontalOffset += spaceWidth
+                            preSpaces += 1
+                        # Render the text
+                        chunkPath.add_text(chunk, origin=svg.Point(horizontalOffset, 15*lineIndex))
+                        chunkPath.convert_to_path()
+                        bbox = chunkPath.bbox()
+                        postSpaces = 0
+                        # Count up trailing spaces, remove them from the string, and add to the offset
+                        while chunk.endswith(" "):
+                            chunk = chunk.removesuffix(" ")
+                            horizontalOffset += spaceWidth
+                            postSpaces += 1
+                        # If this is the first chunk we've rendered, use chunkPath to set the variable type
+                        if formattedText == []:
+                            formattedText = chunkPath            
+                        else:
+                            formattedText.paths.append([chunkPath])     
+                        # Render the overline
+                        if self.lineOverStyle == "Square":                                  
+                            pstr = "M {},{} ".format(bbox[0].x - (preSpaces*spaceWidth), bbox[0].y-1)
+                            pstr += "L {},{} ".format(bbox[0].x - (preSpaces*spaceWidth), bbox[0].y-(self.lineOverThickness+1))
+                            pstr += "L {},{} ".format(bbox[1].x + (postSpaces*spaceWidth), bbox[0].y-(self.lineOverThickness+1))
+                            pstr += "L {},{} ".format(bbox[1].x + (postSpaces*spaceWidth), bbox[0].y-1)
+                            pstr += "z"
+                        elif self.lineOverStyle == "Rounded":
+                            pstr = "M {},{} ".format(bbox[0].x - (preSpaces*spaceWidth), bbox[0].y-1)
+                            pstr += "a {},{} 0 0 1 0,{} ".format(self.lineOverThickness/2, self.lineOverThickness/2,-self.lineOverThickness)                            
+                            pstr += "L {},{} ".format(bbox[1].x + (postSpaces*spaceWidth), bbox[0].y-(self.lineOverThickness+1))
+                            pstr += "a {},{} 0 0 1 0,{} ".format(self.lineOverThickness/2, self.lineOverThickness/2,self.lineOverThickness)
+                            pstr += "z"
+
+                        p = svg.Path()
+                        p.parse(pstr)
+                        formattedText.paths.append([p])
+                        horizontalOffset += bbox[1].x - bbox[0].x
+
+                    # If this chunk is not marked up for overlining...
+                    else:
+                        # Count up leading spaces, remove them from the string, and add to the offset
+                        while chunk.startswith(" "):
+                            chunk = chunk.removeprefix(" ")
+                            horizontalOffset += spaceWidth
+                        # Render the text
+                        chunkPath.add_text(chunk, origin=svg.Point(horizontalOffset, 15*lineIndex))                        
+                        chunkPath.convert_to_path()
+                        bbox = chunkPath.bbox()
+                        horizontalOffset += bbox[1].x - bbox[0].x 
+                        # Count up trailing spaces, remove them from the string, and add to the offset
+                        while chunk.endswith(" "):
+                            chunk = chunk.removesuffix(" ")
+                            horizontalOffset += spaceWidth
+                        # If this is the first chunk we've rendered, use chunkPath to set the variable type
+                        if formattedText == []:
+                            formattedText = chunkPath
+                        else:
+                            formattedText.paths.append([chunkPath])
+                        
+            horizontalOffset = 0
+
+        return(formattedText)
+
+    # Detect endcap characters and remove them, also set the endcap style accordingly
+    def extractEndcaps(self, string):
+        
+        capChar = re.fullmatch(r"^(?P<lcap>\(|\[|\/|\\|>|<)(?P<string>.*?)(?P<rcap>>|<|\\|\/|]|\))$", string)
+
+        if capChar != None:
+            styles = {'':'', '(':'round', '[':'square', '<':'pointer', '/':'fslash', '\\':'bslash', '>':'flagtail'}
+            self.leftCap = styles[capChar['lcap']]
+            styles = {'':'', ')':'round', ']':'square', '>':'pointer', '/':'fslash', '\\':'bslash', '<':'flagtail'}
+            self.rightCap = styles[capChar['rcap']]
+            string = capChar['string']
+            return string
+        else:
+            self.leftCap = ''
+            self.rightCap = ''
+            return string
+
+    # Get the width of a space for this typeface
+    # We _could_ get the space width by rendering two glyphs seperated by a space
+    # and then rendering the glyphs without, and then taking the difference of 
+    # the bounding boxes. I don't think it's that critical, though, so we use the
+    # width of a full-stop as our proxy
+    def getSpaceWidth(self, font):
+
+        scratchPad = svg.Text()
+        scratchPad.set_font(font)
+        scratchPad.add_text(".")
+        scratchPad.convert_to_path()
+        bbox = scratchPad.bbox()
+        return bbox[1].x - bbox[0].x            
 
 class Svg2ModExportLatestCustom( Svg2ModExportLatest ):
     
