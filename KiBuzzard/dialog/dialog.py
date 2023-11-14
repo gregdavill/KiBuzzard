@@ -59,6 +59,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.m_HeightUnits.SetLabel("mm")
         self.m_WidthUnits.SetLabel("mm")
         self.m_PaddingUnits.SetLabel("FUnits")
+        self.m_lineoverThicknessUnits.SetLabel("")        
 
         best_size = self.BestSize
         # hack for some gtk themes that incorrectly calculate best size
@@ -73,6 +74,15 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.updateFootprint = None
 
         self.loadConfig()
+
+        if self.m_advancedCheckbox.IsChecked():
+            self.m_lineoverPanel.Show()
+            self.m_spCharPanel.Show()
+            self.m_AdvancedDivider.Show()
+        else:
+            self.m_lineoverPanel.Hide()
+            self.m_spCharPanel.Hide()
+            self.m_AdvancedDivider.Hide()
 
         self.buzzard = buzzard
 
@@ -267,7 +277,16 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                 self.m_WidthCtrl.SetValue(scaledLabelWidth)
 
             self.error = None
-        
+
+        if self.m_inlineFormatTextbox.IsChecked():
+            self.buzzard.inlineFormat = True
+        else:
+            self.buzzard.inlineFormat = False
+
+        self.buzzard.lineOverThickness = int(self.m_lineoverThicknessCtrl.GetValue())    
+
+        self.buzzard.lineOverStyle = self.m_lineoverStyleChoice.GetString(self.m_lineoverStyleChoice.GetSelection())
+
         if len(self.m_MultiLineText.GetValue()) == 0:
             self.RePaint()
             return
@@ -346,3 +365,42 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.saveConfig()
         
         self.func(self, self.buzzard)
+
+    def advancedModeChange(self, event):
+        if self.m_advancedCheckbox.IsChecked():
+            self.m_lineoverPanel.Show()
+            self.m_spCharPanel.Show()
+            self.m_AdvancedDivider.Show()
+        else:
+            self.m_lineoverPanel.Hide()
+            self.m_spCharPanel.Hide()
+            self.m_AdvancedDivider.Hide()
+            self.m_inlineFormatTextbox.SetValue(False)
+            self.buzzard.inlineFormat = False
+            self.ReGeneratePreview()
+
+        self.RePaint()
+
+    def inlineFormatChange(self, event):
+        self.ReGeneratePreview()
+
+    def thicknessCtrlChange(self, event):
+        self.ReGeneratePreview()
+
+    def lineoverStyleChange(self, event):
+        self.ReGeneratePreview()
+
+    def addCharOhm(self, event):
+        self.m_MultiLineText.SetValue(self.m_MultiLineText.GetValue()+"Ω")
+
+    def addCharMu(self, event):
+        self.m_MultiLineText.SetValue(self.m_MultiLineText.GetValue()+"µ")
+
+    def addCharSup2(self, event):
+        self.m_MultiLineText.SetValue(self.m_MultiLineText.GetValue()+"²")
+
+    def addCharDegree(self, event):
+        self.m_MultiLineText.SetValue(self.m_MultiLineText.GetValue()+"°")
+
+    def addCharNumero(self, event):
+        self.m_MultiLineText.SetValue(self.m_MultiLineText.GetValue()+"№")
