@@ -33,7 +33,11 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         'PaddingRightCtrl': '3.75',
         'PaddingBottomCtrl': '3.75',
         'WidthCtrl': None,
-        'AlignmentChoice': 'Center'
+        'AlignmentChoice': 'Center',
+        'advancedCheckbox': False,
+        'inlineFormatTextbox': False,
+        'lineoverStyleChoice': 'rounded',
+        'lineoverThicknessCtrl': '1'
     }
 
     def __init__(self, parent, config, buzzard, func):
@@ -167,6 +171,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                     obj.SetStringSelection(value)
                 else:
                     raise Exception("Invalid item")  
+
             except Exception as e:
                 pass
         return params

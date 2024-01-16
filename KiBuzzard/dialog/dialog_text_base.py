@@ -303,8 +303,8 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_lineoverStyleChoice.SetSelection( 0 )
         fgSizerLineover.Add( self.m_lineoverStyleChoice, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
-        self.m_lineoverThicknessCtrl = wx.TextCtrl( self.m_lineoverPanel, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0 )
-        fgSizerLineover.Add( self.m_lineoverThicknessCtrl, 1, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
+        self.m_lineoverThicknessCtrl = wx.SpinCtrl( self.m_lineoverPanel, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 10, 1 )
+        fgSizerLineover.Add( self.m_lineoverThicknessCtrl, 0, wx.ALL, 5 )
 
         self.m_lineoverThicknessUnits = wx.StaticText( self.m_lineoverPanel, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_lineoverThicknessUnits.Wrap( -1 )
@@ -397,7 +397,9 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.Bind( wx.EVT_INIT_DIALOG, self.OnInitDlg )
         self.m_MultiLineText.Bind( wx.EVT_CHAR_HOOK, self.OnCharHook )
         self.m_lineoverStyleChoice.Bind( wx.EVT_CHOICE, self.lineoverStyleChange )
+        self.m_lineoverThicknessCtrl.Bind( wx.EVT_SPINCTRL, self.thicknessCtrlChange )
         self.m_lineoverThicknessCtrl.Bind( wx.EVT_TEXT, self.thicknessCtrlChange )
+        self.m_lineoverThicknessCtrl.Bind( wx.EVT_TEXT_ENTER, self.thicknessCtrlChange )
         self.m_spCharOhm.Bind( wx.EVT_BUTTON, self.addCharOhm )
         self.m_spCharMu.Bind( wx.EVT_BUTTON, self.addCharMu )
         self.m_spCharHyp2.Bind( wx.EVT_BUTTON, self.addCharSup2 )
