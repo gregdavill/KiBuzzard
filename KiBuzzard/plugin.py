@@ -90,7 +90,11 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         self.logger.log(logging.DEBUG, " orient: {}".format(orient))
                         self.logger.log(logging.DEBUG, " need_flip: {}".format(wasOnBackLayer))
                         
-                        io = pcbnew.PCB_PLUGIN()
+                        try:
+                            io = pcbnew.PCB_PLUGIN()
+                        except AttributeError:
+                            io = pcbnew.PCB_IO_KICAD_SEXPR()
+                        
                         new_fp = pcbnew.Cast_to_FOOTPRINT(io.Parse(footprint_string))
                         b.Add(new_fp)
                         new_fp.SetPosition(pos)
