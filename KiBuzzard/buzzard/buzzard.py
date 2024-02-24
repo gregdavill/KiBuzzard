@@ -24,12 +24,11 @@ class Buzzard():
         self.fontName = 'FredokaOne'
         self.layer = 'F.Cu'
         self.verbose = True
-        self.scaleFactor = 96/4
+        self.scaleFactor = 0.04
         self.subSampling = 0.1
         self.traceWidth = 0.1
         self.padding = Padding()
         self.width = 0
-        self.minHeight = 0.1
         self.alignment = ''
         self.leftCap = ''                # Used to store cap shape for left side of tag
         self.rightCap = ''               # Used to store cap shape for right side of tag-
@@ -81,6 +80,8 @@ class Buzzard():
     
         # bounds check padding
         padding = self.padding
+        for attr in ['left', 'right', 'top', 'bottom']:
+            if getattr(padding,attr) <= 0: setattr(padding, attr, 0.001)
 
         bbox = t.bbox()
         height = bbox[1].y - bbox[0].y
@@ -137,7 +138,7 @@ class Buzzard():
                 pstr += "h {} l {},{} l {},{} h {}".format(height/3, height/-3, height/-2, height/3, height/-2, height/-3)
             
             pstr += "h {} ".format(-padding.right)
-            pstr += "h {} z".format(-width)
+            pstr += "h {} z".format(-1*width)
 
             p = svg.Path()
             p.parse(pstr)
@@ -168,7 +169,7 @@ class Svg2ModExportLatestCustom( Svg2ModExportLatest ):
         file_name = None,
         center = True,
         scale_factor = 1.0,
-        precision = 1.0,
+        precision = 20.0,
         use_mm = True,
         dpi = DEFAULT_DPI,
         params = None
