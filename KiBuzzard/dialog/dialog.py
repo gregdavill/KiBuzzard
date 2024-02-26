@@ -224,13 +224,13 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         #initial render with no caps to determine text-only bounding-box sizing for scaling
         if self.m_MultiLineText.GetValue():
-            self.buzzard.leftCap = 'square'
-            self.buzzard.rightCap = 'square'
+            self.buzzard.leftCap = ''
+            self.buzzard.rightCap = ''
             t=self.buzzard.renderLabel(self.m_MultiLineText.GetValue())
         
             textWidth=round(t.bbox()[1].x-t.bbox()[0].x,3)
             textHeight=round(t.bbox()[1].y-t.bbox()[0].y,3)
-            self.buzzard.scaleFactor=(96/25.4)*((requestedHeight-(self.buzzard.padding.top-self.buzzard.padding.bottom))/textHeight)
+            self.buzzard.scaleFactor=(96/25.4)*(requestedHeight/textHeight)
             rawScaleFactor=(self.buzzard.scaleFactor/(96/25.4))
 
             scaledTextWidth=textWidth*rawScaleFactor            
@@ -249,7 +249,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             labelHeight=round(t.bbox()[1].y-t.bbox()[0].y,3)
             
             scaledLabelWidth=labelWidth*rawScaleFactor
-            scaledLabelHeight=labelHeight*rawScaleFactor
+            scaledLabelHeight=labelHeight
             deltaWidth=scaledLabelWidth-scaledTextWidth
             
             #in order to make our item width match the requested item 
@@ -259,11 +259,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             #if (self.buzzard.leftCap != '') & (self.buzzard.rightCap != ''): #causes an error due to the fact that the bounding box is created 
             if self.m_HeightCtrl.GetValue() < requestedHeight:
                 self.m_HeightCtrl.SetValue(scaledLabelHeight) 
-            #needed for realtime update of size since we can not set the width smaller than the bounding box created
-            #for that particular height of character.
-            #character height drives the scaling factor and thus is applied first
-            if requestedWidth<scaledLabelWidth:
-                self.m_WidthCtrl.SetValue(scaledLabelWidth)
 
             self.error = None
         
