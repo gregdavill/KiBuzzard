@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 3.10.1-88b0f50)
+## Python code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -186,7 +186,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_staticline1 = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
         bMainSizer.Add( self.m_staticline1, 0, wx.BOTTOM|wx.EXPAND|wx.LEFT|wx.RIGHT, 5 )
 
-        fgSizerPadding = wx.FlexGridSizer( 0, 6, 4, 4 )
+        fgSizerPadding = wx.FlexGridSizer( 0, 5, 4, 4 )
         fgSizerPadding.AddGrowableCol( 1 )
         fgSizerPadding.AddGrowableCol( 2 )
         fgSizerPadding.AddGrowableCol( 3 )
@@ -198,9 +198,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_PaddingLabel.Wrap( -1 )
 
         fgSizerPadding.Add( self.m_PaddingLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
-
-
-        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
 
         fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
@@ -237,9 +234,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
-
-        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
-
         self.m_PaddingTopCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
         self.m_PaddingTopCtrl.SetDigits( 3 )
         fgSizerPadding.Add( self.m_PaddingTopCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
@@ -255,14 +249,6 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_PaddingBottomCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
         self.m_PaddingBottomCtrl.SetDigits( 3 )
         fgSizerPadding.Add( self.m_PaddingBottomCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
-
-        self.m_PaddingUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_PaddingUnits.Wrap( -1 )
-
-        fgSizerPadding.Add( self.m_PaddingUnits, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
-
-
-        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
 
         bMainSizer.Add( fgSizerPadding, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 10 )
