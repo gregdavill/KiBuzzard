@@ -222,7 +222,10 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         if self.m_MultiLineText.GetValue():
             self.buzzard.leftCap = ''
             self.buzzard.rightCap = ''
-            t=self.buzzard.renderLabel(self.m_MultiLineText.GetValue())
+            
+            # Calculate text height based off first line
+            text = self.m_MultiLineText.GetValue().split('\n')
+            t=self.buzzard.renderLabel(text[0])
         
             textWidth=round(t.bbox()[1].x-t.bbox()[0].x,3)
             textHeight=round(t.bbox()[1].y-t.bbox()[0].y,3)
