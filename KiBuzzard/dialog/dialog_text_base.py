@@ -116,8 +116,8 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerSetup.Add( self.m_HeightLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
 
-        self.m_HeightCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0, 0.25 )
-        self.m_HeightCtrl.SetDigits( 3 )
+        self.m_HeightCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0, 0.1 )
+        self.m_HeightCtrl.SetDigits( 1 )
         fgSizerSetup.Add( self.m_HeightCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
         self.m_HeightUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
@@ -140,8 +140,8 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerSetup.Add( self.m_WidthLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
 
-        self.m_WidthCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0, 0.25 )
-        self.m_WidthCtrl.SetDigits( 3 )
+        self.m_WidthCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0, 0.1 )
+        self.m_WidthCtrl.SetDigits( 1 )
         fgSizerSetup.Add( self.m_WidthCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
         self.m_WidthUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
@@ -235,19 +235,19 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
         self.m_PaddingTopCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
-        self.m_PaddingTopCtrl.SetDigits( 3 )
+        self.m_PaddingTopCtrl.SetDigits( 1 )
         fgSizerPadding.Add( self.m_PaddingTopCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
         self.m_PaddingLeftCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
-        self.m_PaddingLeftCtrl.SetDigits( 3 )
+        self.m_PaddingLeftCtrl.SetDigits( 1 )
         fgSizerPadding.Add( self.m_PaddingLeftCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
         self.m_PaddingRightCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
-        self.m_PaddingRightCtrl.SetDigits( 3 )
+        self.m_PaddingRightCtrl.SetDigits( 1 )
         fgSizerPadding.Add( self.m_PaddingRightCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
         self.m_PaddingBottomCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
-        self.m_PaddingBottomCtrl.SetDigits( 3 )
+        self.m_PaddingBottomCtrl.SetDigits( 1 )
         fgSizerPadding.Add( self.m_PaddingBottomCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
 

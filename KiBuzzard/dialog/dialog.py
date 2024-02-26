@@ -213,10 +213,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         for attr in ['left', 'right', 'top', 'bottom']:
             if getattr(self.buzzard.padding,attr) <= 0: setattr(self.buzzard.padding, attr, 0.001) 
  
-        #do the realtime update
-        for attr, ctrl in [('left','m_PaddingLeftCtrl'), ('right','m_PaddingRightCtrl'), ('top','m_PaddingTopCtrl'), ('bottom','m_PaddingBottomCtrl')]:            
-            getattr(self, ctrl).SetValue(getattr(self.buzzard.padding, attr,3))
-  
         self.buzzard.layer = self.m_LayerComboBox.GetValue()
         self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0)
 
