@@ -32,6 +32,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         'PaddingLeftCtrl': '3.75',
         'PaddingRightCtrl': '3.75',
         'PaddingBottomCtrl': '3.75',
+        'LineSpacingCtrl': '1.5',
         'WidthCtrl': None,
         'AlignmentChoice': 'Center'
     }
@@ -195,6 +196,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.polys = []
         
         self.buzzard.fontName = self.m_FontComboBox.GetValue()
+        self.buzzard.lineSpacing = ParseFloat(self.m_LineSpacingCtrl.GetValue()) * 10
 
         requestedHeight = ParseFloat(self.m_HeightCtrl.GetValue())
         requestedWidth = ParseFloat(self.m_WidthCtrl.GetValue())
