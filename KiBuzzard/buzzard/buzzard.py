@@ -34,6 +34,7 @@ class Buzzard():
         self.leftCap = ''                # Used to store cap shape for left side of tag
         self.rightCap = ''               # Used to store cap shape for right side of tag-
         self.svgText = None
+        self.lineSpacing = 15
         #self.SystemFonts = svg.Text._system_fonts
 
         #svg.Text.load_system_fonts()
@@ -74,7 +75,7 @@ class Buzzard():
         t.set_font(self.fontName)
         
         for i,s in enumerate(inString.split('\n')):
-            t.add_text(s, origin=svg.Point(0, 15*i))
+            t.add_text(s, origin=svg.Point(0, self.lineSpacing * i))
         
         # This needs to be called to convert raw text to useable path elements
         t.convert_to_path()

@@ -140,7 +140,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerSetup.Add( self.m_WidthLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
 
-        self.m_WidthCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0, 0.1 )
+        self.m_WidthCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0.000000, 0.1 )
         self.m_WidthCtrl.SetDigits( 1 )
         fgSizerSetup.Add( self.m_WidthCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
@@ -159,11 +159,14 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_AlignmentChoice.SetSelection( 0 )
         fgSizerSetup.Add( self.m_AlignmentChoice, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
 
+        self.m_lineSpacingLabel = wx.StaticText( self, wx.ID_ANY, _(u"Line Spacing:"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_lineSpacingLabel.Wrap( -1 )
 
-        fgSizerSetup.Add( ( 0, 0), 0, wx.EXPAND, 5 )
+        fgSizerSetup.Add( self.m_lineSpacingLabel, 0, wx.ALL, 5 )
 
-
-        fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+        self.m_LineSpacingCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0.1, 100, 1.5, 0.1 )
+        self.m_LineSpacingCtrl.SetDigits( 1 )
+        fgSizerSetup.Add( self.m_LineSpacingCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
 
         fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
