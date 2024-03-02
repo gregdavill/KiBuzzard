@@ -201,10 +201,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         requestedHeight = ParseFloat(self.m_HeightCtrl.GetValue())
         requestedWidth = ParseFloat(self.m_WidthCtrl.GetValue())
         
-        if requestedHeight < self.buzzard.minHeight:
-            requestedHeight = self.buzzard.minHeight
-            self.m_HeightCtrl.SetValue(self.buzzard.minHeight)
-        
         self.buzzard.padding.top = ParseFloat(self.m_PaddingTopCtrl.GetValue())
         self.buzzard.padding.left = ParseFloat(self.m_PaddingLeftCtrl.GetValue())
         self.buzzard.padding.right = ParseFloat(self.m_PaddingRightCtrl.GetValue())
@@ -257,9 +253,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             #width we have to adjust our our width by the requested size
             #and the delta of the caps
             self.buzzard.width = ParseFloat((requestedWidth-deltaWidth)/rawScaleFactor, 0.000)
-            #if (self.buzzard.leftCap != '') & (self.buzzard.rightCap != ''): #causes an error due to the fact that the bounding box is created 
-            if self.m_HeightCtrl.GetValue() < requestedHeight:
-                self.m_HeightCtrl.SetValue(scaledLabelHeight) 
 
             self.error = None
         
