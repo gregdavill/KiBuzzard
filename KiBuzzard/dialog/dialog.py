@@ -227,10 +227,12 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         
             textWidth=round(t.bbox()[1].x-t.bbox()[0].x,3)
             textHeight=round(t.bbox()[1].y-t.bbox()[0].y,3)
-            self.buzzard.scaleFactor=(96/25.4)*(requestedHeight/textHeight)
-            rawScaleFactor=(self.buzzard.scaleFactor/(96/25.4))
 
-            scaledTextWidth=textWidth*rawScaleFactor            
+            # Magic scaling numbers needed due to font size bug in svg2mod
+            self.buzzard.scaleFactor=requestedHeight * (96/25.4) * (1/15.2)
+            rawScaleFactor=self.buzzard.scaleFactor * (25.4/96) * (1/1.28)
+
+            scaledTextWidth=textWidth*rawScaleFactor
 
         styles = {'':'', '(':'round', '[':'square', '<':'pointer', '/':'fslash', '\\':'bslash', '>':'flagtail'}
         self.buzzard.leftCap = styles[self.m_CapLeftChoice.GetStringSelection()]

@@ -72,7 +72,7 @@ class Buzzard():
         # t is an svg Text element
         t = svg.Text()
 
-        t.set_font(self.fontName)
+        t.set_font(self.fontName, size=24)
         
         for i,s in enumerate(inString.split('\n')):
             t.add_text(s, origin=svg.Point(0, self.lineSpacing * i))
