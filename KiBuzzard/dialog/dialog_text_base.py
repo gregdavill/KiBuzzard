@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
+## Python code generated with wxFormBuilder (version 4.1.0-0-g733bf3d)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -116,8 +116,8 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerSetup.Add( self.m_HeightLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
 
-        self.m_HeightCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0, 0.25 )
-        self.m_HeightCtrl.SetDigits( 3 )
+        self.m_HeightCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0, 0.1 )
+        self.m_HeightCtrl.SetDigits( 1 )
         fgSizerSetup.Add( self.m_HeightCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
         self.m_HeightUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
@@ -140,8 +140,8 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerSetup.Add( self.m_WidthLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
 
-        self.m_WidthCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0, 0.25 )
-        self.m_WidthCtrl.SetDigits( 3 )
+        self.m_WidthCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 128, 0.000000, 0.1 )
+        self.m_WidthCtrl.SetDigits( 1 )
         fgSizerSetup.Add( self.m_WidthCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
         self.m_WidthUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
@@ -159,11 +159,14 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_AlignmentChoice.SetSelection( 0 )
         fgSizerSetup.Add( self.m_AlignmentChoice, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, 3 )
 
+        self.m_lineSpacingLabel = wx.StaticText( self, wx.ID_ANY, _(u"Line Spacing:"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_lineSpacingLabel.Wrap( -1 )
 
-        fgSizerSetup.Add( ( 0, 0), 0, wx.EXPAND, 5 )
+        fgSizerSetup.Add( self.m_lineSpacingLabel, 0, wx.ALL, 5 )
 
-
-        fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+        self.m_LineSpacingCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0.1, 100, 1.5, 0.1 )
+        self.m_LineSpacingCtrl.SetDigits( 1 )
+        fgSizerSetup.Add( self.m_LineSpacingCtrl, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
 
         fgSizerSetup.Add( ( 0, 0), 1, wx.EXPAND, 5 )
@@ -186,11 +189,11 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_staticline1 = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
         bMainSizer.Add( self.m_staticline1, 0, wx.BOTTOM|wx.EXPAND|wx.LEFT|wx.RIGHT, 5 )
 
-        fgSizerPadding = wx.FlexGridSizer( 0, 6, 4, 4 )
+        fgSizerPadding = wx.FlexGridSizer( 0, 8, 4, 4 )
         fgSizerPadding.AddGrowableCol( 1 )
-        fgSizerPadding.AddGrowableCol( 2 )
         fgSizerPadding.AddGrowableCol( 3 )
-        fgSizerPadding.AddGrowableCol( 4 )
+        fgSizerPadding.AddGrowableCol( 5 )
+        fgSizerPadding.AddGrowableCol( 7 )
         fgSizerPadding.SetFlexibleDirection( wx.BOTH )
         fgSizerPadding.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
 
@@ -214,20 +217,35 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
         self.m_PaddingTopLabel = wx.StaticText( self, wx.ID_ANY, _(u"Top"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_PaddingTopLabel.Wrap( -1 )
 
         fgSizerPadding.Add( self.m_PaddingTopLabel, 1, wx.ALIGN_CENTER, 5 )
+
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
         self.m_PaddingLeftLabel = wx.StaticText( self, wx.ID_ANY, _(u"Left"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_PaddingLeftLabel.Wrap( -1 )
 
         fgSizerPadding.Add( self.m_PaddingLeftLabel, 1, wx.ALIGN_CENTER, 5 )
 
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
         self.m_PaddingRightLabel = wx.StaticText( self, wx.ID_ANY, _(u"Right"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_PaddingRightLabel.Wrap( -1 )
 
         fgSizerPadding.Add( self.m_PaddingRightLabel, 1, wx.ALIGN_CENTER, 5 )
+
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
         self.m_PaddingBottomLabel = wx.StaticText( self, wx.ID_ANY, _(u"Bottom"), wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_PaddingBottomLabel.Wrap( -1 )
@@ -237,30 +255,23 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
+        self.m_PaddingTopCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
+        self.m_PaddingTopCtrl.SetDigits( 1 )
+        fgSizerPadding.Add( self.m_PaddingTopCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
+
 
         fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
 
-        self.m_PaddingTopCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
-        self.m_PaddingTopCtrl.SetDigits( 3 )
-        fgSizerPadding.Add( self.m_PaddingTopCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
-
         self.m_PaddingLeftCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
-        self.m_PaddingLeftCtrl.SetDigits( 3 )
+        self.m_PaddingLeftCtrl.SetDigits( 1 )
         fgSizerPadding.Add( self.m_PaddingLeftCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
+
+        fgSizerPadding.Add( ( 0, 0), 1, wx.EXPAND, 5 )
+
         self.m_PaddingRightCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
-        self.m_PaddingRightCtrl.SetDigits( 3 )
+        self.m_PaddingRightCtrl.SetDigits( 1 )
         fgSizerPadding.Add( self.m_PaddingRightCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
-
-        self.m_PaddingBottomCtrl = wx.SpinCtrlDouble( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS|wx.TE_PROCESS_ENTER, 0, 100, 0, 1 )
-        self.m_PaddingBottomCtrl.SetDigits( 3 )
-        fgSizerPadding.Add( self.m_PaddingBottomCtrl, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
-
-        self.m_PaddingUnits = wx.StaticText( self, wx.ID_ANY, _(u"unit"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_PaddingUnits.Wrap( -1 )
-
-        fgSizerPadding.Add( self.m_PaddingUnits, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
-
 
         bMainSizer.Add( fgSizerPadding, 0, wx.EXPAND|wx.LEFT|wx.RIGHT, 10 )
 

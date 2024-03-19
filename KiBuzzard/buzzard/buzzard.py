@@ -39,6 +39,7 @@ class Buzzard():
         self.inlineFormat = False
         self.lineOverThickness = 2
         self.lineOverStyle = 'Square'
+        self.lineSpacing = 15
         #self.SystemFonts = svg.Text._system_fonts
 
         #svg.Text.load_system_fonts()
@@ -82,7 +83,8 @@ class Buzzard():
             t = self.formatString(inString, self.fontName)       
         else:
             for i,s in enumerate(inString.split('\n')):
-                t.add_text(s, origin=svg.Point(0, 15*i))
+                t.add_text(s, origin=svg.Point(0, self.lineSpacing * i))
+                
             # This needs to be called to convert raw text to useable path elements    
             t.convert_to_path()    
 

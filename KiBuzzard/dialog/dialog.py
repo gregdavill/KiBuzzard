@@ -32,6 +32,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         'PaddingLeftCtrl': '3.75',
         'PaddingRightCtrl': '3.75',
         'PaddingBottomCtrl': '3.75',
+        'LineSpacingCtrl': '1.5',
         'WidthCtrl': None,
         'AlignmentChoice': 'Center',
         'advancedCheckbox': False,
@@ -62,8 +63,9 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.m_LayerComboBox.SetSelection(0)
         self.m_HeightUnits.SetLabel("mm")
         self.m_WidthUnits.SetLabel("mm")
-        self.m_PaddingUnits.SetLabel("FUnits")
+        self.m_PaddingUnits.SetLabel("")
         self.m_lineoverThicknessUnits.SetLabel("")        
+
 
         best_size = self.BestSize
         # hack for some gtk themes that incorrectly calculate best size
@@ -211,13 +213,10 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.polys = []
         
         self.buzzard.fontName = self.m_FontComboBox.GetValue()
+        self.buzzard.lineSpacing = ParseFloat(self.m_LineSpacingCtrl.GetValue()) * 10
 
         requestedHeight = ParseFloat(self.m_HeightCtrl.GetValue())
         requestedWidth = ParseFloat(self.m_WidthCtrl.GetValue())
-        
-        if requestedHeight < self.buzzard.minHeight:
-            requestedHeight = self.buzzard.minHeight
-            self.m_HeightCtrl.SetValue(self.buzzard.minHeight)
         
         self.buzzard.padding.top = ParseFloat(self.m_PaddingTopCtrl.GetValue())
         self.buzzard.padding.left = ParseFloat(self.m_PaddingLeftCtrl.GetValue())
@@ -229,10 +228,6 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         for attr in ['left', 'right', 'top', 'bottom']:
             if getattr(self.buzzard.padding,attr) <= 0: setattr(self.buzzard.padding, attr, 0.001) 
  
-        #do the realtime update
-        for attr, ctrl in [('left','m_PaddingLeftCtrl'), ('right','m_PaddingRightCtrl'), ('top','m_PaddingTopCtrl'), ('bottom','m_PaddingBottomCtrl')]:            
-            getattr(self, ctrl).SetValue(getattr(self.buzzard.padding, attr,3))
-  
         self.buzzard.layer = self.m_LayerComboBox.GetValue()
         self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0)
 
@@ -240,13 +235,16 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         #initial render with no caps to determine text-only bounding-box sizing for scaling
         if self.m_MultiLineText.GetValue():
-            self.buzzard.leftCap = 'square'
-            self.buzzard.rightCap = 'square'
-            t=self.buzzard.renderLabel(self.m_MultiLineText.GetValue())
+            self.buzzard.leftCap = ''
+            self.buzzard.rightCap = ''
+            
+            # Calculate text height based off first line
+            text = self.m_MultiLineText.GetValue().split('\n')
+            t=self.buzzard.renderLabel(text[0])
         
             textWidth=round(t.bbox()[1].x-t.bbox()[0].x,3)
             textHeight=round(t.bbox()[1].y-t.bbox()[0].y,3)
-            self.buzzard.scaleFactor=(96/25.4)*((requestedHeight-(self.buzzard.padding.top-self.buzzard.padding.bottom))/textHeight)
+            self.buzzard.scaleFactor=(96/25.4)*(requestedHeight/textHeight)
             rawScaleFactor=(self.buzzard.scaleFactor/(96/25.4))
 
             scaledTextWidth=textWidth*rawScaleFactor            
@@ -265,21 +263,13 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             labelHeight=round(t.bbox()[1].y-t.bbox()[0].y,3)
             
             scaledLabelWidth=labelWidth*rawScaleFactor
-            scaledLabelHeight=labelHeight*rawScaleFactor
+            scaledLabelHeight=labelHeight
             deltaWidth=scaledLabelWidth-scaledTextWidth
             
             #in order to make our item width match the requested item 
             #width we have to adjust our our width by the requested size
             #and the delta of the caps
             self.buzzard.width = ParseFloat((requestedWidth-deltaWidth)/rawScaleFactor, 0.000)
-            #if (self.buzzard.leftCap != '') & (self.buzzard.rightCap != ''): #causes an error due to the fact that the bounding box is created 
-            if self.m_HeightCtrl.GetValue() < requestedHeight:
-                self.m_HeightCtrl.SetValue(scaledLabelHeight) 
-            #needed for realtime update of size since we can not set the width smaller than the bounding box created
-            #for that particular height of character.
-            #character height drives the scaling factor and thus is applied first
-            if requestedWidth<scaledLabelWidth:
-                self.m_WidthCtrl.SetValue(scaledLabelWidth)
 
             self.error = None
 
