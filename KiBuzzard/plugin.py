@@ -45,7 +45,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     def Run(self):
         if self._pcbnew_frame is None:
             try:
-                self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if ('pcbnew' in x.GetTitle().lower() and not 'python' in x.GetTitle().lower()) or ('pcb editor' in x.GetTitle().lower())]
+                self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if (wx.GetTranslation('pcbnew') in x.GetTitle() and not 'python' in x.GetTitle().lower()) or (wx.GetTranslation('PCB Editor') in x.GetTitle())]
                 if len(self._pcbnew_frame) == 1:
                     self._pcbnew_frame = self._pcbnew_frame[0]
                 else:
