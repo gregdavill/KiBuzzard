@@ -71,6 +71,19 @@ class Buzzard():
 
         return mod.polys
 
+    def text_height(self, char_used_for_height='H'):
+        # t is an svg Text element
+        t = svg.Text()
+
+        t.set_font(self.fontName)
+        t.add_text(char_used_for_height)
+        
+        # This needs to be called to convert raw text to useable path elements
+        t.convert_to_path()
+
+        bbox = t.bbox()
+        return bbox[1].y - bbox[0].y
+
     # ******************************************************************************
     #
     # Create SVG Document containing properly formatted inString
