@@ -236,49 +236,22 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             if getattr(self.buzzard.padding,attr) <= 0: setattr(self.buzzard.padding, attr, 0.001) 
  
         self.buzzard.layer = self.m_LayerComboBox.GetValue()
-        self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0)
 
         self.buzzard.alignment = self.m_AlignmentChoice.GetStringSelection()
+        # KiBuzzard aims to size uppercase letters at the height requested.
+        # Font size include space below the baseline and above the "caps height" for larger glyphs like `[]`
+        # All fonts are slightly different. So we render a 'H' to determine the scale of the selected font.
+        text_height = self.buzzard.text_height()
 
-        #initial render with no caps to determine text-only bounding-box sizing for scaling
-        if self.m_MultiLineText.GetValue():
-            self.buzzard.leftCap = ''
-            self.buzzard.rightCap = ''
-            
-            # Calculate text height based off first line
-            text = self.m_MultiLineText.GetValue().split('\n')
-            t=self.buzzard.renderLabel(text[0])
-        
-            textWidth=round(t.bbox()[1].x-t.bbox()[0].x,3)
-            textHeight=round(t.bbox()[1].y-t.bbox()[0].y,3)
-            self.buzzard.scaleFactor=(96/25.4)*(requestedHeight/textHeight)
-            rawScaleFactor=(self.buzzard.scaleFactor/(96/25.4))
-
-            scaledTextWidth=textWidth*rawScaleFactor            
+        # Scale font and apply DPI
+        self.buzzard.scaleFactor = (requestedHeight/text_height) * (96/25.4)
+        self.buzzard.width = ParseFloat(self.m_WidthCtrl.GetValue(), 0.0) * (96/25.4) * 1/self.buzzard.scaleFactor
 
         styles = {'':'', '(':'round', '[':'square', '<':'pointer', '/':'fslash', '\\':'bslash', '>':'flagtail'}
         self.buzzard.leftCap = styles[self.m_CapLeftChoice.GetStringSelection()]
 
         styles = {'':'', ')':'round', ']':'square', '>':'pointer', '/':'fslash', '\\':'bslash', '<':'flagtail'}
         self.buzzard.rightCap = styles[self.m_CapRightChoice.GetStringSelection()]
-        
-        #render again with the caps in order to calculate width modifiers
-        if self.m_MultiLineText.GetValue():
-            t=self.buzzard.renderLabel(self.m_MultiLineText.GetValue())
-            
-            labelWidth=round((t.bbox()[1].x-t.bbox()[0].x),3)
-            labelHeight=round(t.bbox()[1].y-t.bbox()[0].y,3)
-            
-            scaledLabelWidth=labelWidth*rawScaleFactor
-            scaledLabelHeight=labelHeight
-            deltaWidth=scaledLabelWidth-scaledTextWidth
-            
-            #in order to make our item width match the requested item 
-            #width we have to adjust our our width by the requested size
-            #and the delta of the caps
-            self.buzzard.width = ParseFloat((requestedWidth-deltaWidth)/rawScaleFactor, 0.000)
-
-            self.error = None
 
         if self.m_inlineFormatTextbox.IsChecked():
             self.buzzard.inlineFormat = True
@@ -289,6 +262,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         self.buzzard.lineOverStyle = self.m_lineoverStyleChoice.GetString(self.m_lineoverStyleChoice.GetSelection())
 
+        
         if len(self.m_MultiLineText.GetValue()) == 0:
             self.RePaint()
             return
