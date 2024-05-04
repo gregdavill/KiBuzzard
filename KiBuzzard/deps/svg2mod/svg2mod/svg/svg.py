@@ -1339,7 +1339,7 @@ class Text(Transformable):
             size = attrib.size
             ttf = ttFont.TTFont(attrib.font_file)
             offset.y = attrib.origin.y + ttf["head"].unitsPerEm
-            scale = size/offset.y
+            scale = size/ttf["head"].unitsPerEm
 
             if prev_origin != attrib.origin:
                 prev_origin = attrib.origin
@@ -1365,7 +1365,7 @@ class Text(Transformable):
                     path.append(Path())
                     path[-1].parse(path_buff)
                     # Apply the scaling then the translation
-                    translate = Matrix([1,0,0,-1,offset.x,size+attrib.origin.y]) * Matrix([scale,0,0,scale,0,0])
+                    translate = Matrix([1,0,0,-1,offset.x,attrib.origin.y]) * Matrix([scale,0,0,scale,0,0])
                     # This queues the translations until .transform() is called
                     path[-1].matrix =  translate * path[-1].matrix
 
