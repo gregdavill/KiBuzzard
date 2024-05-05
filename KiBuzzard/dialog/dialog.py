@@ -63,9 +63,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.m_LayerComboBox.SetSelection(0)
         self.m_HeightUnits.SetLabel("mm")
         self.m_WidthUnits.SetLabel("mm")
-        self.m_PaddingUnits.SetLabel("")
         self.m_lineoverThicknessUnits.SetLabel("")        
-
 
         best_size = self.BestSize
         # hack for some gtk themes that incorrectly calculate best size
