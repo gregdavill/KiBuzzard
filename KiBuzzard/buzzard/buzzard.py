@@ -40,6 +40,9 @@ class Buzzard():
         self.lineOverThickness = 2
         self.lineOverStyle = 'Square'
         self.lineSpacing = 15
+        self.inlineFormat = False
+        self.lineOverThickness = 2
+        self.lineOverStyle = 'Square'
         #self.SystemFonts = svg.Text._system_fonts
 
         #svg.Text.load_system_fonts()
