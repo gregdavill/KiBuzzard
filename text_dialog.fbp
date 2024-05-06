@@ -2799,7 +2799,7 @@
             <property name="window_extra_style"></property>
             <property name="window_name"></property>
             <property name="window_style"></property>
-            <object class="wxFlexGridSizer" expanded="false">
+            <object class="wxFlexGridSizer" expanded="true">
               <property name="cols">6</property>
               <property name="flexible_direction">wxBOTH</property>
               <property name="growablecols"></property>
@@ -2920,7 +2920,7 @@
                   <property name="maximum_size"></property>
                   <property name="min_size"></property>
                   <property name="minimize_button">0</property>
-                  <property name="minimum_size"></property>
+                  <property name="minimum_size">52,-1</property>
                   <property name="moveable">1</property>
                   <property name="name">m_spCharOhm</property>
                   <property name="pane_border">1</property>
@@ -2995,7 +2995,7 @@
                   <property name="maximum_size"></property>
                   <property name="min_size"></property>
                   <property name="minimize_button">0</property>
-                  <property name="minimum_size"></property>
+                  <property name="minimum_size">52,-1</property>
                   <property name="moveable">1</property>
                   <property name="name">m_spCharMu</property>
                   <property name="pane_border">1</property>
@@ -3070,7 +3070,7 @@
                   <property name="maximum_size"></property>
                   <property name="min_size"></property>
                   <property name="minimize_button">0</property>
-                  <property name="minimum_size"></property>
+                  <property name="minimum_size">52,-1</property>
                   <property name="moveable">1</property>
                   <property name="name">m_spCharHyp2</property>
                   <property name="pane_border">1</property>
@@ -3145,7 +3145,7 @@
                   <property name="maximum_size"></property>
                   <property name="min_size"></property>
                   <property name="minimize_button">0</property>
-                  <property name="minimum_size"></property>
+                  <property name="minimum_size">52,-1</property>
                   <property name="moveable">1</property>
                   <property name="name">m_spCharDegree</property>
                   <property name="pane_border">1</property>
@@ -3220,7 +3220,7 @@
                   <property name="maximum_size"></property>
                   <property name="min_size"></property>
                   <property name="minimize_button">0</property>
-                  <property name="minimum_size"></property>
+                  <property name="minimum_size">52,-1</property>
                   <property name="moveable">1</property>
                   <property name="name">m_spCharNumero</property>
                   <property name="pane_border">1</property>

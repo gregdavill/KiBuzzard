@@ -312,18 +312,28 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         fgSizerSpChar.Add( self.m_spCharLabel, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.LEFT, 5 )
 
         self.m_spCharOhm = wx.Button( self.m_spCharPanel, wx.ID_ANY, _(u" Ω "), wx.DefaultPosition, wx.DefaultSize, wx.BU_EXACTFIT )
+        self.m_spCharOhm.SetMinSize( wx.Size( 52,-1 ) )
+
         fgSizerSpChar.Add( self.m_spCharOhm, 0, wx.ALIGN_CENTER_VERTICAL, 5 )
 
         self.m_spCharMu = wx.Button( self.m_spCharPanel, wx.ID_ANY, _(u" μ "), wx.DefaultPosition, wx.DefaultSize, wx.BU_EXACTFIT )
+        self.m_spCharMu.SetMinSize( wx.Size( 52,-1 ) )
+
         fgSizerSpChar.Add( self.m_spCharMu, 0, wx.TOP|wx.BOTTOM, 5 )
 
         self.m_spCharHyp2 = wx.Button( self.m_spCharPanel, wx.ID_ANY, _(u" ² "), wx.DefaultPosition, wx.DefaultSize, wx.BU_EXACTFIT )
+        self.m_spCharHyp2.SetMinSize( wx.Size( 52,-1 ) )
+
         fgSizerSpChar.Add( self.m_spCharHyp2, 0, wx.TOP|wx.BOTTOM, 5 )
 
         self.m_spCharDegree = wx.Button( self.m_spCharPanel, wx.ID_ANY, _(u" ° "), wx.DefaultPosition, wx.DefaultSize, wx.BU_EXACTFIT )
+        self.m_spCharDegree.SetMinSize( wx.Size( 52,-1 ) )
+
         fgSizerSpChar.Add( self.m_spCharDegree, 0, wx.TOP|wx.BOTTOM, 5 )
 
         self.m_spCharNumero = wx.Button( self.m_spCharPanel, wx.ID_ANY, _(u" № "), wx.DefaultPosition, wx.DefaultSize, wx.BU_EXACTFIT )
+        self.m_spCharNumero.SetMinSize( wx.Size( 52,-1 ) )
+
         fgSizerSpChar.Add( self.m_spCharNumero, 0, wx.TOP|wx.BOTTOM, 5 )
 
         self.m_inlineFormatTextbox = wx.CheckBox( self.m_spCharPanel, wx.ID_ANY, _(u"Inline Formatting"), wx.DefaultPosition, wx.DefaultSize, 0 )
