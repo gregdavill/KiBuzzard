@@ -19,6 +19,15 @@ def ParseFloat(InputString, DefaultValue=0.001):
             print("Value not valid")
     return value
 
+def ParseInt(InputString, DefaultValue=0):
+    value = DefaultValue
+    if InputString != "":
+        try:
+            value = int(InputString)
+        except ValueError:
+            print("Value not valid")
+    return value
+
 class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
     config_defaults = {
@@ -276,7 +285,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         else:
             self.buzzard.inlineFormat = False
 
-        self.buzzard.lineOverThickness = int(self.m_lineoverThicknessCtrl.GetValue())    
+        self.buzzard.lineOverThickness = ParseInt(self.m_lineoverThicknessCtrl.GetValue(), DefaultValue=1) 
 
         self.buzzard.lineOverStyle = self.m_lineoverStyleChoice.GetString(self.m_lineoverStyleChoice.GetSelection())
 
