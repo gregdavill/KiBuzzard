@@ -61,7 +61,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 dlg.EndModal(wx.ID_OK)
                 return
 
-            if self.IsVersion(['5.99','6.', '7.', '8.']):
+            if self.IsVersion(['5.99','6.', '7.', '8.', '9.']):
                 json_str = json.dumps(dlg.label_params, sort_keys=True)
                 encoded_str = base64.b64encode(json_str.encode('utf-8')).decode('ascii')
                 footprint_string = p_buzzard.create_v6_footprint(parm_text=encoded_str)
@@ -121,7 +121,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 if dlg.updateFootprint is not None:
                     return
                 
-                if self.IsVersion(['5.99','6.', '7.', '8.']):
+                if self.IsVersion(['5.99','6.', '7.', '8.', '9.']):
                     if self._pcbnew_frame is not None:
                         # Set focus to main window and attempt to execute a Paste operation 
                         try:
