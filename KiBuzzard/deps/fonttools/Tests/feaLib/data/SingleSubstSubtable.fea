@@ -1,5 +1,0 @@
-feature test {
-    sub a by b;
-    subtable;
-    sub c by d;
-} test;

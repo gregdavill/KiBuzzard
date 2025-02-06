@@ -1,6 +1,0 @@
-@BASE = [f i];
-@MARKS = [acute grave];
-
-table GDEF {
-    GlyphClassDef @BASE, , @MARKS, ;
-} GDEF;

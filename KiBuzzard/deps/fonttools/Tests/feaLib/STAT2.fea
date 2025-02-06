@@ -1,4 +1,0 @@
-table STAT {
-    ElidedFallbackName { name "Roman"; };
-    DesignAxis zonk 0 { name "Zonkey"; };'
-} STAT;

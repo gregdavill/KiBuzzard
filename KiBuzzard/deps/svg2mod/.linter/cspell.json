@@ -1,9 +1,0 @@
-{
-	"dictionaries": ["custom_dict"],
-	"dictionaryDefinitions": [
-		{
-			"name": "custom_dict",
-			"path": "./custom_dict"
-		}
-	]
-}

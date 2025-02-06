@@ -1,5 +1,0 @@
-@myClass = [A B];
-
-feature liga {
-    sub A A by b;
-} liga;

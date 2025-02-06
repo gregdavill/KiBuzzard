@@ -1,9 +1,0 @@
-feature test {
-    sub A G' by G.swash;
-    subtable;
-    sub A H' by H.swash;
-    subtable;
-    sub A G' by g;
-    subtable;
-    sub A H' by H.swash;
-} test;
