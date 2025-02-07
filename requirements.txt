@@ -1,0 +1,7 @@
+kicad-python @ file:///Users/mairas/src/kicad/kicad-python/dist/kicad_python-0.1.2+dev-py3-none-any.whl
+#kicad-python @ https://gitlab.com/kicad/code/kicad-python/-/archive/73b2a12c37495b641eed99099d521f34663ebaf7/kicad-python-73b2a12c37495b641eed99099d521f34663ebaf7.zip
+#kicad-python>=0.1.3
+wxpython>=4.2.1
+fonttools==4.55.8
+svg2mod==1.2
+protobuf==5.29.3

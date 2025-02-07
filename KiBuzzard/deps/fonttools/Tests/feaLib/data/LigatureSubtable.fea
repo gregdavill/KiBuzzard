@@ -1,5 +1,0 @@
-feature test {
-    sub f f by f_f;
-    subtable;
-    sub f i by f_i;
-} test;

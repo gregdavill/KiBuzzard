@@ -1,1 +1,0 @@
-lookup	replace-akhand-telugu	multiplekassevoweltelugu	kaivoweltelugu	ssasubscripttelugujanyevoweltelugu	jaivoweltelugu	nyasubscripttelugulookup end

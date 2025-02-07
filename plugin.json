@@ -1,0 +1,25 @@
+{
+    "$schema": "https://go.kicad.org/api/schemas/v1",
+    "identifier": "com.github.gregdavill.KiBuzzard",
+    "name": "KiBuzzard",
+    "description": "Create fancy labels with endcaps and padding",
+    "runtime": {
+        "type": "python",
+        "min_version": "3.9"
+    },
+    "actions": [
+        {
+            "identifier": "KiBuzzard",
+            "name": "Create Fancy Labels",
+            "description": "Create fancy labels with endcaps and padding",
+            "show-button": true,
+            "scopes": [
+                "pcb"
+            ],
+            "entrypoint": "fake_entrypoint.py",
+            "icons-light": [
+                "icon.png"
+            ]
+        }
+    ]
+}

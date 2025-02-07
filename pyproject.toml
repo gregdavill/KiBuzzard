@@ -1,0 +1,18 @@
+[project]
+name = "kibuzzard"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fonttools>=4.55.8",
+    "kicad-python @ https://gitlab.com/kicad/code/kicad-python.git",
+    "svg2mod>=1.2",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+    "numpy>=2.2.2",
+    "wxpython>=4.2.2",
+]
