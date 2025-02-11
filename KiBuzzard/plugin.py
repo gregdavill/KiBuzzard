@@ -45,12 +45,15 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
     def Run(self):
         if self._pcbnew_frame is None:
             try:
-                self._pcbnew_frame = [x for x in wx.GetTopLevelWindows() if (wx.GetTranslation('pcbnew') in x.GetTitle() and not 'python' in x.GetTitle().lower()) or (wx.GetTranslation('PCB Editor') in x.GetTitle())]
-                if len(self._pcbnew_frame) == 1:
-                    self._pcbnew_frame = self._pcbnew_frame[0]
-                else:
-                    self._pcbnew_frame = None
+                tlws = wx.GetTopLevelWindows()
+                for i in range(len(tlws)):
+                    title = tlws[i].GetTitle()
+                    if wx.GetTranslation('pcbnew') in title and not 'python' in title.lower():
+                        self._pcbnew_frame = tlws[i]
+                    elif wx.GetTranslation('PCB Editor') in title:
+                        self._pcbnew_frame = tlws[i]
             except:
+                self.logger.log(logging.ERROR, "Couldn't find PCB editor window. Automatic interactive placement of labels won't work.")
                 pass
 
         def run_buzzard(dlg, p_buzzard): 
