@@ -224,6 +224,10 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         requestedHeight = ParseFloat(self.m_HeightCtrl.GetValue())
         requestedWidth = ParseFloat(self.m_WidthCtrl.GetValue())
+
+        # When editing the text height field. If the value is null, avoid a divide by 0 exception
+        if requestedHeight == 0:
+            return
         
         self.buzzard.padding.top = ParseFloat(self.m_PaddingTopCtrl.GetValue())
         self.buzzard.padding.left = ParseFloat(self.m_PaddingLeftCtrl.GetValue())
