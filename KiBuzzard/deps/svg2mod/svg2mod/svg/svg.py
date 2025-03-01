@@ -1331,13 +1331,15 @@ class Text(Transformable):
         if not self.text: return
         prev_origin = self.text[0][1].origin
 
+        cache = FontCache()
+
         offset = Point(prev_origin.x, prev_origin.y)
         for text, attrib in self.text:
 
             if attrib.font_file is None or attrib.font_family is None:
                 continue
             size = attrib.size
-            ttf = ttFont.TTFont(attrib.font_file)
+            ttf = cache.ttf(attrib.font_file)
             offset.y = attrib.origin.y + ttf["head"].unitsPerEm
             scale = size/ttf["head"].unitsPerEm
 
@@ -1348,18 +1350,9 @@ class Text(Transformable):
             path = []
             for char in text:
 
-                path_buff = ""
-                try: glf = ttf.getGlyphSet()[ttf.getBestCmap()[ord(char)]]
-                except KeyError:
-                    logger.warning('Unsupported character in <text> element "{}"'.format(char))
-                    #txt = txt.replace(char, "")
+                path_buff, width = cache.get(ttf, char)
+                if path_buff is None:
                     continue
-
-                pen = SVGPathPen(ttf.getGlyphSet())
-                glf.draw(pen)
-
-                for cmd in pen._commands:
-                    path_buff += cmd + ' '
 
                 if len(path_buff) > 0:
                     path.append(Path())
@@ -1369,7 +1362,7 @@ class Text(Transformable):
                     # This queues the translations until .transform() is called
                     path[-1].matrix =  translate * path[-1].matrix
 
-                offset.x += (scale*glf.width)
+                offset.x += (scale*width)
 
             self.paths.append(path)
         if auto_transform:
@@ -1482,3 +1475,46 @@ for name, cls in inspect.getmembers(sys.modules[__name__], inspect.isclass):
     if tag:
         svgClass[svg_ns + tag] = cls
 
+class FontCache(object):
+    def __new__(cls, *args, **kwds):
+        it = cls.__dict__.get("__it__")
+        if it is not None:
+            return it
+        cls.__it__ = it = object.__new__(cls)
+        it.clear()
+        return it
+
+    def __init__(self):
+        pass
+
+    def clear(self):
+        self.cache = dict()
+        self.ttf_cache = dict()
+
+    def ttf(self, font_file):
+        if self.ttf_cache.get(font_file) is not None:
+            return self.ttf_cache[font_file]
+        
+        ttf = ttFont.TTFont(font_file)
+        self.ttf_cache[font_file] = ttf
+        return ttf
+
+    def get(self, ttf, char) -> str:
+        if self.cache.get((ttf, char)) is not None:
+            return self.cache[(ttf, char)]
+
+        path_buff = ""
+        try: glf = ttf.getGlyphSet()[ttf.getBestCmap()[ord(char)]]
+        except KeyError:
+            logger.warning('Unsupported character in <text> element "{}"'.format(char))
+            #txt = txt.replace(char, "")
+            return None
+
+        pen = SVGPathPen(ttf.getGlyphSet())
+        glf.draw(pen)
+
+        for cmd in pen._commands:
+            path_buff += cmd + ' '
+        
+        self.cache[(ttf, char)] = (path_buff, glf.width)
+        return path_buff, glf.width
