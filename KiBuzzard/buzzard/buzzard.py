@@ -38,7 +38,7 @@ class Buzzard():
         self.rightCap = ''               # Used to store cap shape for right side of tag-
         self.svgText = None
         self.inlineFormat = False
-        self.rotateText = False          # Used to mirror text horizontally
+        self.rotateText = False          # Used to rotate text (and only text) by 180°
         self.lineOverThickness = 2
         self.lineOverStyle = 'Square'
         self.lineSpacing = 15
