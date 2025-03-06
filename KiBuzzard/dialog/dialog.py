@@ -46,6 +46,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         'AlignmentChoice': 'Center',
         'advancedCheckbox': False,
         'inlineFormatTextbox': False,
+        'rotateTextCheckbox': False,
         'lineoverStyleChoice': 'rounded',
         'lineoverThicknessCtrl': '1'
     }
@@ -261,6 +262,11 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.buzzard.inlineFormat = True
         else:
             self.buzzard.inlineFormat = False
+            
+        if self.m_rotateTextCheckbox.IsChecked():
+            self.buzzard.rotateText = True
+        else:
+            self.buzzard.rotateText = False
 
         self.buzzard.lineOverThickness = ParseInt(self.m_lineoverThicknessCtrl.GetValue(), DefaultValue=1) 
 
@@ -362,6 +368,9 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.RePaint()
 
     def inlineFormatChange(self, event):
+        self.ReGeneratePreview()
+        
+    def rotateTextChange(self, event):
         self.ReGeneratePreview()
 
     def thicknessCtrlChange(self, event):
