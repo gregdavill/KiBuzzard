@@ -4,6 +4,7 @@ import time
 import copy
 import re
 import wx
+import math
 
 from fontTools.ttLib import ttFont
 from fontTools.pens.recordingPen import RecordingPen
@@ -37,6 +38,7 @@ class Buzzard():
         self.rightCap = ''               # Used to store cap shape for right side of tag-
         self.svgText = None
         self.inlineFormat = False
+        self.rotateText = False          # Used to rotate text (and only text) by 180°
         self.lineOverThickness = 2
         self.lineOverStyle = 'Square'
         self.lineSpacing = 15
@@ -100,7 +102,12 @@ class Buzzard():
         else:
             for i,s in enumerate(inString.split('\n')):
                 t.add_text(s, origin=svg.Point(0, self.lineSpacing * i))
-                
+
+            if self.rotateText:
+                cos_a = math.cos(math.radians(180))
+                sin_a = math.sin(math.radians(180))
+                t.matrix *= svg.Matrix([cos_a, sin_a, -sin_a, cos_a, 0, 0])
+
             # This needs to be called to convert raw text to useable path elements    
             t.convert_to_path()    
 
@@ -514,4 +521,3 @@ class Svg2Points( Svg2ModExport ):
 
     def _write_thru_hole( self, circle, layer ):
         pass
-

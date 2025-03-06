@@ -339,6 +339,9 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_inlineFormatTextbox = wx.CheckBox( self.m_spCharPanel, wx.ID_ANY, _(u"Inline Formatting"), wx.DefaultPosition, wx.DefaultSize, 0 )
         fgSizerSpChar.Add( self.m_inlineFormatTextbox, 0, wx.BOTTOM|wx.LEFT, 5 )
 
+        self.m_rotateTextCheckbox = wx.CheckBox( self.m_spCharPanel, wx.ID_ANY, _(u"Rotate text by 180°"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        fgSizerSpChar.Add( self.m_rotateTextCheckbox, 0, wx.BOTTOM|wx.LEFT, 5 )
+
 
         self.m_spCharPanel.SetSizer( fgSizerSpChar )
         self.m_spCharPanel.Layout()
@@ -393,6 +396,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_spCharDegree.Bind( wx.EVT_BUTTON, self.addCharDegree )
         self.m_spCharNumero.Bind( wx.EVT_BUTTON, self.addCharNumero )
         self.m_inlineFormatTextbox.Bind( wx.EVT_CHECKBOX, self.inlineFormatChange )
+        self.m_rotateTextCheckbox.Bind( wx.EVT_CHECKBOX, self.rotateTextChange )
         self.m_advancedCheckbox.Bind( wx.EVT_CHECKBOX, self.advancedModeChange )
         self.m_sdbSizerOK.Bind( wx.EVT_BUTTON, self.OnOkClick )
 
@@ -438,5 +442,3 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
     def OnOkClick( self, event ):
         pass
-
-
