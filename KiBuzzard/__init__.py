@@ -52,6 +52,7 @@ def check_for_bom_button():
             top_tb.Realize()
 
 
+plugin = None
 try:
     with add_paths(paths):
         from .plugin import KiBuzzardPlugin
@@ -59,13 +60,13 @@ try:
     plugin.register()
 except Exception as e:
     print(e)
-    import logging    
+    import logging
     root = logging.getLogger()
     root.debug(repr(e))
 
 # Add a button the hacky way if plugin button is not supported
 # in pcbnew, unless this is linux.
-if not plugin.pcbnew_icon_support and not sys.platform.startswith('linux'):
+if plugin is not None and not plugin.pcbnew_icon_support and not sys.platform.startswith('linux'):
     t = threading.Thread(target=check_for_bom_button)
     t.daemon = True
     t.start()
