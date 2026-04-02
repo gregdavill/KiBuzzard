@@ -328,9 +328,13 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                         min_y = min(self.polys[i][j].y, min_y)
                         max_y = max(self.polys[i][j].y, max_y)
 
-                scale = (size_x * 0.95) / (max_x - min_x)
+                width = max_x - min_x
+                height = max_y - min_y
+                if width == 0 or height == 0:
+                    return
 
-                scale = min(scale, (size_y * 0.95) / (max_y - min_y))
+                scale = (size_x * 0.95) / width
+                scale = min(scale, (size_y * 0.95) / height)
 
                 #scale = min(15.0, scale)
                 for i in range(len(polys)):
