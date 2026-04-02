@@ -127,7 +127,7 @@ class Buzzard():
             alignmentOffset = (self.width - textWidth)
             
         # Create outline around text 
-        if (self.leftCap != '') & (self.rightCap != ''):
+        if (self.leftCap != '') and (self.rightCap != ''):
             pstr = "M {},{} ".format(bbox[0].x - alignmentOffset, bbox[0].y-padding.top)
             pstr += "h {} ".format(-padding.left)
             
