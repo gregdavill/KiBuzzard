@@ -207,7 +207,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         event.Skip()
     
     def OnCharHook( self, event ):
-        if (event.GetKeyCode() == wx.WXK_RETURN) & (event.ShiftDown() | event.ControlDown()):
+        if (event.GetKeyCode() == wx.WXK_RETURN) and (event.ShiftDown() or event.ControlDown()):
             self.OnOkClick(event)
             wx.PostEvent(self, wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, wx.ID_OK))
             return
