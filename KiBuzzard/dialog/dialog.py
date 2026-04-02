@@ -137,7 +137,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
                         return
                 
-        except:
+        except Exception:
             import traceback
             wx.LogError(traceback.format_exc())
             return
@@ -276,7 +276,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         
         try:
             self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
-        except:
+        except Exception:
             import traceback
             traceback.print_exc()
 

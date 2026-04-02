@@ -5,7 +5,7 @@ class DialogShim(wx.Dialog):
     def __init__(self, parent, **kwargs):
         try:
             wx.StockGDI._initStockObjects()
-        except:
+        except Exception:
             pass
 
         wx.Dialog.__init__(self, parent, **kwargs)
