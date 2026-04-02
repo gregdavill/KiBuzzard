@@ -174,7 +174,6 @@ class Buzzard():
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
         mod = Svg2ModExportLatestCustom(Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True, params=parm_text)
         if self.layer == "F.Cu/F.Mask":
-            print(self.svgText)
             mod.add_svg_element(self.svgText, layer="F.Cu")
             offset_text = copy.copy(self.svgText)
             offset_text.style["stroke-width"] = 0.2
