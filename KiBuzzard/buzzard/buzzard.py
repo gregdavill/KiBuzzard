@@ -214,12 +214,12 @@ class Buzzard():
 
                     # If this chunk is marked up for overlining...
                     if chunk.startswith("~{") and chunk.endswith("}"):
-                        chunk = chunk.removeprefix("~{") 
-                        chunk = chunk.removesuffix("}")
+                        chunk = chunk[2:]
+                        chunk = chunk[:-1]
                         preSpaces = 0
                         # Count up leading spaces, remove them from the string, and add to the offset
                         while chunk.startswith(" "):
-                            chunk = chunk.removeprefix(" ")
+                            chunk = chunk[1:]
                             horizontalOffset += spaceWidth
                             preSpaces += 1
                         # Render the text
@@ -229,7 +229,7 @@ class Buzzard():
                         postSpaces = 0
                         # Count up trailing spaces, remove them from the string, and add to the offset
                         while chunk.endswith(" "):
-                            chunk = chunk.removesuffix(" ")
+                            chunk = chunk[:-1]
                             horizontalOffset += spaceWidth
                             postSpaces += 1
                         # If this is the first chunk we've rendered, use chunkPath to set the variable type
@@ -260,7 +260,7 @@ class Buzzard():
                     else:
                         # Count up leading spaces, remove them from the string, and add to the offset
                         while chunk.startswith(" "):
-                            chunk = chunk.removeprefix(" ")
+                            chunk = chunk[1:]
                             horizontalOffset += spaceWidth
                         # Render the text
                         chunkPath.add_text(chunk, origin=svg.Point(horizontalOffset, 15*lineIndex))                        
@@ -269,7 +269,7 @@ class Buzzard():
                         horizontalOffset += bbox[1].x - bbox[0].x 
                         # Count up trailing spaces, remove them from the string, and add to the offset
                         while chunk.endswith(" "):
-                            chunk = chunk.removesuffix(" ")
+                            chunk = chunk[:-1]
                             horizontalOffset += spaceWidth
                         # If this is the first chunk we've rendered, use chunkPath to set the variable type
                         if formattedText == []:
