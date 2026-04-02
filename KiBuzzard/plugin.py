@@ -161,10 +161,11 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
 
-        # Log to stderr
-        handler1 = logging.StreamHandler(sys.stderr)
-        handler1.setLevel(logging.DEBUG)
-
+        # Log to stderr (may be None on Windows when no console is attached)
+        handler1 = None
+        if sys.stderr is not None:
+            handler1 = logging.StreamHandler(sys.stderr)
+            handler1.setLevel(logging.DEBUG)
 
         log_path = os.path.dirname(__file__)
         log_file = os.path.join(log_path, "kibuzzard.log")
@@ -191,9 +192,10 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
         formatter = logging.Formatter(
             "%(asctime)s %(name)s %(lineno)d:%(message)s", datefmt="%m-%d %H:%M:%S"
         )
-        handler1.setFormatter(formatter)
+        if handler1 is not None:
+            handler1.setFormatter(formatter)
+            root.addHandler(handler1)
         handler2.setFormatter(formatter)
-        root.addHandler(handler1)
         root.addHandler(handler2)
        
 
