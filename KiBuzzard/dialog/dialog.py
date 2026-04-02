@@ -218,7 +218,8 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
     def ReGeneratePreview(self, e=None):
         self.polys = []
-        
+        self.error = None
+
         self.buzzard.fontName = self.m_FontComboBox.GetValue()
         self.buzzard.lineSpacing = ParseFloat(self.m_LineSpacingCtrl.GetValue()) * 10
 
@@ -279,6 +280,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         except Exception:
             import traceback
             traceback.print_exc()
+            self.error = "Error generating label"
 
         self.RePaint()        
 
