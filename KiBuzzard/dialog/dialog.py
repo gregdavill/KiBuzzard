@@ -271,7 +271,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.RePaint()
             return
         if len(self.m_MultiLineText.GetValue()) > 128:
-            self.error = "Text input loo long"
+            self.error = "Text input too long"
             return
         
         try:
