@@ -52,9 +52,8 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         self._pcbnew_frame = tlws[i]
                     elif wx.GetTranslation('PCB Editor') in title:
                         self._pcbnew_frame = tlws[i]
-            except:
+            except Exception:
                 self.logger.log(logging.ERROR, "Couldn't find PCB editor window. Automatic interactive placement of labels won't work.")
-                pass
 
         def run_buzzard(dlg, p_buzzard): 
             self.logger.log(logging.DEBUG, "Running KiBuzzard")
@@ -107,7 +106,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         new_fp.SetOrientationDegrees(orient)
 
                         b.Remove(dlg.updateFootprint)
-                    except:
+                    except Exception:
                         import traceback
                         wx.LogError(traceback.format_exc())
             else:
@@ -138,7 +137,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
 
                             self.logger.log(logging.INFO, " Injecting event: {} into window: {}".format(evt, wnd))
                             wx.PostEvent(wnd, evt)
-                        except:
+                        except Exception:
                             # Likely on Linux with old wx python support :(
                             self.logger.log(logging.INFO, "Using wx.UIActionSimulator for paste")
                             keyinput = wx.UIActionSimulator()
@@ -180,7 +179,7 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
             try: # Use try/except here because python 2.7 doesn't support exist_ok
                 os.makedirs(log_path)
 
-            except:
+            except OSError:
                 pass
             log_file = os.path.join(log_path, "kibuzzard.log")
             handler2 = logging.FileHandler(log_file)
