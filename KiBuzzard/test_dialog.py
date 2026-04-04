@@ -15,7 +15,12 @@ class MyApp(wx.App):
 
         print(config_file)
 
-        self.frame = frame = Dialog(None, config, Buzzard(), self.run)
+        def text_expander(text) -> str:
+            if not text:
+                return text
+            return text.replace(r'${TEST_EXP}', 'EXPANSION')
+
+        self.frame = frame = Dialog(None, config, Buzzard(), self.run, text_expander)
         if frame.ShowModal() == wx.ID_OK:
             print("Graceful Exit")
         frame.Destroy()

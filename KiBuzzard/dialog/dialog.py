@@ -7,6 +7,8 @@ import copy
 import wx
 import base64
 import json
+from collections.abc import Iterable
+from typing import Optional
 
 from . import dialog_text_base
 
@@ -50,7 +52,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         'lineoverThicknessCtrl': '1'
     }
 
-    def __init__(self, parent, config, buzzard, func):
+    def __init__(self, parent, config, buzzard, func, text_expander):
         dialog_text_base.DIALOG_TEXT_BASE.__init__(self, parent)
         
         typeface_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'buzzard', 'typeface')
@@ -80,6 +82,7 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.SetClientSize(best_size)
         self.config_file = config
         self.func = func
+        self.text_expander = text_expander
 
         self.error = None
         
@@ -111,12 +114,28 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         self.m_MultiLineText.SelectAll()
 
+    def get_user_text(self):
+        user_text = self.m_MultiLineText.GetValue()
+        expanded_text = user_text
+        if self.text_expander is not None:
+            expanded_text = self.text_expander(user_text)
+        return expanded_text
+
     def Cancel(self, e):
         self.timer.Stop()
 
         self.saveConfig()
         e.Skip()
 
+    def getFootprintParams(self, board, f = None) -> Optional[dict]:
+        if 'kibuzzard' in f.GetReference():
+            param_str = f.GetKeywords()
+            if param_str.startswith("kb_params="):
+                encoded_str = param_str[10:]
+                json_str = base64.b64decode(encoded_str).decode('utf-8')
+                params = json.loads(json_str)
+                return params
+        return None
 
     def loadConfig(self):
         # check if we have a footprint we can load value from first
@@ -126,16 +145,11 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             selected_footprints = [f for f in b.Footprints() if f.IsSelected()]
             if len(selected_footprints) == 1:
                 f = selected_footprints[0]
-                if 'kibuzzard' in f.GetReference():
-                    param_str = f.GetKeywords()
-                    if param_str.startswith("kb_params="):
-                        encoded_str = param_str[10:]
-                        json_str = base64.b64decode(encoded_str).decode('utf-8')
-                        params = json.loads(json_str)
-                        self.LoadSettings(params)
-                        self.updateFootprint = f
+                params = self.getFootprintParams(b, f)
+                self.LoadSettings(params)
+                self.updateFootprint = f
 
-                        return
+                return
                 
         except:
             import traceback
@@ -266,16 +280,16 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
 
         self.buzzard.lineOverStyle = self.m_lineoverStyleChoice.GetString(self.m_lineoverStyleChoice.GetSelection())
 
-        
-        if len(self.m_MultiLineText.GetValue()) == 0:
+        user_text = self.get_user_text()
+        if len(user_text) == 0:
             self.RePaint()
             return
-        if len(self.m_MultiLineText.GetValue()) > 128:
+        if len(user_text) > 128:
             self.error = "Text input loo long"
             return
         
         try:
-            self.polys = self.buzzard.generate(self.m_MultiLineText.GetValue())
+            self.polys = self.buzzard.generate(user_text)
         except:
             import traceback
             traceback.print_exc()
@@ -360,6 +374,30 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
             self.ReGeneratePreview()
 
         self.RePaint()
+    
+    def OnRefreshAllClicked(self, event):
+        self.timer.Stop()
+        
+        try:
+            import pcbnew
+            b = pcbnew.GetBoard()
+            fps = list(b.GetFootprints())
+            for f in fps:
+                params = self.getFootprintParams(b, f)
+                if not params:
+                    continue
+                self.LoadSettings(params)
+                self.updateFootprint = f
+                self.label_params.update(self.CurrentSettings())
+                self.ReGeneratePreview()
+                self.func(self, self.buzzard)
+              
+        except:
+            import traceback
+            wx.LogError(traceback.format_exc())
+            return
+
+        pass
 
     def inlineFormatChange(self, event):
         self.ReGeneratePreview()
@@ -371,16 +409,16 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         self.ReGeneratePreview()
 
     def addCharOhm(self, event):
-        self.m_MultiLineText.SetValue(self.m_MultiLineText.GetValue()+"Ω")
+        self.m_MultiLineText.SetValue(self.get_user_text()+"Ω")
 
     def addCharMu(self, event):
-        self.m_MultiLineText.SetValue(self.m_MultiLineText.GetValue()+"µ")
+        self.m_MultiLineText.SetValue(self.get_user_text()+"µ")
 
     def addCharSup2(self, event):
-        self.m_MultiLineText.SetValue(self.m_MultiLineText.GetValue()+"²")
+        self.m_MultiLineText.SetValue(self.get_user_text()+"²")
 
     def addCharDegree(self, event):
-        self.m_MultiLineText.SetValue(self.m_MultiLineText.GetValue()+"°")
+        self.m_MultiLineText.SetValue(self.get_user_text()+"°")
 
     def addCharNumero(self, event):
-        self.m_MultiLineText.SetValue(self.m_MultiLineText.GetValue()+"№")
+        self.m_MultiLineText.SetValue(self.get_user_text()+"№")

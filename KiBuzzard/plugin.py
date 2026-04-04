@@ -114,7 +114,16 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                 self.logger.log(logging.ERROR, "Version check failed \"{}\" not in version list".format(self.kicad_build_version))
             dlg.EndModal(wx.ID_OK)
 
-        dlg = Dialog(self._pcbnew_frame, self.config_file, Buzzard(), run_buzzard)
+        board = pcbnew.GetBoard()
+        project = board.GetProject()
+
+        def text_expander(text) -> str:
+            if not text:
+                return text
+            res = pcbnew.ExpandTextVars(text, project)
+            return res
+
+        dlg = Dialog(self._pcbnew_frame, self.config_file, Buzzard(), run_buzzard, text_expander)
     
         try:
             if dlg.ShowModal() == wx.ID_OK:

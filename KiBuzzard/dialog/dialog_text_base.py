@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+## Python code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6-dirty)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO *NOT* EDIT THIS FILE!
@@ -45,7 +45,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_MultiLineText.SetViewWhiteSpace( False )
         self.m_MultiLineText.SetMarginWidth( 2, 0 )
         self.m_MultiLineText.SetIndentationGuides( True )
-        self.m_MultiLineText.SetReadOnly( False );
+        self.m_MultiLineText.SetReadOnly( False )
         self.m_MultiLineText.SetMarginWidth( 1, 0 )
         self.m_MultiLineText.SetMarginWidth ( 0, 0 )
         self.m_MultiLineText.MarkerDefine( wx.stc.STC_MARKNUM_FOLDER, wx.stc.STC_MARK_BOXPLUS )
@@ -350,10 +350,15 @@ class DIALOG_TEXT_BASE ( DialogShim ):
 
         lowerSizer = wx.BoxSizer( wx.HORIZONTAL )
 
-        bSizer5 = wx.BoxSizer( wx.VERTICAL )
+        bSizer5 = wx.BoxSizer( wx.HORIZONTAL )
 
         self.m_advancedCheckbox = wx.CheckBox( self, wx.ID_ANY, _(u"Advanced"), wx.DefaultPosition, wx.DefaultSize, 0 )
-        bSizer5.Add( self.m_advancedCheckbox, 0, wx.ALL, 5 )
+        bSizer5.Add( self.m_advancedCheckbox, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
+
+        self.m_ButtonRefresh = wx.Button( self, wx.ID_ANY, _(u"Refresh All"), wx.DefaultPosition, wx.DefaultSize, 0 )
+
+        self.m_ButtonRefresh.SetBitmapPosition( wx.LEFT )
+        bSizer5.Add( self.m_ButtonRefresh, 0, wx.ALL, 5 )
 
 
         lowerSizer.Add( bSizer5, 1, wx.ALL, 5 )
@@ -366,9 +371,9 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         m_sdbSizer.AddButton( self.m_sdbSizerOK )
         self.m_sdbSizerCancel = wx.Button( self, wx.ID_CANCEL )
         m_sdbSizer.AddButton( self.m_sdbSizerCancel )
-        m_sdbSizer.Realize();
+        m_sdbSizer.Realize()
 
-        lowerSizer.Add( m_sdbSizer, 0, wx.ALL, 5 )
+        lowerSizer.Add( m_sdbSizer, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5 )
 
 
         bMainSizer.Add( lowerSizer, 0, wx.EXPAND, 5 )
@@ -394,6 +399,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         self.m_spCharNumero.Bind( wx.EVT_BUTTON, self.addCharNumero )
         self.m_inlineFormatTextbox.Bind( wx.EVT_CHECKBOX, self.inlineFormatChange )
         self.m_advancedCheckbox.Bind( wx.EVT_CHECKBOX, self.advancedModeChange )
+        self.m_ButtonRefresh.Bind( wx.EVT_BUTTON, self.OnRefreshAllClicked )
         self.m_sdbSizerOK.Bind( wx.EVT_BUTTON, self.OnOkClick )
 
     def __del__( self ):
@@ -434,6 +440,9 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         pass
 
     def advancedModeChange( self, event ):
+        pass
+
+    def OnRefreshAllClicked( self, event ):
         pass
 
     def OnOkClick( self, event ):
