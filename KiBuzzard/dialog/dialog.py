@@ -67,7 +67,10 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
         #for fnt in buzzard.SystemFonts:
         #    self.m_FontComboBox.Append(fnt)
 
-        self._layer_choices = layer_choices = ["F.Cu", "F.Paste", "F.SilkS", "F.Mask", "F.Cu/F.Mask"]
+        self._layer_choices = layer_choices = [
+            "F.Cu", "F.Paste", "F.SilkS", "F.Mask", "F.Cu/F.Mask",
+            "B.Cu", "B.Paste", "B.SilkS", "B.Mask", "B.Cu/B.Mask",
+        ]
         self.m_LayerComboBox.AppendItems(layer_choices)
         self.m_LayerComboBox.SetSelection(0)
         self.m_HeightUnits.SetLabel("mm")
@@ -132,9 +135,22 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                         encoded_str = param_str[10:]
                         json_str = base64.b64decode(encoded_str).decode('utf-8')
                         params = json.loads(json_str)
-                        self.LoadSettings(params)
                         self.updateFootprint = f
 
+                        # Migrate old footprints: if the footprint lives on B.Cu
+                        # but was saved with an F.* layer (pre-back-layer support),
+                        # flip the layer choice so the dialog reflects reality.
+                        _layer_migration = {
+                            'F.Cu': 'B.Cu', 'F.Paste': 'B.Paste',
+                            'F.SilkS': 'B.SilkS', 'F.Mask': 'B.Mask',
+                            'F.Cu/F.Mask': 'B.Cu/B.Mask',
+                        }
+                        if f.GetLayer() == pcbnew.B_Cu:
+                            stored = params.get('LayerComboBox', 'F.Cu')
+                            if not stored.startswith('B.'):
+                                params['LayerComboBox'] = _layer_migration.get(stored, 'B.Cu')
+
+                        self.LoadSettings(params)
                         return
                 
         except Exception:
@@ -338,10 +354,11 @@ class Dialog(dialog_text_base.DIALOG_TEXT_BASE):
                 scale = (size_x * 0.95) / width
                 scale = min(scale, (size_y * 0.95) / height)
 
-                #scale = min(15.0, scale)
+                mirror = self.buzzard.layer.startswith("B.")
                 for i in range(len(polys)):
                     for j in range(len(polys[i])):
-                        polys[i][j] = (scale*polys[i][j].x,scale*polys[i][j].y)
+                        x = -polys[i][j].x if mirror else polys[i][j].x
+                        polys[i][j] = (scale * x, scale * polys[i][j].y)
 
                 dc.DrawPolygonList(polys)
 
