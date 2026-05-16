@@ -87,21 +87,27 @@ class KiBuzzardPlugin(pcbnew.ActionPlugin, object):
                         pos = dlg.updateFootprint.GetPosition()
                         orient = dlg.updateFootprint.GetOrientationDegrees()
                         wasOnBackLayer = dlg.updateFootprint.GetLayer() == pcbnew.B_Cu
+                        newLayerIsBack = dlg.buzzard.layer.startswith("B.")
 
                         self.logger.log(logging.DEBUG, " pos: {}".format(pos))
                         self.logger.log(logging.DEBUG, " orient: {}".format(orient))
-                        self.logger.log(logging.DEBUG, " need_flip: {}".format(wasOnBackLayer))
-                        
+                        self.logger.log(logging.DEBUG, " wasOnBackLayer: {}".format(wasOnBackLayer))
+                        self.logger.log(logging.DEBUG, " newLayerIsBack: {}".format(newLayerIsBack))
+
                         try:
                             io = pcbnew.PCB_PLUGIN()
                         except AttributeError:
                             io = pcbnew.PCB_IO_KICAD_SEXPR()
-                        
+
                         new_fp = pcbnew.Cast_to_FOOTPRINT(io.Parse(footprint_string))
                         b.Add(new_fp)
                         new_fp.SetPosition(pos)
-                        # Flip before setting orientation
-                        if wasOnBackLayer:
+                        # Flip before setting orientation only when the old footprint was
+                        # on the back and the new one is not (backwards-compat: old footprints
+                        # stored F.Cu params even when they lived on B.Cu).
+                        # When the new layer is already B.*, the footprint string was generated
+                        # with mirrored geometry and B.Cu in its header — no flip needed.
+                        if wasOnBackLayer and not newLayerIsBack:
                             new_fp.Flip(pos, True)
                         new_fp.SetOrientationDegrees(orient)
 

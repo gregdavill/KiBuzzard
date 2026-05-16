@@ -169,14 +169,24 @@ class Buzzard():
 
     def create_v6_footprint(self, parm_text=None):
         name = "kibuzzard-{:8X}".format(int(round(time.time())))
-        mod = Svg2ModExportLatestCustom(Svg2ModImport(module_name=name, module_value="G***"), precision=1.0, scale_factor=self.scaleFactor, center=True, params=parm_text)
-        if self.layer == "F.Cu/F.Mask":
-            mod.add_svg_element(self.svgText, layer="F.Cu")
+        on_back = self.layer.startswith("B.")
+        fp_layer = "B.Cu" if on_back else "F.Cu"
+        mod = Svg2ModExportLatestCustom(
+            Svg2ModImport(module_name=name, module_value="G***"),
+            precision=1.0, scale_factor=self.scaleFactor, center=True,
+            params=parm_text, layer=fp_layer,
+        )
+
+        if self.layer in ("F.Cu/F.Mask", "B.Cu/B.Mask"):
+            cu_layer  = "B.Cu"  if on_back else "F.Cu"
+            msk_layer = "B.Mask" if on_back else "F.Mask"
+            mod.add_svg_element(self.svgText, layer=cu_layer)
             offset_text = copy.copy(self.svgText)
             offset_text.style["stroke-width"] = 0.2
-            mod.add_svg_element(offset_text, layer="F.Mask")
+            mod.add_svg_element(offset_text, layer=msk_layer)
         else:
             mod.add_svg_element(self.svgText, layer=self.layer)
+
         mod.write()
         return mod.raw_file_data
     
@@ -313,7 +323,7 @@ class Buzzard():
         return bbox[1].x - bbox[0].x            
 
 class Svg2ModExportLatestCustom( Svg2ModExportLatest ):
-    
+
     def __init__(
         self,
         svg2mod_import = Svg2ModImport(),
@@ -323,9 +333,11 @@ class Svg2ModExportLatestCustom( Svg2ModExportLatest ):
         precision = 1.0,
         use_mm = True,
         dpi = DEFAULT_DPI,
-        params = None
+        params = None,
+        layer = "F.Cu",
     ):
         self.params = params
+        self.fp_layer = layer
         super( Svg2ModExportLatestCustom, self ).__init__(
             svg2mod_import,
             file_name,
@@ -339,7 +351,7 @@ class Svg2ModExportLatestCustom( Svg2ModExportLatest ):
 
 
     def _write_library_intro( self, cmdline ):
-        self.output_file.write( """(footprint {0} (layer F.Cu) (tedit {1:8X}) (generator kibuzzard)
+        self.output_file.write( """(footprint {0} (layer {4}) (tedit {1:8X}) (generator kibuzzard)
     (attr board_only exclude_from_pos_files exclude_from_bom)
     (descr "{2}")
     (tags "kb_params={3}")
@@ -350,9 +362,23 @@ class Svg2ModExportLatestCustom( Svg2ModExportLatest ):
                 ) ),
                 "Generated with KiBuzzard", #2
                 self.params, #3
+                self.fp_layer, #4
             )
         )
     
+    def _write_modules(self):
+        # For back-side layers svg2mod's flip mechanism negates X coordinates,
+        # which is exactly what we need for readable text on B.Cu.
+        front = not self.fp_layer.startswith("B.")
+        self._write_module(front=front)
+
+    def _write_polygon_point(self, point):
+        if self._extra_indent:
+            self.output_file.write("  " * self._extra_indent)
+        self.output_file.write(
+            "      (xy {:.6g} {:.6g})\n".format(point.x, point.y)
+        )
+
     def _write_module_header(
         self, label_size, label_pen,
         reference_y, value_y, front,

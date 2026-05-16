@@ -177,7 +177,7 @@ class DIALOG_TEXT_BASE ( DialogShim ):
         fgSizerSetup.Add( self.m_LayerComboBox1, 0, wx.ALIGN_CENTER_VERTICAL|wx.LEFT|wx.RIGHT, 5 )
 
         m_LayerComboBoxChoices = []
-        self.m_LayerComboBox = wx.ComboBox( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, m_LayerComboBoxChoices, 0 )
+        self.m_LayerComboBox = wx.ComboBox( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, m_LayerComboBoxChoices, wx.CB_READONLY )
         fgSizerSetup.Add( self.m_LayerComboBox, 0, wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 5 )
 
 
